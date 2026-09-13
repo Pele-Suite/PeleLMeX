@@ -1,5 +1,6 @@
 #include <limits>
 #include <string>
+#include <AMReX_Algorithm.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_buildInfo.H>
 #include <PeleLMeX.H>
@@ -1155,14 +1156,19 @@ PeleLM::reportTurbInflowMaps()
       // axes tdir1/tdir2) and the same Xi extent means the file's Xi grid
       // is a uniform grid on our own transverse domain; with equal cell
       // counts every target cell centre is a file cell centre.
+      // The file's parameters went through a text trailer, so compare
+      // them to ours up to a few ULPs rather than exactly.
+      auto near = [](amrex::Real a, amrex::Real b) {
+        return amrex::almostEqual(a, b, 8);
+      };
       bool same = (fmap.m_kind == m_map_eval.m_kind);
       for (int t = 0; t < 2 && same; ++t) {
         const int d = tdir[t];
-        same = (fmap.m_p[t] == m_map_eval.m_p[d]) &&
-               (fmap.m_p2[t] == m_map_eval.m_p2[d]) &&
-               (fmap.m_p3[t] == m_map_eval.m_p3[d]) &&
+        same = near(fmap.m_p[t], m_map_eval.m_p[d]) &&
+               near(fmap.m_p2[t], m_map_eval.m_p2[d]) &&
+               near(fmap.m_p3[t], m_map_eval.m_p3[d]) &&
                (fmap.m_q[t] == m_map_eval.m_q[d]) &&
-               (xi_lo[t] == gd.ProbLo()[d]) && (xi_hi[t] == gd.ProbHi()[d]);
+               near(xi_lo[t], gd.ProbLo()[d]) && near(xi_hi[t], gd.ProbHi()[d]);
       }
       amrex::Print() << "file is uniform in its precursor's Xi (map kind "
                      << static_cast<int>(fmap.m_kind) << "); ";
@@ -1259,7 +1265,7 @@ PeleLM::reportTurbInflowResolution()
         }
         amrex::Print() << "   dir " << tdir[t] << ": grid dx in [" << dmin
                        << ", " << dmax << "], file dx ";
-        if (file_dmin[t] == file_dmax[t]) {
+        if (amrex::almostEqual(file_dmin[t], file_dmax[t])) {
           amrex::Print() << file_dx[t] << " -> dx_grid/dx_file in ["
                          << dmin / file_dx[t] << ", " << dmax / file_dx[t]
                          << "]\n";
