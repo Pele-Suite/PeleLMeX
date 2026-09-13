@@ -73,7 +73,7 @@ peleLM.num_init_iter = 1
 
 # Slice through the first interior cell layer above the inflow face, every
 # step.  Linear interpolation with center at the cell centre puts unit
-# weight on that layer (the Quadratic option samples one cell low).
+# weight on that layer.
 peleLM.diagnostics = inflowPlane
 peleLM.inflowPlane.type          = DiagFramePlane
 peleLM.inflowPlane.file          = planeCM_

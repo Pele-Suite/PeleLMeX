@@ -349,7 +349,10 @@ Mesh Mapping
    which for ``ConstantMap`` differs from ``geometry.prob_lo`` /
    ``geometry.prob_hi``. Diagnostics inherited from `PelePhysics`, notably
    ``DiagFramePlane``, are the exception: their ``center`` is located on the
-   AMReX grid and is therefore a :math:`\xi` coordinate.
+   AMReX grid and is therefore a :math:`\xi` coordinate by default; set
+   ``peleLM.<diag>.center_is_physical = 1`` to give a physical position
+   instead (the diagnostic reads ``geometry.mesh_mapping`` and prints the
+   :math:`\xi` it resolved to).
 
 .. note::
    **Turbulent inflow.** ``turbinflow`` may be combined with ``mesh_mapping``:
