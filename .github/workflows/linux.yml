@@ -218,6 +218,12 @@ jobs:
         python3 check_inflow_roundtrip.py ghostTanh_000002 ghostRT_000002 --tol 1e-12
         mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_Uniform_xmap peleLM.num_init_iter=1 amrex.abort_on_unused_inputs=1
         python3 check_inflow_roundtrip.py ghostTanh_000002 ghostXM_000002 --source-map tanh --beta 2.0 --tol 1e-10
+        # Same file on a two-level tanh mesh with the inflow face refined: level 0 is
+        # still exact, level 1 (half the file's Xi spacing) must match the source
+        # interpolated in the file's Xi at the fine physical positions.
+        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_TanhStretch_rt_amr peleLM.num_init_iter=1 amrex.abort_on_unused_inputs=1
+        python3 check_inflow_roundtrip.py ghostTanh_000002 ghostRTamr_000002 --tol 1e-12
+        python3 check_inflow_roundtrip.py ghostTanh_000002 ghostRTamr_000002 --level 1 --source-map tanh --target-map tanh --beta 2.0 --tol 1e-10
     - name: Build Vortex Test
       working-directory: ./Exec/RegTests/PeriodicCases/
       run: |

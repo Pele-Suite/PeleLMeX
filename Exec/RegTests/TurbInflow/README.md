@@ -19,5 +19,9 @@ generator turns them into `TurbTanhRT` with the run's map; then
 `input.3d_TanhStretch_rt` injects it on the same mesh (the ghost layer must
 reproduce the source to round-off) and `input.3d_Uniform_xmap` on a uniform
 mesh (must match the source interpolated in the file's Xi at the physical
-cell centres).  `check_inflow_roundtrip.py` scores both; the exact commands
-are in `.github/workflows/linux.yml`.
+cell centres), and `input.3d_TanhStretch_rt_amr` on the same tanh mesh with
+a refined level covering the inflow face (level 0 exact, level 1 checked
+against interpolation in the file's Xi at the fine positions).
+`check_inflow_roundtrip.py` scores all of them (`--level` selects the AMR
+level of the ghost dump); the exact commands are in
+`.github/workflows/linux.yml`.

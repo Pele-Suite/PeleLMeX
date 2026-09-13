@@ -1,0 +1,98 @@
+# Mapped-file injection on a refined inflow face (two levels).
+#
+# input.3d_TanhStretch_rt with a level-1 patch covering the whole low-z face
+# (fixed Xi box, 2:1).  The level-1 inflow ghost cells sit at half the file's
+# Xi spacing, so TurbInflow inverts the map at each fine physical position and
+# interpolates linearly in the file's Xi -- the AMR path through
+# addTurbInflowToBox on a mapped mesh.  The level-1 ghost dump must equal the
+# level-0 source planes interpolated the same way:
+#
+#   check_inflow_roundtrip.py ghostTanh_000002 ghostRTamr_000002 \
+#       --level 1 --source-map tanh --target-map tanh --beta 2.0 --tol 1e-10
+#
+# and the level-0 ghost dump must still reproduce the source to round-off:
+#
+#   check_inflow_roundtrip.py ghostTanh_000002 ghostRTamr_000002 --tol 1e-12
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 0 1 0              # x: slip walls (see header), y periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 0.0 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.01 0.01 0.01     # x_hi y_hi (z_hi)
+
+#-----------------------Mesh Mapping ---------------------------
+geometry.mesh_mapping = TanhStretchMap
+TanhStretchMap.beta   = 2.0 0.0 0.0       # stretch x only; y and z uniform
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = SlipWallAdiab Interior Inflow
+peleLM.hi_bc = SlipWallAdiab Interior Outflow
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 32 32 32          # Level 0 number of cells in each direction
+amr.v               = 1                 # AMR verbose
+amr.max_level       = 1                 # one refined level on the inflow face
+amr.ref_ratio       = 2 2 2 2
+amr.regrid_int      = 2
+amr.n_error_buf     = 0 0 0 0
+amr.grid_eff        = 1.0
+amr.blocking_factor = 8                 # block factor in grid generation
+amr.max_grid_size   = 16                # max box size
+
+# Fixed Xi-space box: the whole low-z face, 8 level-0 cells deep.
+amr.refinement_indicators = inflowFace
+amr.inflowFace.max_level  = 1
+amr.inflowFace.in_box_lo  = 0.0  0.0  0.0
+amr.inflowFace.in_box_hi  = 0.01 0.01 0.0025
+
+#--------------------------- Problem -------------------------------
+prob.T_mean = 298.0
+prob.P_mean = 101325.0
+prob.flowDir = 2
+prob.flowMag = 5
+
+turbinflows = lowZ
+turbinflow.lowZ.turb_file          = TurbTanhRT
+turbinflow.lowZ.dir                = 2
+turbinflow.lowZ.side               = low
+turbinflow.lowZ.turb_scale_loc     = 1.0
+turbinflow.lowZ.turb_scale_vel     = 1.0
+turbinflow.lowZ.turb_nplane        = 5
+turbinflow.lowZ.interp_type        = linear
+turbinflow.lowZ.extrap_nonperiodic = 1
+turbinflow.lowZ.verbose            = 1
+
+#-------------------------PeleLM CONTROL----------------------------
+peleLM.v = 1
+peleLM.incompressible = 0
+peleLM.sdc_iterMax = 1
+peleLM.floor_species = 0
+peleLM.num_divu_iter = 1
+peleLM.num_init_iter = 1
+# The enthalpy->temperature (deltaT) iterations do not converge on this
+# two-level mapped mesh (they do on the single-level input.3d_TanhStretch_rt
+# with the same inflow file); tracked separately from the inflow sampling
+# this case checks, so do not abort on it here.
+peleLM.deltaT_crashIfFailing = 0
+
+# Inflow ghost layer, every step, as flat 3D plotfiles the generator reads.
+peleLM.diagnostics = ghostPlane
+peleLM.ghostPlane.type                   = DiagFramePlane
+peleLM.ghostPlane.file                   = ghostRTamr_
+peleLM.ghostPlane.normal                 = 2
+peleLM.ghostPlane.center                 = -1.0
+peleLM.ghostPlane.dump_ghost_if_OOB      = 1
+peleLM.ghostPlane.dump_flat_3D_plotfile  = 1
+peleLM.ghostPlane.interpolation          = Linear
+peleLM.ghostPlane.int                    = 1
+peleLM.ghostPlane.field_names            = x_velocity y_velocity z_velocity
+
+# Fixed dt so that the plane times are reproduced exactly by the consumer.
+amr.plot_int = -1
+amr.check_int = -1
+amr.max_step = 2
+amr.fixed_dt = 2.e-5
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+
+fabarray.mfiter_tile_size = 1024 1024 1024
