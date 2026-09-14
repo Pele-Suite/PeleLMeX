@@ -281,6 +281,26 @@ PeleLM::computeDifferentialDiffusionTerms(
   }
 }
 
+void
+PeleLM::unscaleMappedDivergence(
+  const amrex::Vector<amrex::MultiFab*>& a_div,
+  const int a_comp,
+  const int a_ncomp)
+{
+  // Under mesh mapping a flux divergence formed in Xi-space from Xi-space
+  // fluxes (bcoeff carries J/fac^2) is J . (physical divergence); divide
+  // by J to return to physical units.  No-op without mapping.
+  if (!m_mesh_mapping) {
+    return;
+  }
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    for (int n = 0; n < a_ncomp; ++n) {
+      amrex::MultiFab::Divide(
+        *a_div[lev], m_mesh_map->detJ_cc(lev), 0, a_comp + n, 1, 0);
+    }
+  }
+}
+
 template <typename EOSType>
 void
 PeleLM::adjustSpeciesFluxes(
@@ -1381,6 +1401,7 @@ PeleLM::differentialDiffusionUpdate(
   fluxDivergence(
     GetVecOfPtrs(diffData->Dhat), 0, GetVecOfArrOfPtrs(fluxes), 0, NUM_SPECIES,
     1, -1.0);
+  unscaleMappedDivergence(GetVecOfPtrs(diffData->Dhat), 0, NUM_SPECIES);
 
   // Repeat for auxiliaries
   if (m_nAux > 0) {
@@ -1389,6 +1410,7 @@ PeleLM::differentialDiffusionUpdate(
     fluxDivergence(
       GetVecOfPtrs(diffData->Dhat_aux), 0, GetVecOfArrOfPtrs(fluxes_aux), 0,
       m_nAux, 1, -1.0);
+    unscaleMappedDivergence(GetVecOfPtrs(diffData->Dhat_aux), 0, m_nAux);
   }
 
   // Update species
@@ -1562,6 +1584,7 @@ PeleLM::differentialDiffusionUpdate(
         GetVecOfPtrs(diffData->Dhat), NUM_SPECIES, GetVecOfArrOfPtrs(fluxes),
         NUM_SPECIES, 2, 1, -1.0);
     }
+    unscaleMappedDivergence(GetVecOfPtrs(diffData->Dhat), NUM_SPECIES, 2);
 
     //------------------------------------------------------------------------
     // Recompute RhoH (before deltaT iters: we've updated species at the new
@@ -1836,6 +1859,7 @@ PeleLM::deltaTIter_update(
       GetVecOfPtrs(diffData->Dhat), NUM_SPECIES, a_fluxes, NUM_SPECIES, 2, 1,
       -1.0);
   }
+  unscaleMappedDivergence(GetVecOfPtrs(diffData->Dhat), NUM_SPECIES, 2);
 
   //------------------------------------------------------------------------
   // Recompute RhoH

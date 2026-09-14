@@ -755,6 +755,11 @@ public:
    * divTau by 1/rho \param scale prefactor of divTau, used to weight by num.
    * scheme property (e.g. 0.5 for Crank Nicholson)
    */
+  //! Under mesh mapping, divide a Xi-space flux divergence by J so that it
+  //! is in physical units (no-op without mapping).
+  void unscaleMappedDivergence(
+    const amrex::Vector<amrex::MultiFab*>& a_div, int a_comp, int a_ncomp);
+
   void computeDivTau(
     const PeleLM::TimeStamp a_time,
     const amrex::Vector<amrex::MultiFab*>& a_divtau,
