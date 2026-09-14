@@ -64,9 +64,10 @@ def read_header(pltdir, level=0):
         sys.exit("%s has finest level %d, requested %d" % (pltdir, finest, level))
     lo = [float(v) for v in lines[i + 3].split()]
     hi = [float(v) for v in lines[i + 4].split()]
-    # line i+5: refinement ratios; i+6: one domain box per level
-    boxes = re.findall(r"\(\([^()]*\)\s*\([^()]*\)\s*\([^()]*\)\)", lines[i + 6])
-    dlo, dhi = _box(boxes[level])
+    # lines i+5..i+5+finest-1: refinement ratios; following lines are domains
+    boxes = []
+    for line in lines[i + 6 : i + 7 + finest]:
+        boxes.extend(re.findall(r"\(\([^()]*\)\s*\([^()]*\)\s*\([^()]*\)\)", line))
     return {"names": names, "dim": dim, "time": time, "prob_lo": lo,
             "prob_hi": hi, "dom_lo": dlo, "dom_hi": dhi, "level": level}
 
