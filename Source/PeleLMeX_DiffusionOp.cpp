@@ -1485,9 +1485,11 @@ DiffusionTensorOp::compute_divtau(
           });
       }
       amrex::Gpu::streamSynchronize();
-#ifdef AMREX_MLTENSOROP_HAS_MAPPING_FACTORS
+#if defined(AMREX_MLTENSOROP_HAS_MAPPING_FACTORS) && !defined(AMREX_USE_EB)
       // The scaled face viscosity handles the normal-derivative part; the
       // transpose and bulk (cross) terms need the per-direction factors.
+      // (m_apply_op is an MLEBTensorOp with EB, which has no mapping API;
+      // mesh mapping is rejected at runtime with EB anyway.)
       m_apply_op->setMappingFactors(
         lev, {AMREX_D_DECL(
                &mm->fac_fc(lev, 0), &mm->fac_fc(lev, 1), &mm->fac_fc(lev, 2))});
