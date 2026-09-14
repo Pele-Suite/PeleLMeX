@@ -92,14 +92,41 @@ controls.
 
 ## Expected results
 
-Indicative numbers at `N = 32` (from `analyze.py`, as of the last run
-of this harness):
+`ref` and every `mapped_*` run discretise the same physical problem on
+the same physical mesh, so once the mapped operators are complete they
+must agree to round-off, not merely to truncation order.  With the
+mapping fixes of September 2026 in place (see below) that is what the
+harness shows: at `N = 32`, after one step, every stage of the advance
+(viscous forces, Godunov predictor, MAC projection, advection terms,
+scalar diffusion, velocity update and nodal projection) agrees between
+`ref` and `mapped_{x,y,z}` to 1e-14 relative in the incompressible
+sweep and to ~1e-12 in the low-Mach sweeps, and `ident` is bit-identical
+to `ref`.
 
-| sweep              | `ident / ref` | `mapped_x / ref` L2 | `mapped_y / ref` L2 | notes |
-|--------------------|---------------|---------------------|---------------------|-------|
-| incompressible     | bit-identical | 0.99985             | 0.99952             | excellent agreement, no amplification loop |
-| lowmach (g ON)     | bit-identical | 0.974               | 0.975               | 2–3 % deviation, grows ~×2/step from buoyancy feedback |
-| lowmach_nograv     | bit-identical | 1.048               | 1.048               | ~5 % deviation, **plateaus**; no amplification |
+Three mapped-operator errors, each `O(dt)` per step and therefore
+invisible in a fixed-dt convergence study, used to produce 0.05 %
+(incompressible), 2–3 % (low Mach with gravity) and ~5 %
+(`lowmach_nograv`) deviations after 20 steps:
+
+- the viscous tensor operator scaled the face viscosity by `J/fac_i²`,
+  which is right for the normal derivatives but leaves the transpose
+  and bulk terms off by `fac_i/fac_j` (fixed in AMReX
+  `MLTensorOp::setMappingFactors`, AMReX #5909, and PeleLMeX passing
+  `fac_fc`; active once PelePhysics pins an amrex containing it —
+  until then the incompressible sweep still shows the 0.05 %);
+- the `Dhat` diffusion terms of the SDC scalar update were not divided
+  by `J` after the ξ-space flux divergence;
+- the Godunov predictor and the state extrapolation advected with the
+  physical velocity / with `J·ũ` instead of the ξ-velocity `ũ = u/fac`.
+
+They were found with a stage-by-stage comparison of the first step
+between `ref` and `mapped_x` (`peleLM.debug_dump_advance`, on the
+`mesh/constantmap-drift-debug` branch), not with the end-state norms
+`analyze.py` reports: the earlier "higher-order truncation amplified by buoyancy"
+reading of the 2–3 % came from L2 ratios dominated by the mean flow,
+and the `O(dt⁴)` step-1 scaling was the ratio of two `O(dt)` errors.
+End-state norms are a convergence check, not a correctness check; use
+the stage dumps for the latter.
 
 For the stretch sweep, even with hypre installed, cases with beta>4 will
 fail in one of the projection steps.  Leading up to this failure in beta
@@ -107,59 +134,23 @@ one should observe dramatically increasing numbers of solver iterations,
 particularly for the mac.  Larger runs at the smaller beta values will be
 required to verify convergence order.
 
-## Why the three sweeps give different magnitudes
+The `lowmach_nograv` sweep is the cleanest low-Mach check: it exercises
+the divU-aware projection and scalar-advection paths through thermal
+expansion of a diffusing hot bubble, without the buoyancy feedback of
+the standard HotBubble case.  Run with `Transport_Model = Simple` it
+also covers temperature-dependent viscosity and conductivity in the
+mapped tensor and Fourier operators; species diffusion with composition
+gradients (Wbar, Soret, mixture-averaged `D`) is not exercised by any
+case here.
 
-Mathematically, ref and mapped are two consistent 2nd-order
-discretisations of the same PDE on the same physical domain.  Their
-per-step truncation errors agree to *higher* than leading order (empirically
-O(dt³) per step at step 1), so the two solutions stay close on their
-own.
+## Historical caveat (resolved)
 
-When a physical mechanism *amplifies* small differences, those
-higher-order truncation differences get magnified into visible
-end-state deviations.  Here the mechanism is buoyancy feedback:
-
-  δρ  →  δg · δρ  →  δu  →  advection of δρ  →  …
-
-Around a hot low-density bubble in gravity, this is roughly a ×2
-per-step multiplication at CFL 0.9.  Twenty steps at ×2 is a ×10⁶
-amplification of an initial ~1e-8 truncation difference into the ~1e-2
-end-state deviation we see.
-
-Evidence that the mapping itself is numerically correct (not buggy):
-
-- **`ident` == `ref` bit-identical** in all three sweeps.
-- **Gravity off, no transport** (uniform density, at-rest) → mapped ==
-  ref bit-identical (the mapping arithmetic is exact in that limit).
-- **Fixed very small dt** → the step-1 mapped-vs-ref deviation drops to
-  float round-off (~1e-16), confirming no dt-independent coding error.
-- **Per-step error scales ~O(dt⁴) at step 1** — much steeper than
-  2nd-order truncation; consistent with both schemes sharing their
-  leading-order stencil and differing only in higher-order terms.
-- **Incompressible sweep (no buoyancy loop)** agrees to ~0.05 %.
-- **`lowmach_nograv` sweep (low-Mach, no buoyancy loop)** agrees to
-  ~5 % *and plateaus*, vs. the gravity-on `lowmach` sweep that
-  amplifies toward 2.5 % over 20 steps from a smaller per-step
-  starting point.
-
-The `lowmach_nograv` sweep is the cleanest low-Mach convergence
-check: it exercises the divU-aware projection and scalar-advection
-paths through thermal expansion of a diffusing hot bubble, without
-being dominated by the buoyancy amplification of the standard
-HotBubble case.
-
-## Historical caveat (now resolved)
-
-Earlier versions of this harness noted a suspected σ_x-only bug in
-`MLNodeLaplacian::updateVelocity`/`getFluxes` in AMReX, which was
-hypothesised to cause the 2–3 % low-Mach deviation.  The fix landed in
-AMReX (`mlndlap_mknewu_ha`, feature macro
-`AMREX_MLNODELAP_HAS_MKNEWU_HA`) and the corresponding PeleLMeX
-post-hoc σ_x correction (in `velocityProjection` /
-`initialProjection`) is now gated on that macro.  The fix made the
-code cleaner but did **not** change the observed deviation — confirming
-that the 2–3 % is buoyancy-amplification of higher-order truncation,
-not a coding bug.
+Earlier versions of this harness suspected a σ_x-only bug in
+`MLNodeLaplacian::updateVelocity`/`getFluxes` in AMReX.  That fix landed
+in AMReX (`mlndlap_mknewu_ha`, feature macro
+`AMREX_MLNODELAP_HAS_MKNEWU_HA`) and the PeleLMeX post-hoc σ_x
+correction is gated on the macro; it did not change the deviation,
+which had the three causes listed above.
 
 ## Output structure
 
