@@ -44,6 +44,74 @@ PeleLM::predictVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
     add_gradP);
 
   //----------------------------------------------------------------
+  // Mesh mapping: the Godunov extrapolation works on the uniform Xi grid,
+  // so it is done on the Xi-velocity u~_d = u_d / fac_d (fac_d = dx_d/dXi_d
+  // depends on Xi_d only), which is both the transported quantity and the
+  // advection speed in Xi.  Its equation follows from the physical one:
+  //   d u~_d/dt + sum_j u~_j d u~_d/dXi_j
+  //       = F_d / fac_d - u~_d^2 (d fac_d/dXi_d) / fac_d
+  // The predicted faces are converted back to physical velocities, which is
+  // what macProject expects on entry.
+  amrex::Vector<amrex::MultiFab> vel_xi;
+  if (m_mesh_mapping) {
+    vel_xi.reserve(finest_level + 1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      auto* ldata_p = getLevelDataPtr(lev, AmrOldTime);
+      const amrex::IntVect ngv = ldata_p->state.nGrowVect();
+      vel_xi.emplace_back(
+        grids[lev], dmap[lev], AMREX_SPACEDIM, ngv, amrex::MFInfo(),
+        Factory(lev));
+      AMREX_ASSERT(m_mesh_map->fac_cc(lev).nGrowVect().allGE(ngv));
+      AMREX_ASSERT(m_mesh_map->fac_fc(lev, 0).nGrowVect().allGE(
+        amrex::IntVect(nGrow_force + 1)));
+      const auto dxinv = geom[lev].InvCellSizeArray();
+      const auto& vel_ma = ldata_p->state.const_arrays();
+      const auto& fac_ma = m_mesh_map->fac_cc(lev).const_arrays();
+      const auto& uxi_ma = vel_xi[lev].arrays();
+      amrex::ParallelFor(
+        vel_xi[lev], ngv, AMREX_SPACEDIM,
+        [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k, int n) noexcept {
+          uxi_ma[box_no](i, j, k, n) =
+            vel_ma[box_no](i, j, k, VELX + n) / fac_ma[box_no](i, j, k, n);
+        });
+      const auto& force_ma = velForces[lev].arrays();
+      AMREX_D_TERM(
+        const auto& facx_ma = m_mesh_map->fac_fc(lev, 0).const_arrays();
+        , const auto& facy_ma = m_mesh_map->fac_fc(lev, 1).const_arrays();
+        , const auto& facz_ma = m_mesh_map->fac_fc(lev, 2).const_arrays();)
+      amrex::ParallelFor(
+        velForces[lev], amrex::IntVect(nGrow_force),
+        [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+          auto f = force_ma[box_no];
+          auto fac = fac_ma[box_no];
+          auto uxi = uxi_ma[box_no];
+          // d fac_d / dXi_d at the cell centre from the d-face values
+          AMREX_D_TERM(
+            const amrex::Real dfx =
+              (facx_ma[box_no](i + 1, j, k, 0) - facx_ma[box_no](i, j, k, 0)) *
+              dxinv[0];
+            , const amrex::Real dfy = (facy_ma[box_no](i, j + 1, k, 1) -
+                                       facy_ma[box_no](i, j, k, 1)) *
+                                      dxinv[1];
+            , const amrex::Real dfz = (facz_ma[box_no](i, j, k + 1, 2) -
+                                       facz_ma[box_no](i, j, k, 2)) *
+                                      dxinv[2];)
+          AMREX_D_TERM(
+            f(i, j, k, 0) =
+              (f(i, j, k, 0) - uxi(i, j, k, 0) * uxi(i, j, k, 0) * dfx) /
+              fac(i, j, k, 0);
+            , f(i, j, k, 1) =
+                (f(i, j, k, 1) - uxi(i, j, k, 1) * uxi(i, j, k, 1) * dfy) /
+                fac(i, j, k, 1);
+            , f(i, j, k, 2) =
+                (f(i, j, k, 2) - uxi(i, j, k, 2) * uxi(i, j, k, 2) * dfz) /
+                fac(i, j, k, 2););
+        });
+    }
+    amrex::Gpu::streamSynchronize();
+  }
+
+  //----------------------------------------------------------------
   // Predict face velocities at t^{n+1/2} with Godunov
   auto bcRecVel = fetchBCRecArray(VELX, AMREX_SPACEDIM);
   auto bcRecVel_d = convertToDeviceVector(bcRecVel);
@@ -57,7 +125,7 @@ PeleLM::predictVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
 #endif
 
     HydroUtils::ExtrapVelToFaces(
-      ldata_p->state, velForces[lev],
+      m_mesh_mapping ? vel_xi[lev] : ldata_p->state, velForces[lev],
       AMREX_D_DECL(
         advData->umac[lev][0], advData->umac[lev][1], advData->umac[lev][2]),
       bcRecVel, bcRecVel_d.dataPtr(), geom[lev], m_dt,
@@ -69,6 +137,15 @@ PeleLM::predictVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
 #endif
       m_Godunov_ppm != 0, m_Godunov_ForceInTrans != 0, m_predict_advection_type,
       m_Godunov_ppm_limiter);
+
+    // Back to physical face velocities: u_d = fac_d u~_d
+    if (m_mesh_mapping) {
+      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        amrex::MultiFab::Multiply(
+          advData->umac[lev][idim], m_mesh_map->fac_fc(lev, idim), idim, 0, 1,
+          advData->umac[lev][idim].nGrowVect());
+      }
+    }
   }
 }
 

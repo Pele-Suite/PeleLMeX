@@ -1696,6 +1696,30 @@ public:
   void computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData);
   void updateVelocity(const std::unique_ptr<AdvanceAdvData>& advData);
 
+  /**
+   * \brief Face velocities for the Godunov extrapolation on level a_lev.
+   * Without mesh mapping this is advData->umac[a_lev]. Under mesh mapping
+   * umac holds J.u~ after the MAC projection (see macProject); the
+   * extrapolation in Xi needs the Xi-velocity u~ = umac / J_fc, which is
+   * built in a_scratch and returned instead.
+   */
+  amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM> getExtrapUmac(
+    int a_lev,
+    const std::unique_ptr<AdvanceAdvData>& advData,
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>& a_scratch);
+
+  /**
+   * \brief Under mesh mapping, multiply advective fluxes computed with the
+   * Xi-velocity u~ by J_fc so that their Xi divergence is J.(physical
+   * divergence), consistent with the J.divU used in advFluxDivergence.
+   * No-op without mapping.
+   */
+  void scaleMappedAdvFluxes(
+    int a_lev,
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>& a_fluxes,
+    int a_comp,
+    int a_ncomp);
+
   void getScalarAdvForce(
     const std::unique_ptr<AdvanceAdvData>& advData,
     const std::unique_ptr<AdvanceDiffData>& diffData);

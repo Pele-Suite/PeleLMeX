@@ -76,13 +76,11 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
       fillpatch_divu(lev, time, divu, m_nGrowdivu);
     }
 
-    // Under mesh mapping, umac lives in uniform (Xi) space after MAC
-    // projection, so the Godunov non-conservative correction needs
-    // J.divU rather than divU (see amr-wind mapping.rst).
-    if (m_mesh_mapping) {
-      amrex::MultiFab::Multiply(
-        divu, m_mesh_map->detJ_cc(lev), 0, 0, 1, m_nGrowdivu);
-    }
+    // Under mesh mapping the extrapolation is done in Xi with the
+    // Xi-velocity u~ = umac / J_fc and the physical divU; the fluxes
+    // u~.q are rescaled by J_fc below (see getExtrapUmac).
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> umac_xi;
+    const auto umacE = getExtrapUmac(lev, advData, umac_xi);
 
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB
@@ -99,9 +97,9 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
 
       amrex::Box const& bx = mfi.tilebox();
       AMREX_D_TERM(
-        auto const& umac = advData->umac[lev][0].const_array(mfi);
-        , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-        , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+        auto const& umac = umacE[0]->const_array(mfi);
+        , auto const& vmac = umacE[1]->const_array(mfi);
+        , auto const& wmac = umacE[2]->const_array(mfi);)
       AMREX_D_TERM(
         auto const& fx = fluxes[lev][0].array(mfi);
         , auto const& fy = fluxes[lev][1].array(mfi);
@@ -131,6 +129,7 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
         m_Godunov_ppm != 0, m_Godunov_ForceInTrans != 0, is_velocity,
         fluxes_are_area_weighted, m_advection_type, m_Godunov_ppm_limiter);
     }
+    scaleMappedAdvFluxes(lev, fluxes[lev], 0, AMREX_SPACEDIM);
 #ifdef AMREX_USE_EB
     EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]), 0.);
     EB_set_covered_faces(GetArrOfPtrs(faces[lev]), 0.);
@@ -434,14 +433,11 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
       amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
 
-    // Under mesh mapping, umac lives in uniform (Xi) space coming out
-    // of the MAC projection.  Scale divU by detJ so the non-conservative
-    // Godunov correction sees J.S rather than S (see Phase 2c comment in
-    // computeVelocityAdvTerm for the derivation).
-    if (m_mesh_mapping) {
-      amrex::MultiFab::Multiply(
-        divu, m_mesh_map->detJ_cc(lev), 0, 0, 1, m_nGrowdivu);
-    }
+    // Under mesh mapping the extrapolation is done in Xi with the
+    // Xi-velocity u~ = umac / J_fc and the physical divU; the fluxes
+    // u~.q are rescaled by J_fc below (see getExtrapUmac).
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> umac_xi;
+    const auto umacE = getExtrapUmac(lev, advData, umac_xi);
 
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB
@@ -460,9 +456,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
 
       amrex::Box const& bx = mfi.tilebox();
       AMREX_D_TERM(
-        auto const& umac = advData->umac[lev][0].const_array(mfi);
-        , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-        , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+        auto const& umac = umacE[0]->const_array(mfi);
+        , auto const& vmac = umacE[1]->const_array(mfi);
+        , auto const& wmac = umacE[2]->const_array(mfi);)
       AMREX_D_TERM(
         auto const& fx = fluxes[lev][0].array(mfi, 0);
         , auto const& fy = fluxes[lev][1].array(mfi, 0);
@@ -563,9 +559,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
            mfi.isValid(); ++mfi) {
         amrex::Box const& bx = mfi.tilebox();
         AMREX_D_TERM(
-          auto const& umac = advData->umac[lev][0].const_array(mfi);
-          , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-          , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+          auto const& umac = umacE[0]->const_array(mfi);
+          , auto const& vmac = umacE[1]->const_array(mfi);
+          , auto const& wmac = umacE[2]->const_array(mfi);)
         AMREX_D_TERM(
           auto const& fx = fluxes_aux[lev][0].array(mfi, 0);
           , auto const& fy = fluxes_aux[lev][1].array(mfi, 0);
@@ -661,9 +657,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
          mfi.isValid(); ++mfi) {
       amrex::Box const& bx = mfi.tilebox();
       AMREX_D_TERM(
-        auto const& umac = advData->umac[lev][0].const_array(mfi);
-        , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-        , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+        auto const& umac = umacE[0]->const_array(mfi);
+        , auto const& vmac = umacE[1]->const_array(mfi);
+        , auto const& wmac = umacE[2]->const_array(mfi);)
       AMREX_D_TERM(
         auto const& fx = fluxes[lev][0].array(mfi, NUM_SPECIES);
         , // Put temp fluxes in place of rhoH
@@ -755,9 +751,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
          mfi.isValid(); ++mfi) {
       amrex::Box const& bx = mfi.tilebox();
       AMREX_D_TERM(
-        auto const& umac = advData->umac[lev][0].const_array(mfi);
-        , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-        , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+        auto const& umac = umacE[0]->const_array(mfi);
+        , auto const& vmac = umacE[1]->const_array(mfi);
+        , auto const& wmac = umacE[2]->const_array(mfi);)
       AMREX_D_TERM(
         auto const& fx = fluxes[lev][0].array(mfi, NUM_SPECIES);
         , auto const& fy = fluxes[lev][1].array(mfi, NUM_SPECIES);
@@ -786,6 +782,10 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
 #endif
         m_Godunov_ppm != 0, m_Godunov_ForceInTrans != 0, is_velocity,
         fluxes_are_area_weighted, m_advection_type, m_Godunov_ppm_limiter);
+    }
+    scaleMappedAdvFluxes(lev, fluxes[lev], 0, NUM_SPECIES + 1);
+    if (m_nAux > 0) {
+      scaleMappedAdvFluxes(lev, fluxes_aux[lev], 0, m_nAux);
     }
 #ifdef AMREX_USE_EB
     EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]), 0.);
@@ -1058,6 +1058,12 @@ PeleLM::computePassiveAdvTerms(
       amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
 
+    // Under mesh mapping the extrapolation is done in Xi with the
+    // Xi-velocity u~ = umac / J_fc and the physical divU; the fluxes
+    // u~.q are rescaled by J_fc below (see getExtrapUmac).
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> umac_xi;
+    const auto umacE = getExtrapUmac(lev, advData, umac_xi);
+
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB
     // Get EBFact
@@ -1072,9 +1078,9 @@ PeleLM::computePassiveAdvTerms(
          mfi.isValid(); ++mfi) {
       amrex::Box const& bx = mfi.tilebox();
       AMREX_D_TERM(
-        auto const& umac = advData->umac[lev][0].const_array(mfi);
-        , auto const& vmac = advData->umac[lev][1].const_array(mfi);
-        , auto const& wmac = advData->umac[lev][2].const_array(mfi);)
+        auto const& umac = umacE[0]->const_array(mfi);
+        , auto const& vmac = umacE[1]->const_array(mfi);
+        , auto const& wmac = umacE[2]->const_array(mfi);)
       AMREX_D_TERM(
         auto const& fx = fluxes[lev][0].array(mfi, 0);
         , auto const& fy = fluxes[lev][1].array(mfi, 0);
@@ -1102,6 +1108,7 @@ PeleLM::computePassiveAdvTerms(
         m_Godunov_ppm != 0, m_Godunov_ForceInTrans != 0, is_velocity,
         fluxes_are_area_weighted, m_advection_type, m_Godunov_ppm_limiter);
     }
+    scaleMappedAdvFluxes(lev, fluxes[lev], 0, ncomp);
 #ifdef AMREX_USE_EB
     EB_set_covered_faces(GetArrOfPtrs(fluxes[lev]), 0.);
 #endif
@@ -1139,6 +1146,11 @@ PeleLM::computePassiveAdvTerms(
       const amrex::Real time = getTime(lev, AmrOldTime);
       fillpatch_divu(lev, time, divu, m_nGrowdivu);
     }
+    // Fluxes are J.u~.q: the non-conservative correction needs J.divU
+    if (m_mesh_mapping) {
+      amrex::MultiFab::Multiply(
+        divu, m_mesh_map->detJ_cc(lev), 0, 0, 1, m_nGrowdivu);
+    }
 
     constexpr bool fluxes_are_area_weighted = false;
 #ifdef AMREX_USE_EB
@@ -1168,6 +1180,15 @@ PeleLM::computePassiveAdvTerms(
       0, GetArrOfConstPtrs(edgeState[lev]), 0, ncomp, AdvTypeAll_d.dataPtr(),
       geom[lev], -1.0, fluxes_are_area_weighted);
 #endif
+
+    // Xi-space divergence is J.(physical divergence): restore physical units
+    if (m_mesh_mapping) {
+      for (int n = 0; n < ncomp; ++n) {
+        amrex::MultiFab::Divide(
+          advData->AofS[lev], m_mesh_map->detJ_cc(lev), 0, state_comp + n, 1,
+          0);
+      }
+    }
   }
   // TODO: This assumes passive variables have no diffusive fluxes
   updateScalarComp(advData, state_comp, ncomp);
@@ -1208,4 +1229,57 @@ PeleLM::updateScalarComp(
   }
   amrex::Gpu::streamSynchronize();
   averageDown(AmrNewTime, state_comp, ncomp);
+}
+
+amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>
+PeleLM::getExtrapUmac(
+  int a_lev,
+  const std::unique_ptr<AdvanceAdvData>& advData,
+  amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>& a_scratch)
+{
+  amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM> r;
+  if (!m_mesh_mapping) {
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+      r[idim] = &advData->umac[a_lev][idim];
+    }
+    return r;
+  }
+
+  // umac = J.u~ after the MAC projection (macProject); the Godunov
+  // extrapolation advances the state in Xi and needs the Xi-velocity
+  // u~ = u_d / fac_d = umac / J_fc on each face.  The metric MultiFabs
+  // carry at least as many ghost faces as umac.
+  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+    const amrex::MultiFab& um = advData->umac[a_lev][idim];
+    a_scratch[idim].define(
+      um.boxArray(), um.DistributionMap(), 1, um.nGrowVect(), amrex::MFInfo(),
+      um.Factory());
+    amrex::MultiFab::Copy(a_scratch[idim], um, 0, 0, 1, um.nGrowVect());
+    amrex::MultiFab::Divide(
+      a_scratch[idim], m_mesh_map->detJ_fc(a_lev, idim), 0, 0, 1,
+      um.nGrowVect());
+    r[idim] = &a_scratch[idim];
+  }
+  return r;
+}
+
+void
+PeleLM::scaleMappedAdvFluxes(
+  int a_lev,
+  amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>& a_fluxes,
+  int a_comp,
+  int a_ncomp)
+{
+  if (!m_mesh_mapping) {
+    return;
+  }
+  // Fluxes were formed with u~: F = u~.q.  Multiply by J_fc so that the Xi
+  // divergence of F is J.(physical divergence), the scaling advFluxDivergence
+  // and the J.divU correction assume; AofS is divided by J afterwards.
+  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+    for (int n = 0; n < a_ncomp; ++n) {
+      amrex::MultiFab::Multiply(
+        a_fluxes[idim], m_mesh_map->detJ_fc(a_lev, idim), 0, a_comp + n, 1, 0);
+    }
+  }
 }
