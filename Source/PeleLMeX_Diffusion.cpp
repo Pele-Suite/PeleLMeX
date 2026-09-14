@@ -301,6 +301,35 @@ PeleLM::unscaleMappedDivergence(
   }
 }
 
+void
+PeleLM::scaleFaceDiffusivityMapped(
+  const int a_lev, amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>& a_beta_ec)
+{
+  // Under mesh mapping the diffusion operators carry (J/fac_i^2) . beta on
+  // face i, so that beta . d(phi)/dXi is the Xi-space flux (J/fac_i) . F
+  // whose Xi-divergence is J . (physical divergence).  Correction fluxes
+  // assembled by hand from a face diffusivity and a Xi-gradient must carry
+  // the same factor to be consistent with them.  No-op without mapping.
+  if (!m_mesh_mapping) {
+    return;
+  }
+  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+    const auto& fac_ma = m_mesh_map->fac_fc(a_lev, idim).const_arrays();
+    const auto& detJ_ma = m_mesh_map->detJ_fc(a_lev, idim).const_arrays();
+    const auto& b_ma = a_beta_ec[idim].arrays();
+    const int nc = idim;
+    const int ncomp = a_beta_ec[idim].nComp();
+    amrex::ParallelFor(
+      a_beta_ec[idim], amrex::IntVect(0), ncomp,
+      [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k, int n) noexcept {
+        const amrex::Real f = fac_ma[box_no](i, j, k, nc);
+        const amrex::Real dJ = detJ_ma[box_no](i, j, k);
+        b_ma[box_no](i, j, k, n) *= dJ / (f * f);
+      });
+  }
+  amrex::Gpu::streamSynchronize();
+}
+
 template <typename EOSType>
 void
 PeleLM::adjustSpeciesFluxes(
@@ -835,6 +864,9 @@ PeleLM::addWbarTerm(
     constexpr int addTurbContrib = 0;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_ec = getDiffusivity(
       lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, *a_beta[lev], addTurbContrib);
+    // gradWbar below is a Xi-gradient: make the Wbar flux a Xi-space flux
+    // like the species fluxes it is added to.
+    scaleFaceDiffusivityMapped(lev, beta_ec);
 
     const amrex::Box& domain = geom[lev].Domain();
     const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
@@ -964,6 +996,9 @@ PeleLM::addSoretTerm(
     constexpr int doZeroVisc = 1;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_ec = getDiffusivity(
       lev, NUM_SPECIES + 2, NUM_SPECIES, doZeroVisc, bcRecSpec, *a_beta[lev]);
+    // gradT below is a Xi-gradient: make the Soret flux a Xi-space flux like
+    // the species fluxes it is added to.
+    scaleFaceDiffusivityMapped(lev, beta_ec);
 
     const amrex::Box& domain = geom[lev].Domain();
     const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
