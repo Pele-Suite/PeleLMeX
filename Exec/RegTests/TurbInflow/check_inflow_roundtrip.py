@@ -4,8 +4,7 @@ against the planes the file was made from.
 
 usage:
   check_inflow_roundtrip.py <source_plane> <ghost_plane> [--tol 1e-12]
-      [--level L] [--source-map tanh [--target-map tanh] --beta 2.0]
-      [--fields x_velocity,y_velocity]
+      [--source-map tanh --beta 2.0] [--fields x_velocity,y_velocity]
 
 Both arguments are single-level AMReX plotfiles written by PelePhysics'
 DiagFramePlane with normal = 2 (plane axes x, y), 2D or flat 3D.  The source
@@ -18,18 +17,13 @@ file is uniform in the target's own Xi, TurbInflow's inverse map lands on
 file cell centres, and the ghost plane must reproduce the source to
 round-off -- max |ghost - source| <= tol * max |source| per field.
 
-With --source-map the source run carried the named map (tanh:
-TanhStretchMap with --beta on x) and the target's cell centres do not
-coincide with the file's: a uniform target (default), or a target with the
-same map (--target-map tanh) but a different cell count, e.g. the level-1
-ghost layer of a refined run (--level 1).  TurbInflow then inverts the
-file's map at each target cell centre and interpolates linearly in the
-file's Xi; this script does the same with numpy and requires agreement to
-tol.  It also reports the error of the wrong hypothesis (the source read
-at Xi = x, i.e. no inverse) and requires it to be clearly larger, so a
-silently missing inverse fails the check.  --level selects the AMR level
-of the ghost plane (default 0); cells of that level not covered by the
-plane's grids are skipped.
+With --source-map the target is a uniform mesh and the source run carried
+the named map (tanh: TanhStretchMap with --beta on x).  TurbInflow then
+inverts the file's map at each target cell centre and interpolates linearly
+in the file's Xi; this script does the same with numpy and requires
+agreement to tol.  It also reports the error of the wrong hypothesis (the
+source read at Xi = x, i.e. no inverse) and requires it to be clearly
+larger, so a silently missing inverse fails the check.
 
 Only the transverse velocity fields are compared by default: the normal
 component carries the mean inflow, which the file adds to.
@@ -50,7 +44,6 @@ def _box(s):
     d = len(nums) // 3
     return tuple(nums[:d]), tuple(nums[d : 2 * d])
 
-
 def read_header(pltdir, level=0):
     with open(os.path.join(pltdir, "Header")) as f:
         lines = [ln.rstrip("\n") for ln in f]
@@ -69,8 +62,7 @@ def read_header(pltdir, level=0):
     for line in lines[i + 6 : i + 7 + finest]:
         boxes.extend(re.findall(r"\(\([^()]*\)\s*\([^()]*\)\s*\([^()]*\)\)", line))
     return {"names": names, "dim": dim, "time": time, "prob_lo": lo,
-            "prob_hi": hi, "dom_lo": dlo, "dom_hi": dhi, "level": level}
-
+            "prob_hi": hi, "dom_lo": lo, "dom_hi": hi, "level": level}
 
 def read_fab(path, offset, ncomp):
     with open(path, "rb") as f:
@@ -101,9 +93,9 @@ def read_fab(path, offset, ncomp):
     return lo, hi, arr
 
 
-def load_plane(pltdir, level=0):
-    hdr = read_header(pltdir, level)
-    lev = os.path.join(pltdir, "Level_%d" % level)
+def load_plane(pltdir):
+    hdr = read_header(pltdir)
+    lev = os.path.join(pltdir, "Level_0")
     with open(os.path.join(lev, "Cell_H")) as f:
         txt = f.read()
     fabs = re.findall(r"FabOnDisk:\s+(\S+)\s+(\d+)", txt)
@@ -119,7 +111,7 @@ def load_plane(pltdir, level=0):
         if len(lo) == 3:
             arr = arr[:, :, :, 0]
         full[(slice(None),) + sl] = arr
-    if level == 0 and np.isnan(full).any():
+    if np.isnan(full).any():
         sys.exit("plane not fully covered by FABs in " + pltdir)
     return hdr, full
 
@@ -136,36 +128,25 @@ def tanh_xi_from_x(x, beta, plo, phi):
     return plo + L * 0.5 * (1.0 + np.arctanh(arg) / beta)
 
 
-def tanh_x_from_xi(xi, beta, plo, phi):
-    L = phi - plo
-    if abs(beta) < 1e-8:
-        return xi
-    s = (xi - plo) / L
-    return plo + L * 0.5 * (1.0 + np.tanh(beta * (2.0 * s - 1.0)) / np.tanh(beta))
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source")
     ap.add_argument("ghost")
     ap.add_argument("--tol", type=float, default=1e-12, help="relative tolerance (default 1e-12)")
-    ap.add_argument("--source-map", choices=["tanh"], default=None, help="map of the source run")
-    ap.add_argument("--target-map", choices=["tanh"], default=None,
-                    help="map of the target run (default: uniform); same beta as the source")
-    ap.add_argument("--beta", type=float, default=2.0, help="tanh beta on x")
-    ap.add_argument("--level", type=int, default=0, help="AMR level of the ghost plane to check (default 0)")
+    ap.add_argument("--source-map", choices=["tanh"], default=None, help="map of the source run (target is uniform)")
+    ap.add_argument("--beta", type=float, default=2.0, help="tanh beta on x of the source run")
     ap.add_argument("--fields", default="x_velocity,y_velocity")
     ap.add_argument("--min-ratio", type=float, default=100.0,
                     help="cross-map: required ratio of the no-inverse error to the checked error")
     a = ap.parse_args()
 
     hs, S = load_plane(a.source)
-    hg, G = load_plane(a.ghost, a.level)
+    hg, G = load_plane(a.ghost)
     fields = a.fields.split(",")
     for f in fields:
         if f not in hs["names"] or f not in hg["names"]:
             sys.exit("field %s not in both planes" % f)
-    if a.source_map is None and S.shape[2] != G.shape[2]:
+    if S.shape[2] != G.shape[2]:
         sys.exit("planes differ in y cell count (%d vs %d)" % (S.shape[2], G.shape[2]))
 
     if a.source_map is None:
@@ -184,49 +165,22 @@ def main():
         print("same-map round trip:", "PASS" if ok else "FAIL")
         sys.exit(0 if ok else 1)
 
-    # Cross-map: the target's cell centres do not coincide with the file's.
-    # Source and target may differ in map (uniform vs tanh) and in cell count
-    # (a refined level); y is uniform on both, so a differing y count is a
-    # pure refinement and is handled by nearest-cell lookup in y.
+    # Cross-map: uniform target, source run mapped on x.
     nxs, nxg = S.shape[1], G.shape[1]
-    nys, nyg = S.shape[2], G.shape[2]
     plo_s, phi_s = hs["prob_lo"][0], hs["prob_hi"][0]       # source Xi extent (= its physical extent for tanh)
-    plo_g, phi_g = hg["prob_lo"][0], hg["prob_hi"][0]       # target extent (Xi for a mapped target)
+    plo_g, phi_g = hg["prob_lo"][0], hg["prob_hi"][0]       # target physical extent
     xi_src = plo_s + (np.arange(nxs) + 0.5) * (phi_s - plo_s) / nxs
-    xi_grid_tgt = plo_g + (np.arange(nxg) + 0.5) * (phi_g - plo_g) / nxg
-    if a.target_map == "tanh":
-        x_tgt = tanh_x_from_xi(xi_grid_tgt, a.beta, plo_g, phi_g)     # physical centres of the mapped target
-    else:
-        x_tgt = xi_grid_tgt                                          # uniform target: grid coordinate is physical
+    x_tgt = plo_g + (np.arange(nxg) + 0.5) * (phi_g - plo_g) / nxg
     if a.source_map == "tanh":
         xi_tgt = tanh_xi_from_x(x_tgt, a.beta, plo_s, phi_s)
     inside = (xi_tgt >= xi_src[0]) & (xi_tgt <= xi_src[-1])
     if inside.sum() < 4:
         sys.exit("too few target cells inside the source plane's interior stencil")
-    if nyg % nys != 0:
-        sys.exit("target y count %d is not a multiple of the source's %d" % (nyg, nys))
-    ry = nyg // nys
-    jsrc = np.arange(nyg) // ry          # source column under each target column
-    if ry > 1:
-        # y is uniform on both: with the file's y spacing ry times the
-        # target's, TurbInflow interpolates linearly in y too.
-        y_src = (np.arange(nys) + 0.5) / nys
-        y_tgt = (np.arange(nyg) + 0.5) / nyg
-    covered = ~np.isnan(G[0])
 
     def interp_in_xi(s, xi):
-        out = np.empty((xi.size, nyg))
-        if ry == 1:
-            for j in range(nys):
-                out[:, j] = np.interp(xi, xi_src, s[:, j])
-        else:
-            tmp = np.empty((xi.size, nys))
-            for j in range(nys):
-                tmp[:, j] = np.interp(xi, xi_src, s[:, j])
-            for i in range(xi.size):
-                # y is periodic in these cases: wrap rather than clamp at the
-                # edges, as the file's periodic ghost rows do.
-                out[i, :] = np.interp(y_tgt, y_src, tmp[i, :], period=1.0)
+        out = np.empty((xi.size, s.shape[1]))
+        for j in range(s.shape[1]):
+            out[:, j] = np.interp(xi, xi_src, s[:, j])
         return out
 
     ok = True
@@ -236,9 +190,8 @@ def main():
         scale = np.abs(s).max()
         ref = interp_in_xi(s, xi_tgt)          # what TurbInflow must produce
         wrong = interp_in_xi(s, x_tgt)         # no inverse: source read at Xi = x
-        mask = inside[:, None] & covered
-        err = np.abs(g - ref)[mask].max()
-        err_wrong = np.abs(g - wrong)[mask].max()
+        err = np.abs(g - ref)[inside].max()
+        err_wrong = np.abs(g - wrong)[inside].max()
         passed = (err <= a.tol * scale) and (err_wrong >= a.min_ratio * max(err, np.finfo(float).tiny))
         ok &= passed
         print("%-12s max|ghost-interp_xi(source)| = %.3e  no-inverse hypothesis: %.3e  (max|source| = %.3e) %s"
