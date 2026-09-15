@@ -461,12 +461,14 @@ exponential stretching in a single direction to concentrate cells toward one bou
 cells along both the low and high sides of each dimension independently. Allowable parameters to control this feature are described
 in :ref:`the controls section <ssec:meshMappingParameters>`. Examples that employ these transformations appear in
 the `RegTests` folder, including `LidDrivenCavity` and `PipeFlow`.  Note that stretching beyond a :math:`\beta` factor of
-above about 3-4 begins to degrade the converence of the discrete operators in `PeleLMeX`, and :math:`\beta > 2` requires that
+above about 3-4 begins to degrade the convergence of the discrete operators in `PeleLMeX`, and :math:`\beta > 2` requires that
 the numerical linear solvers be changed from AMReX's default of MLMG to Hypre.  Note that `amrvis` and `yt` are unable to display
 computed solution with the mappings applied.  The above image was created using ParaView, after loading the plotfile and choosing
 `Warp By Vector` from the list of available Filters.  Any analysis carried out with solutions computed with this mesh mappings
-will need to incorporate the mappings as appropriate.  Also note that this capability is currently incompatible with the turbulent
-inflow tools.
+will need to incorporate the mappings as appropriate.  Turbulent inflow works with the mappings: inflow files are sampled at
+the physical positions of the mapped cells, files generated on a mapped mesh carry their map and are inverted on injection, and
+the `DiagFramePlane` diagnostic accepts a physical `center` (see :ref:`the controls section <ssec:meshMappingParameters>` and
+the `TurbInflow` regression tests).
 
 **Setting initial and boundary conditions.** Because the AMReX index space corresponds to the *uniform* :math:`(\chi,\eta,\xi)`
 coordinates, the physical location of a cell is **not** its uniform-space position --- it is recovered by applying the map. A problem
