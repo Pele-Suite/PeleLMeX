@@ -70,11 +70,6 @@ peleLM.sdc_iterMax = 1
 peleLM.floor_species = 0
 peleLM.num_divu_iter = 1
 peleLM.num_init_iter = 1
-# The enthalpy->temperature (deltaT) iterations do not converge on this
-# two-level mapped mesh (they do on the single-level input.3d_TanhStretch_rt
-# with the same inflow file); tracked separately from the inflow sampling
-# this case checks, so do not abort on it here.
-peleLM.deltaT_crashIfFailing = 0
 
 # Inflow ghost layer, every step, as flat 3D plotfiles the generator reads.
 peleLM.diagnostics = ghostPlane
