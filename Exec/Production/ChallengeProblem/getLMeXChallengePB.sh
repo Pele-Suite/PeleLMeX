@@ -35,7 +35,7 @@ fi
 set -x
 
 # Get LMeX and deps
-git clone --recursive https://github.com/AMReX-Combustion/PeleLMeX.git PeleLMeX
+git clone --recursive https://github.com/Pele-Suite/PeleLMeX.git PeleLMeX
 
 # Patch amrex
 cd ${MYPWD}/PeleLMeX/Submodules/amrex

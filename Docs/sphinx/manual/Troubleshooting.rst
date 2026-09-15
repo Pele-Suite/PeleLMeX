@@ -2,7 +2,7 @@ Troubleshooting
 ===============
 
 This section is intended to gather information on common failure mode of PeleLMeX.
-Additional information can be found in GitHub issues of `PeleLM <https://github.com/AMReX-Combustion/PeleLM/issues>`_ and `PeleLMeX <https://github.com/AMReX-Combustion/PeleLMeX/issues>`_
+Additional information can be found in GitHub issues of `PeleLM <https://github.com/Pele-Suite/PeleLM/issues>`_ and `PeleLMeX <https://github.com/Pele-Suite/PeleLMeX/issues>`_
 
 
 Linear solver failure
@@ -24,7 +24,7 @@ amrex::Abort::0::MLMG failing so lets stop here !!!
 
 appearing multiple times when using more than one MPI rank. The first thing to do
 is to identify which linear solve is failing and how. To do so, one needs to increase
-PeleLMeX, as well as the projection and diffusion solve's verbosity (see the `Control <https://amrex-combustion.github.io/PeleLMeX/LMeXControls.html>`_
+PeleLMeX, as well as the projection and diffusion solve's verbosity (see the `Control <https://pele-suite.github.io/PeleLMeX/LMeXControls.html>`_
 section for more details on LMeX controls):
 
 ::
