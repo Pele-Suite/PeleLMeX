@@ -3,7 +3,8 @@ DIM = 3
 COMP = gnu
 PRECISION = DOUBLE
 USE_EB = FALSE
-USE_HYPRE = TRUE
+# MeshMappingConvergence/run_stretch_sweep.sh needs 'make USE_HYPRE=TRUE'
+USE_HYPRE = FALSE
 
 # Profiling
 PROFILE = FALSE
