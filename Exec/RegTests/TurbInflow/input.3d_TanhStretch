@@ -7,10 +7,12 @@
 # wrong shifts the turbulence pattern in x, most visibly near the domain
 # centre where the mapping displaces cell centres the furthest.
 #
-# x is bounded by slip walls rather than periodic: a tanh map clusters cells
-# at both ends of the axis, which is the physically meaningful configuration
-# for walls and an inconsistent one for a periodic seam (the metric has a
-# kink there, and the mapped nodal projection does not converge against it).
+# x is bounded by slip walls: a tanh map clusters cells at both ends of the
+# axis, the natural configuration for walls.  The same map also works with x
+# periodic (the clustering then straddles the seam, like an interior
+# clustering); CI runs that variant too, since the periodic seam meeting the
+# inflow face once broke the nodal projection through the metric ghost cells
+# at the inflow-layer corners.
 #
 # Single level and a short run: this is a smoke/behaviour case, not a
 # convergence test.  For a quantitative check of the physical-position

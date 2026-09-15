@@ -49,7 +49,7 @@ pelelm_bc_face_x(
       const int face_idx = (sgn > 0) ? iv[d] + 1 : iv[d];
       x[d] = mmap.x_phys_face(d, face_idx, geom);
     } else {
-      x[d] = mmap.x_phys_cc(d, iv[d], geom);
+      x[d] = x_phys_cc_periodic(mmap, d, iv[d], geom);
     }
   }
 }

@@ -206,6 +206,9 @@ jobs:
         mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_ConstantMap_ref peleLM.num_init_iter=1 amrex.abort_on_unused_inputs=1
         python3 compare_inflow_plane.py planeCMref_000001 planeCM_000001 --map constant --beta 2 --require 0.99
         mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_TanhStretch peleLM.num_init_iter=1 amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
+        # Same map with x periodic: the tanh clustering straddles the periodic seam and meets the inflow face.
+        # Used to abort in the initial nodal projection (metric ghost cells at the inflow-layer corners were not periodic images).
+        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_TanhStretch geometry.is_periodic="1 1 0" peleLM.lo_bc="Interior Interior Inflow" peleLM.hi_bc="Interior Interior Outflow" peleLM.num_init_iter=1 amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
         # Turbulence file extracted from a mesh-mapped precursor (MESHMAP trailer):
         # the tanh run's inflow ghost layer is dumped every step, turned into a
         # turbulence file tagged with the run's map, and injected back.  On the
