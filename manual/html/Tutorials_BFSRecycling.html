@@ -1,0 +1,557 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D backward facing step with recycling-plane inflow &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="A simple triple flame" href="Tutorials_TripleFlame.html" />
+    <link rel="prev" title="Backward facing step anchored premixed flame" href="Tutorials_BFSFlame.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_HotBubble.html">Rising light bubble</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlameSheet.html">Premixed flame sheet with harmonic perturbations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSFlame.html">Backward facing step anchored premixed flame</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">3D backward facing step with recycling-plane inflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-your-environment">Setting-up your environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#case-setup">Case setup</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geometry-grid-and-boundary-conditions">Geometry, grid and boundary conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#problem-specifications-and-initial-condition-seeding">Problem specifications and initial-condition seeding</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#recycling-plane-inflow-controls">Recycling-plane inflow controls</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#numerical-parameters">Numerical parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#building-the-executable">Building the executable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-the-simulation">Running the simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#diagnostics-and-stationarity-detection">Diagnostics and stationarity detection</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#choice-of-source-plane-position">Choice of source-plane position</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#restarting-and-continuing-the-simulation">Restarting and continuing the simulation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="Tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">3D backward facing step with recycling-plane inflow</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Tutorials_BFSRecycling.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="d-backward-facing-step-with-recycling-plane-inflow">
+<span id="sec-tutorialbfsrecycling"></span><h1>3D backward facing step with recycling-plane inflow<a class="headerlink" href="#d-backward-facing-step-with-recycling-plane-inflow" title="Link to this heading"></a></h1>
+<section id="introduction">
+<span id="sec-tuto-bfsrec-intro"></span><h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p>This tutorial sets up a non-reactive 3D turbulent backward-facing step (BFS)
+flow using the <cite>recycling-plane inflow</cite> capability described in
+<a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>. The mean inflow is prescribed in the usual way through
+the <code class="docutils literal notranslate"><span class="pre">Inflow</span></code> boundary condition; the new machinery samples the velocity
+field on a cross-section in the interior of the domain and re-injects the
+fluctuating part onto the inflow ghost cells every timestep, providing the
+inlet with self-consistent turbulent forcing without resorting to a
+synthetic-turbulence library or a precomputed plotfile.</p>
+<p>The case demonstrates:</p>
+<ul class="simple">
+<li><p>setting up a 3D BFS in <cite>PeleLMeX</cite> with embedded boundaries and a spanwise
+periodic direction,</p></li>
+<li><p>enabling the recycling-plane inflow,</p></li>
+<li><p>seeding the initial condition with a small-amplitude perturbation to
+trigger the shear-layer instability,</p></li>
+<li><p>monitoring domain-integrated kinetic energy and enstrophy via the
+<code class="docutils literal notranslate"><span class="pre">do_temporals</span></code> machinery to detect statistically stationary turbulence,</p></li>
+<li><p>the practical effect of the source-plane position on convergence speed
+and statistical quality.</p></li>
+</ul>
+<p>Note that the results here are colored strongly by the fact that the low spatial
+resolution is unable to produce any significant turbulence that would otherwise
+be generated by the boundary along the top of the step. The resolved turbulence
+source in this case is rather produced by the domain expansion past the step,
+which generates a large-scale coherent vortex that sheds KH fluctuations. If
+wall boundary-layer turbulence is instead of interest, dramatically higher
+resolution in space and time is required along the boundary and the sample plane
+should be located on the step.</p>
+<p>The case files referenced below are located in:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Exec/RegTests/EB_BFS_Recycling
+</pre></div>
+</div>
+</section>
+<section id="setting-up-your-environment">
+<span id="sec-tuto-bfsrec-prepstep"></span><h2>Setting-up your environment<a class="headerlink" href="#setting-up-your-environment" title="Link to this heading"></a></h2>
+<p>Getting a functioning environment in which to compile and run <cite>PeleLMeX</cite> is the first step of this tutorial.
+Follow the steps listed below to get to this point:</p>
+<ol class="arabic">
+<li><p>The first step is to get <cite>PeleLMeX</cite> and its dependencies. To do so, use a recursive <em>git clone</em>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--shallow-submodules</span></code> and <code class="docutils literal notranslate"><span class="pre">--single-branch</span></code> flags are recommended for most users as they
+substantially reduce the size of the download by skipping extraneous parts of the git history.
+Developers may wish to omit these flags in order download the complete git history of PeleLMeX
+and its submodules, though standard <code class="docutils literal notranslate"><span class="pre">git</span></code> commands may also be used after a shallow clone to
+obtain the skipped portions if needed.</p>
+</li>
+<li><p>Move into the Exec folder containing your tutorial. To do so:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>cd PeleLMeX/Exec/RegTests/&lt;CaseName&gt;
+</pre></div>
+</div>
+<p>where &lt;CaseName&gt; is the name of your tutorial, e.g. <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code>, <code class="docutils literal notranslate"><span class="pre">FlameSheet</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EB_BackwardStepFlame</span></code>, <code class="docutils literal notranslate"><span class="pre">EB_FlowPastCylinder</span></code>, or <code class="docutils literal notranslate"><span class="pre">TripleFlame</span></code>.</p>
+</li>
+</ol>
+<p>You’re good to go!</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The makefile system is set up such that default paths are automatically set to the
+submodules obtained with the recursive <em>git clone</em>, however advanced users can set their own dependencies
+in the <cite>GNUmakefile</cite> for each case by updating the top-most lines as follows:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PELE_HOME     = &lt;path_to_PeleLMeX&gt;
+AMREX_HOME        = &lt;path_to_MyAMReX&gt;
+AMREX_HYDRO_HOME  = &lt;path_to_MyAMReXHydro&gt;
+PELE_PHYSICS_HOME = &lt;path_to_MyPelePhysics&gt;
+SUNDIALS_HOME     = &lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>or directly through shell environment variables (using <em>bash</em> for instance):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>export PELE_HOME=&lt;path_to_PeleLMeX&gt;
+export AMREX_HOME=&lt;path_to_MyAMReX&gt;
+export AMREX_HYDRO_HOME=&lt;path_to_MyAMReXHydro&gt;
+export PELE_PHYSICS_HOME=&lt;path_to_MyPelePhysics&gt;
+export SUNDIALS_HOME=&lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>Note that using the first option will overwrite any
+environment variables you might have previously defined when using this <cite>GNUmakefile</cite>.</p>
+</div>
+</section>
+<section id="case-setup">
+<h2>Case setup<a class="headerlink" href="#case-setup" title="Link to this heading"></a></h2>
+<section id="geometry-grid-and-boundary-conditions">
+<h3>Geometry, grid and boundary conditions<a class="headerlink" href="#geometry-grid-and-boundary-conditions" title="Link to this heading"></a></h3>
+<p>The computational domain is a 0.08 × 0.02 × 0.02 <span class="math notranslate nohighlight">\(m^3\)</span> box with the
+streamwise direction (<span class="math notranslate nohighlight">\(x\)</span>) aligned with the bulk flow and a periodic
+spanwise direction (<span class="math notranslate nohighlight">\(z\)</span>). The step occupies the lower-left quarter
+of the <span class="math notranslate nohighlight">\(x\)</span>-<span class="math notranslate nohighlight">\(y\)</span> plane and is extruded across the full periodic
+<span class="math notranslate nohighlight">\(z\)</span> range. The physical setup here is identical that used in the
+BFSFlame tutorial. Boundary conditions are <code class="docutils literal notranslate"><span class="pre">Inflow</span></code> on <span class="math notranslate nohighlight">\(x_{lo}\)</span>,
+<code class="docutils literal notranslate"><span class="pre">Outflow</span></code> on <span class="math notranslate nohighlight">\(x_{hi}\)</span>, no-slip walls on <span class="math notranslate nohighlight">\(y\)</span>, and <code class="docutils literal notranslate"><span class="pre">Interior</span></code>
+(periodic) on <span class="math notranslate nohighlight">\(z\)</span>.</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- DOMAIN DEFINITION ------------------------
+geometry.is_periodic = 0 0 1
+geometry.coord_sys   = 0
+geometry.prob_lo     = -0.01  -0.01   0.00
+geometry.prob_hi     =  0.07   0.01   0.02
+
+#---------------------- BC FLAGS ---------------------------------
+peleLM.lo_bc = Inflow   NoSlipWallAdiab  Interior
+peleLM.hi_bc = Outflow  NoSlipWallAdiab  Interior
+</pre></div>
+</div>
+<p>The base grid is 256 × 64 × 64 with isotropic cell size
+<span class="math notranslate nohighlight">\(\Delta x = 3.125 \times 10^{-4}\)</span> m. AMR is disabled in this tutorial;
+<code class="docutils literal notranslate"><span class="pre">max_grid_size</span> <span class="pre">=</span> <span class="pre">32</span></code> is used to obtain enough boxes to scale onto 32 MPI
+ranks.</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- AMR CONTROL ------------------------------
+amr.n_cell          = 256 64 64
+amr.max_level       = 0
+amr.blocking_factor = 16
+amr.max_grid_size   = 32
+</pre></div>
+</div>
+<p>The step is described as an axis-aligned box, extruded across the spanwise
+direction:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- EB SETUP ---------------------------------
+eb2.geom_type = box
+eb2.box_lo =    -0.01  -0.01  0.00
+eb2.box_hi =     0.01   0.00  0.02
+eb2.box_has_fluid_inside = 0
+eb2.small_volfrac = 1.0e-4
+</pre></div>
+</div>
+<p>The step height is <span class="math notranslate nohighlight">\(H = 0.01\)</span> m, equal to the post-step channel half-
+height, giving an expansion ratio of 2:1. The bulk inlet velocity is
+<span class="math notranslate nohighlight">\(U_{\text{bulk}} = 10\)</span> m/s, so the flow-through time is
+<span class="math notranslate nohighlight">\(\tau = L_x / U_{\text{bulk}} = 8\)</span> ms and the step Reynolds number is
+<span class="math notranslate nohighlight">\(\mathrm{Re}_H = U_{\text{bulk}} H / \nu \approx 6700\)</span>.</p>
+</section>
+<section id="problem-specifications-and-initial-condition-seeding">
+<h3>Problem specifications and initial-condition seeding<a class="headerlink" href="#problem-specifications-and-initial-condition-seeding" title="Link to this heading"></a></h3>
+<p>The user parameters are gathered in <code class="docutils literal notranslate"><span class="pre">MyProbParm</span></code>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>struct MyProbParm : public ProbParmDefault
+{
+  amrex::Real T_mean              = 298.0;
+  amrex::Real meanFlowMag         = 10.0;
+  amrex::Real turb_seed_amplitude = 0.05;
+};
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">T_mean</span></code> : inlet and initial gas temperature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">meanFlowMag</span></code> : inlet <span class="math notranslate nohighlight">\(x\)</span>-velocity magnitude</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">turb_seed_amplitude</span></code> : amplitude of the initial-condition velocity
+perturbation, expressed as a fraction of <code class="docutils literal notranslate"><span class="pre">meanFlowMag</span></code></p></li>
+</ul>
+<p>Recycling on its own does not produce turbulence: if the velocity at the
+source plane has no fluctuation around its running mean, the injected
+contribution is zero and the inlet stays steady. To break this trivial
+fixed point the initial condition adds a small-amplitude, deterministic
+multi-mode perturbation to all three velocity components, tapered to zero
+at the wall-normal boundaries:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>const amrex::Real ywall = 1.0 - std::pow(2.0 * y / Ly, 2.0);
+const amrex::Real wy = std::max(amrex::Real(0.0), ywall);
+state(i, j, k, VELX) = U + A <span class="ge">* wy *</span> pu * norm;
+state(i, j, k, VELY) = 0.0 + A <span class="ge">* wy *</span> pv * norm;
+state(i, j, k, VELZ) = 0.0 + A <span class="ge">* wy *</span> pw * norm;
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">=</span> <span class="pre">turb_seed_amplitude</span> <span class="pre">*</span> <span class="pre">U</span></code> and <code class="docutils literal notranslate"><span class="pre">pu</span></code>, <code class="docutils literal notranslate"><span class="pre">pv</span></code>, <code class="docutils literal notranslate"><span class="pre">pw</span></code> are sums of
+three sinusoidal triads with incommensurate wavenumbers and phase offsets
+(see <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code> for the full expression). The shear-layer
+instability behind the step amplifies the perturbation into developed
+turbulence within a few flow-through times; once that turbulence reaches
+the source plane, the recycling loop closes.</p>
+<p>The standard <code class="docutils literal notranslate"><span class="pre">Inflow</span></code> boundary condition supplies the prescribed mean
+profile through <code class="docutils literal notranslate"><span class="pre">bcnormal</span></code> (uniform <span class="math notranslate nohighlight">\(U_{\text{bulk}}\)</span> here); the
+recycling layer adds the zero-mean fluctuation on top of it.</p>
+</section>
+<section id="recycling-plane-inflow-controls">
+<h3>Recycling-plane inflow controls<a class="headerlink" href="#recycling-plane-inflow-controls" title="Link to this heading"></a></h3>
+<p>The recycling feature is enabled with five inputs (see
+<a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a> for the full reference):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Recycling-plane inflow --------------------
+peleLM.use_inlet_from_plane      = 1
+peleLM.inlet_plane_dir           = 0
+peleLM.inlet_plane_position      = 0.065
+peleLM.inlet_plane_warmup_steps  = 500
+# peleLM.inlet_plane_avg_window  = 1.0e-4   # uncomment for EMA
+</pre></div>
+</div>
+<p>The source plane is normal to <span class="math notranslate nohighlight">\(x\)</span> and located at
+<span class="math notranslate nohighlight">\(x_{\text{plane}} = 0.065\)</span> m, which is <span class="math notranslate nohighlight">\(5.5\,H\)</span> downstream of
+the step end and <span class="math notranslate nohighlight">\(0.5\,H\)</span> from the outflow boundary. The choice of
+plane position has a strong effect on convergence and statistical quality;
+this is discussed below.</p>
+<p>The 500-sample warmup gives the running mean roughly one flow-through to
+settle before any fluctuation is injected. With the cumulative mean (no
+<code class="docutils literal notranslate"><span class="pre">avg_window</span></code> set) the running average is <span class="math notranslate nohighlight">\(\langle u \rangle_n =
+\frac{1}{n}\sum_i u_i\)</span>; specifying <code class="docutils literal notranslate"><span class="pre">inlet_plane_avg_window</span></code> switches to
+an exponential moving average with relaxation timescale equal to the
+window. The cumulative form is appropriate for one-shot stationary-
+statistics studies; the EMA form is preferred for cases where the bulk
+flow is slowly evolving.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The fluctuation is injected on every velocity component on the inflow
+ghost layer. The implementation requires that all components share the
+same <code class="docutils literal notranslate"><span class="pre">ext_dir</span></code> boundary status on the inflow face; mixed BCs on
+different velocity components are not supported and will abort the
+simulation.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">peleLM.recycling_mode</span> <span class="pre">=</span> <span class="pre">full</span></code> injects the entire sampled
+velocity instead of a fluctuation about the running mean. Velocity
+writes from <code class="docutils literal notranslate"><span class="pre">bcnormal</span></code> are ignored on the recycling face in that mode
+(the boundary fill preserves the sampled velocity), so this tutorial’s
+<code class="docutils literal notranslate"><span class="pre">s_ext[VELX]</span> <span class="pre">+=</span> <span class="pre">prob_parm.meanFlowMag</span></code> line is harmless and the
+problem setup needs no modification. The warmup and averaging-window
+controls have no effect in full mode.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Full mode relies on its mass-flux control (on by default;
+<code class="docutils literal notranslate"><span class="pre">peleLM.inlet_plane_flux_control</span></code>) whenever the duct between the inlet
+and the sampling plane exchanges heat with the flow — e.g. an
+isothermal step wall colder than the incoming gas. Wall heat loss makes
+the sampled volume flux systematically smaller than the inlet’s
+(<span class="math notranslate nohighlight">\(\nabla \cdot \mathbf{u} &lt; 0\)</span> under cooling at low Mach), and an
+uncontrolled full-mode loop re-injects that deficit every pass: the
+bulk flow decays monotonically and the inlet eventually reverses. The
+controller rescales each injected sample to the <code class="docutils literal notranslate"><span class="pre">bcnormal</span></code> target
+flow rate, which restores a well-posed configuration (developed duct
+turbulence in the momentum field, with the inlet thermodynamic state
+re-imposed at the boundary as a thermal entry condition). See
+<a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a> for details.</p>
+</div>
+</section>
+<section id="numerical-parameters">
+<h3>Numerical parameters<a class="headerlink" href="#numerical-parameters" title="Link to this heading"></a></h3>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- PeleLM CONTROL ---------------------------
+peleLM.v               = 1
+peleLM.sdc_iterMax     = 2
+peleLM.num_init_iter   = 1
+peleLM.chem_integrator = "ReactorNull"
+
+amr.cfl              = 0.4
+amr.dt_shrink        = 0.01
+</pre></div>
+</div>
+<p>The case is non-reactive (<code class="docutils literal notranslate"><span class="pre">ReactorNull</span></code> skips chemistry source
+evaluation entirely) but the full low-Mach algorithm is otherwise active,
+so the recycling machinery exercises the same code path it would in a
+reacting simulation.</p>
+<p><code class="docutils literal notranslate"><span class="pre">num_init_iter</span> <span class="pre">=</span> <span class="pre">1</span></code> is used because successive initial pressure
+iterations on this 3D EB geometry can drive the MAC projection divergent
+on the first real step; a single initial iteration is sufficient to
+establish a consistent pressure field.</p>
+</section>
+</section>
+<section id="building-the-executable">
+<h2>Building the executable<a class="headerlink" href="#building-the-executable" title="Link to this heading"></a></h2>
+<p>The case uses the non-reactive <code class="docutils literal notranslate"><span class="pre">air</span></code> chemistry model with <code class="docutils literal notranslate"><span class="pre">Fuego</span></code> EOS
+and <code class="docutils literal notranslate"><span class="pre">Simple</span></code> transport:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>DIM             = 3
+USE_EB          = TRUE
+USE_MPI         = TRUE
+Chemistry_Model = air
+Eos_Model       = Fuego
+Transport_Model = Simple
+</pre></div>
+</div>
+<p>Build third-party libraries first, then the executable:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4 TPL
+make -j4
+</pre></div>
+</div>
+<p>This produces <code class="docutils literal notranslate"><span class="pre">PeleLMeX3d.gnu.MPI.ex</span></code>.</p>
+</section>
+<section id="running-the-simulation">
+<h2>Running the simulation<a class="headerlink" href="#running-the-simulation" title="Link to this heading"></a></h2>
+<p>The simulation is non-trivial in cost: each timestep takes around 1.6 s
+on 32 MPI ranks (~0.05 s/rank/step at this resolution), and reaching
+fully converged stationary statistics requires of order
+<span class="math notranslate nohighlight">\(20\,\tau \approx 25\,000\)</span> timesteps, so plan for
+roughly 8–11 hours of wall time on 32 ranks for a single case.</p>
+<p>Launch the run, redirecting stdout to a log file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpiexec -n 32 ./PeleLMeX3d.gnu.MPI.ex inputs.3d-recycle peleLM.inlet_plane_position=0.065 &gt; run.log 2&gt;&amp;1
+</pre></div>
+</div>
+<p>Three things in particular are worth watching during the run:</p>
+<ol class="arabic simple">
+<li><p>The dt-shrink ramp during the first ~50 steps: <code class="docutils literal notranslate"><span class="pre">dt</span></code> starts at
+<span class="math notranslate nohighlight">\(10^{-2}\)</span> of the convective CFL estimate and grows by the
+<code class="docutils literal notranslate"><span class="pre">dt_change_max</span></code> factor each step until it reaches the CFL limit
+(<span class="math notranslate nohighlight">\(\sim\!8\times 10^{-6}\)</span> s).</p></li>
+<li><p>The first 500 steps where the warmup gate is active: the snapshot path
+is exercised every step (and the running mean accumulates) but no
+fluctuation is yet injected.</p></li>
+<li><p>The transition to active recycling once the warmup completes: this is
+visible in the <code class="docutils literal notranslate"><span class="pre">temporals/tempState</span></code> log as a change of slope in the
+integrated kinetic energy.</p></li>
+</ol>
+</section>
+<section id="diagnostics-and-stationarity-detection">
+<h2>Diagnostics and stationarity detection<a class="headerlink" href="#diagnostics-and-stationarity-detection" title="Link to this heading"></a></h2>
+<p>The case enables <cite>PeleLMeX</cite>’s temporal-output machinery to produce a
+time history of the domain-integrated kinetic energy and enstrophy:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>peleLM.do_temporals      = 1
+peleLM.temporal_int      = 10
+peleLM.do_extremas       = 1
+peleLM.do_mass_balance   = 1
+</pre></div>
+</div>
+<p>This writes one CSV row every 10 steps to <code class="docutils literal notranslate"><span class="pre">temporals/tempState</span></code> with
+columns <code class="docutils literal notranslate"><span class="pre">iter,</span> <span class="pre">time,</span> <span class="pre">dt,</span> <span class="pre">kinEnergy,</span> <span class="pre">enstrophy,</span> <span class="pre">pressure,</span> <span class="pre">fuelConsumption,</span>
+<span class="pre">heatRelease</span></code> (the last two are zero for this non-reactive case).</p>
+<p>A simple stationarity check is to compare the mean of <code class="docutils literal notranslate"><span class="pre">kinEnergy</span></code> over
+two adjacent windows of width <span class="math notranslate nohighlight">\(W\tau\)</span> ending at candidate time
+<span class="math notranslate nohighlight">\(t^*\)</span>: if the trailing window
+<span class="math notranslate nohighlight">\([t^* - W\tau,\, t^*]\)</span> and leading window
+<span class="math notranslate nohighlight">\([t^*,\, t^* + W\tau]\)</span> agree within a tolerance, declare onset at
+<span class="math notranslate nohighlight">\(t^*\)</span>. With <span class="math notranslate nohighlight">\(W=4\)</span> and a 10% tolerance, this case typically
+identifies onset at <span class="math notranslate nohighlight">\(t^* \approx 4\tau\)</span> and shows
+post-onset robustness (fraction of subsequent window-pairs that pass the
+same test) above 50%. The script
+<code class="docutils literal notranslate"><span class="pre">analyze_stationarity.py</span></code> shipped with the case reports both numbers,
+along with the running mean and standard deviation of <code class="docutils literal notranslate"><span class="pre">kinEnergy</span></code> and
+<code class="docutils literal notranslate"><span class="pre">enstrophy</span></code> over the stationary regime.</p>
+<p>A representative final-run summary for the
+<span class="math notranslate nohighlight">\(x_{\text{plane}} = 0.065\)</span> configuration on 25,000 timesteps
+(<span class="math notranslate nohighlight">\(\sim 23\,\tau\)</span>) is:</p>
+<ul class="simple">
+<li><p>stationary onset at <span class="math notranslate nohighlight">\(4\,\tau\)</span>, robustness 16 / 31 (52%),</p></li>
+<li><p><span class="math notranslate nohighlight">\(\langle \mathrm{KE} \rangle = 1.04 \times 10^{-3}\)</span> J with CoV 37%,</p></li>
+<li><p><span class="math notranslate nohighlight">\(\langle \mathrm{enstrophy} \rangle = 4.0 \times 10^{2}\)</span> with CoV 18%.</p></li>
+</ul>
+<p>The kinetic-energy CoV reflects coherent shear-layer shedding in the
+post-step recovery zone; the enstrophy CoV is much tighter because the
+small-scale vorticity averages more uniformly across the domain.</p>
+</section>
+<section id="choice-of-source-plane-position">
+<h2>Choice of source-plane position<a class="headerlink" href="#choice-of-source-plane-position" title="Link to this heading"></a></h2>
+<p>The source-plane location is the single most influential parameter for
+this feature. The tutorial input shipped in-tree uses
+<span class="math notranslate nohighlight">\(x_{\text{plane}} = 0.065\)</span>. The trends summarized below come from
+four additional out-of-tree runs in which only
+<code class="docutils literal notranslate"><span class="pre">peleLM.inlet_plane_position</span></code> was changed, taking values from
+<code class="docutils literal notranslate"><span class="pre">{0.05,</span> <span class="pre">0.035,</span> <span class="pre">0.005,</span> <span class="pre">0.0095}</span></code> to sweep the plane from near the step
+to farther downstream. The main trends observed in those separate runs are:</p>
+<ul class="simple">
+<li><p><strong>Plane upstream of the step edge (e.g.</strong> <span class="math notranslate nohighlight">\(x = 0.005,\, 0.0095\)</span>
+<strong>).</strong> The flow at the source plane is laminar boundary-layer
+development of the inflow itself: the running mean equals the
+instantaneous field to within numerical noise, no fluctuation is
+injected, and the recycling effectively disables itself. Domain-
+integrated KE has a coefficient of variation of order 1%, but the
+flow simply runs on whatever turbulence the IC perturbation seeded
+through the natural BFS shedding — recycling is not contributing.</p></li>
+<li><p><strong>Plane near the step end (e.g.</strong> <span class="math notranslate nohighlight">\(x = 0.035,\, 2.5\,H\)</span>
+<strong>downstream).</strong> The plane samples the strongly coherent shear-layer
+roll-up. Recycling that signal closes a tight feedback loop with the
+shear-layer mode and produces a large amplitude transient that
+overshoots and oscillates, with stationary onset pushed out to
+<span class="math notranslate nohighlight">\(8.5\,\tau\)</span> and a post-onset window-pair pass rate of only 5%.</p></li>
+<li><p><strong>Plane far downstream (e.g.</strong> <span class="math notranslate nohighlight">\(x = 0.05,\, 0.065\)</span>
+<strong>).</strong> The plane samples post-transition broadband turbulence with
+weak large-scale coherence. The recycling loop delay
+<span class="math notranslate nohighlight">\((x_{\text{plane}} - x_{\text{inlet}})/U_{\text{bulk}}\)</span> is now
+comparable to a flow-through time, so the injected perturbation is
+decorrelated from the resulting shear-layer dynamics. Stationary
+onset is reached around <span class="math notranslate nohighlight">\(4\,\tau\)</span>, with <code class="docutils literal notranslate"><span class="pre">runP25</span></code>
+(<span class="math notranslate nohighlight">\(x = 0.065\)</span>, <span class="math notranslate nohighlight">\(5.5\,H\)</span> downstream) giving the highest
+post-onset robustness of the five cases.</p></li>
+</ul>
+<p>The general guidance, then, is to place the source plane in a region of
+<strong>developed broadband turbulence</strong> rather than near a region of strong
+coherent shedding, and to ensure the loop delay is on the order of an
+integral timescale of the flow. The geometry-specific bounds (sufficient
+distance from the geometric feature, but not so close to the outflow
+that the BC interferes with the recycled signal) are the practical
+constraints; in this case <code class="docutils literal notranslate"><span class="pre">runP25</span></code> lands on a usable balance.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Even at <span class="math notranslate nohighlight">\(x_{\text{plane}} = 0.065\)</span> (only 5 mm from the outflow at
+<span class="math notranslate nohighlight">\(x = 0.07\)</span>) the outflow boundary condition does not detectably
+contaminate the recycled signal; the gentle outflow extrapolation in
+fact mildly de-correlates the streamwise structure, which in this
+setup is helpful. With more reactive or compressibility-sensitive
+physics the user should re-evaluate that conclusion.</p>
+</div>
+</section>
+<section id="restarting-and-continuing-the-simulation">
+<h2>Restarting and continuing the simulation<a class="headerlink" href="#restarting-and-continuing-the-simulation" title="Link to this heading"></a></h2>
+<p>The running mean of the source plane is written into the checkpoint
+header (the line beginning with <code class="docutils literal notranslate"><span class="pre">RecyclingPlane:</span></code>) and the per-level
+mean fields are written under <code class="docutils literal notranslate"><span class="pre">recycle_mean</span></code> in each level’s
+checkpoint directory. On restart, the storage is rebuilt against the
+current run’s grids and the previously-accumulated mean is
+<code class="docutils literal notranslate"><span class="pre">ParallelCopy</span></code>’d back into place, so a checkpoint/restart of an
+already-stationary simulation continues without reseeding the running
+mean.</p>
+<p>Restart is triggered the usual way:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.restart = chk20000
+amr.max_step = 30000
+</pre></div>
+</div>
+<p>Older checkpoints written before the recycling feature was added do not
+contain the <code class="docutils literal notranslate"><span class="pre">RecyclingPlane</span></code> block; the read path silently falls back
+to “no saved mean” and the running mean reseeds from the next
+snapshot. This makes the feature backwards-compatible with pre-existing
+checkpoints.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Tutorials_BFSFlame.html" class="btn btn-neutral float-left" title="Backward facing step anchored premixed flame" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Tutorials_TripleFlame.html" class="btn btn-neutral float-right" title="A simple triple flame" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,738 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backward facing step anchored premixed flame &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="3D backward facing step with recycling-plane inflow" href="Tutorials_BFSRecycling.html" />
+    <link rel="prev" title="Non-reacting flow past a cylinder" href="Tutorials_FlowPastCyl.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_HotBubble.html">Rising light bubble</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlameSheet.html">Premixed flame sheet with harmonic perturbations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Backward facing step anchored premixed flame</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-your-environment">Setting-up your environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#case-setup">Case setup</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geometry-grid-and-boundary-conditions">Geometry, grid and boundary conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#problem-specifications">Problem specifications</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#numerical-parameters">Numerical parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#building-the-executable">Building the executable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-the-initial-conditions">Checking the initial conditions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advance-the-solution-on-coarse-grid">Advance the solution on coarse grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#refine-the-simulation">Refine the simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#partially-premixed-case-with-eb-inflow">Partially premixed case with EB-inflow</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSRecycling.html">3D backward facing step with recycling-plane inflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="Tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">Backward facing step anchored premixed flame</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Tutorials_BFSFlame.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="backward-facing-step-anchored-premixed-flame">
+<span id="sec-tutorialbfs"></span><h1>Backward facing step anchored premixed flame<a class="headerlink" href="#backward-facing-step-anchored-premixed-flame" title="Link to this heading"></a></h1>
+<section id="introduction">
+<span id="sec-tuto-bfs-intro"></span><h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p>The primary objective of <cite>PeleLMeX</cite> is to enable simulations of reactive flows on platforms ranging
+from small personal computers to Exascale supercomputers. This <code class="docutils literal notranslate"><span class="pre">EB_BackwardStepFlame</span></code> tutorial describes the case
+of a 2D laminar premixed methane/air flame anchored behind a backward facing step.</p>
+<p>The goal of this tutorial is to introduce <cite>PeleLMeX</cite> users to more advanced reactive simulation setup as
+well as embedded boundaries.</p>
+</section>
+<section id="setting-up-your-environment">
+<span id="sec-tuto-bfs-prepstep"></span><h2>Setting-up your environment<a class="headerlink" href="#setting-up-your-environment" title="Link to this heading"></a></h2>
+<p>Getting a functioning environment in which to compile and run <cite>PeleLMeX</cite> is the first step of this tutorial.
+Follow the steps listed below to get to this point:</p>
+<ol class="arabic">
+<li><p>The first step is to get <cite>PeleLMeX</cite> and its dependencies. To do so, use a recursive <em>git clone</em>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--shallow-submodules</span></code> and <code class="docutils literal notranslate"><span class="pre">--single-branch</span></code> flags are recommended for most users as they
+substantially reduce the size of the download by skipping extraneous parts of the git history.
+Developers may wish to omit these flags in order download the complete git history of PeleLMeX
+and its submodules, though standard <code class="docutils literal notranslate"><span class="pre">git</span></code> commands may also be used after a shallow clone to
+obtain the skipped portions if needed.</p>
+</li>
+<li><p>Move into the Exec folder containing your tutorial. To do so:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>cd PeleLMeX/Exec/RegTests/&lt;CaseName&gt;
+</pre></div>
+</div>
+<p>where &lt;CaseName&gt; is the name of your tutorial, e.g. <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code>, <code class="docutils literal notranslate"><span class="pre">FlameSheet</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EB_BackwardStepFlame</span></code>, <code class="docutils literal notranslate"><span class="pre">EB_FlowPastCylinder</span></code>, or <code class="docutils literal notranslate"><span class="pre">TripleFlame</span></code>.</p>
+</li>
+</ol>
+<p>You’re good to go!</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The makefile system is set up such that default paths are automatically set to the
+submodules obtained with the recursive <em>git clone</em>, however advanced users can set their own dependencies
+in the <cite>GNUmakefile</cite> for each case by updating the top-most lines as follows:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PELE_HOME     = &lt;path_to_PeleLMeX&gt;
+AMREX_HOME        = &lt;path_to_MyAMReX&gt;
+AMREX_HYDRO_HOME  = &lt;path_to_MyAMReXHydro&gt;
+PELE_PHYSICS_HOME = &lt;path_to_MyPelePhysics&gt;
+SUNDIALS_HOME     = &lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>or directly through shell environment variables (using <em>bash</em> for instance):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>export PELE_HOME=&lt;path_to_PeleLMeX&gt;
+export AMREX_HOME=&lt;path_to_MyAMReX&gt;
+export AMREX_HYDRO_HOME=&lt;path_to_MyAMReXHydro&gt;
+export PELE_PHYSICS_HOME=&lt;path_to_MyPelePhysics&gt;
+export SUNDIALS_HOME=&lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>Note that using the first option will overwrite any
+environment variables you might have previously defined when using this <cite>GNUmakefile</cite>.</p>
+</div>
+</section>
+<section id="case-setup">
+<h2>Case setup<a class="headerlink" href="#case-setup" title="Link to this heading"></a></h2>
+<p>A <cite>PeleLMeX</cite> case folder generally contains a minimal set of files to enable compilation,
+and the reader is referred to the FlameSheet tutorial <a class="reference internal" href="Tutorials_FlameSheet.html"><span class="doc">Premixed flame sheet with harmonic perturbations</span></a> for a
+more detailed description of <cite>PeleLMeX</cite> case setup. The case of interest for this
+tutorial can be found in <cite>PeleLMeX</cite> Exec folder:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Exec/RegTests/EB_BackwardStepFlame
+</pre></div>
+</div>
+<section id="geometry-grid-and-boundary-conditions">
+<h3>Geometry, grid and boundary conditions<a class="headerlink" href="#geometry-grid-and-boundary-conditions" title="Link to this heading"></a></h3>
+<p>This simulation is performed on a 0.08x0.02 <span class="math notranslate nohighlight">\(m^2\)</span> 2D computational domain,
+with the bottom left corner located at (-0.01:-0.01) and the top right corner at (0.07:0.01). The flow
+is primarily aligned with the <span class="math notranslate nohighlight">\(x\)</span> direction with an <code class="docutils literal notranslate"><span class="pre">Inflow</span></code> (dirichlet) boundary on the <span class="math notranslate nohighlight">\(x\)</span>-low
+and <code class="docutils literal notranslate"><span class="pre">Outflow</span></code> (0-neumann) boundary on <span class="math notranslate nohighlight">\(x\)</span>-high. No-slip wall conditions are imposed the transverse direction.
+Finally a Cartesian coordinate system is used here. An overview of the computational domain is provided in <a class="reference internal" href="#bfs-setupgeom"><span class="std std-numref">Fig. 19</span></a>.</p>
+<figure class="align-center" id="bfs-setupgeom" style="width: 95%">
+<img alt="_images/BFS_SetupSketch.png" src="_images/BFS_SetupSketch.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 19 </span><span class="caption-text">: Setup of the computational domain for the backward facing step flame case.</span><a class="headerlink" href="#bfs-setupgeom" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>All of the geometrical information can be specified the first two blocks of the input file (<cite>eb_bfs.inp</cite>):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- DOMAIN DEFINITION ------------------------
+geometry.is_periodic = 0 0                  # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                    # 0 =&gt; cart, 1 =&gt; RZ
+geometry.prob_lo     = -0.01   -0.01        # x_lo y_lo (z_lo)
+geometry.prob_hi     =  0.07    0.01        # x_hi y_hi (z_hi)
+
+#---------------------- BC FLAGS ---------------------------------
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Inflow  NoSlipWallAdiab      # bc in x_lo y_lo (z_lo)
+peleLM.hi_bc = Outflow NoSlipWallAdiab      # bc in x_hi y_hi (z_hi)
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that when running 2D simulations, it is not necessary to specify entries for the third dimension.</p>
+</div>
+<p>The base grid is decomposed into a 256x64 cell array with AMR initially not activated.</p>
+<p>The refinement ratio between each level is set to 2 and <cite>PeleLMeX</cite> currently does not support
+refinement ratio of 4. Regrid operation will be performed every 5 steps. <code class="docutils literal notranslate"><span class="pre">amr.n_error_buf</span></code> specifies,
+for each level, the number of buffer cells used around the cell tagged for refinement, while <code class="docutils literal notranslate"><span class="pre">amr.grid_eff</span></code>
+describes the grid efficiency, i.e. how much of the new grid contains tagged cells. Higher values lead
+to tighter grids around the tagged cells. For more information on how these parameters affect grid generation,
+see the <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/GridCreation.html">AMReX documentation</a>.</p>
+<p>All of those parameters are specified in the <cite>AMR CONTROL</cite> block:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#------------------------- AMR CONTROL ----------------------------
+amr.n_cell          = 256 64           # Level 0 number of cells in each direction
+amr.max_level       = 0                # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 5                # how often to regrid
+amr.n_error_buf     = 2 2 2 2          # number of buffer cells in error est
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 16               # block factor in grid generation
+amr.max_grid_size   = 64               # maximum box size
+</pre></div>
+</div>
+<p>Finally, this case uses Embedded Boundaries to represent the backward facing step. The EB is
+defined as a box on the lower-left corner of the domain. For such an easy geometry,
+a single <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/EB.html#implicit-function">AMReX native constructive solid geometry (CSG)</a> object is sufficient.
+The box will extend from a point beyond
+the computational domain bottom left corner to (0.01:0.0). Because the intersection of the
+EB with the computational grid can lead to arbitrarily small cells, AMReX provides
+<code class="docutils literal notranslate"><span class="pre">eb2.small_volfrac</span></code> to set a cell volume fraction limit below which a cell
+is considered fully covered. In the present simulation, we will treat the EB
+as an isothermal boundary, with control over the wall temperature described in the
+next section.</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- EB SETUP ---------------------------------
+eb2.geom_type = box
+eb2.box_lo =    -0.02   -0.02
+eb2.box_hi =     0.01     0.0
+eb2.box_has_fluid_inside = 0
+eb2.small_volfrac   = 1.0e-4
+peleLM.isothermal_EB = 1
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When EBs intersect with the domain boundary, it is important to ensure that
+the EB definition extends slightly beyond the domain boundaries to provide
+EB structure data in the domain ghost cells.</p>
+</div>
+</section>
+<section id="problem-specifications">
+<h3>Problem specifications<a class="headerlink" href="#problem-specifications" title="Link to this heading"></a></h3>
+<p id="sec-tuto-bfs-problem">The problem setup is mostly contained in the two C++ source/header files described in <a class="reference internal" href="Tutorials_FlameSheet.html"><span class="doc">Premixed flame sheet with harmonic perturbations</span></a>.
+The user parameters are gathered in the struct defined in <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>struct MyProbParm : public ProbParmDefault
+{
+    amrex::Real T_mean = 298.0;
+    amrex::Real P_mean = 101325.0;
+    amrex::Real Y_fuel = 0.0445;
+    amrex::Real Y_o2   = 0.223;
+    amrex::Real T_hot  = 1800.0;
+    amrex::Real Twall  = 300.0;
+    amrex::Real meanFlowMag = 0.0;
+
+};
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">T_mean</span></code> : inlet and initial gas temperature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">P_mean</span></code> : initial thermodynamic pressure</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Y_fuel</span></code> : inlet and initial fuel (CH4) mass fraction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Y_oxid</span></code> : inlet and initial oxidizer (O2) mass fraction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">T_hot</span></code> : initial temperature in the step wake</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">T_wall</span></code> : EB-wall temperature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">meanFlowMag</span></code> : inlet <span class="math notranslate nohighlight">\(x\)</span> velocity</p></li>
+</ul>
+<p>The initial solution consists of a premixed methane/air mixture in the upper part of the domain
+and pure hot air in the wake of the step. The default parameters provided above are overwritten
+using AMReX ParmParse in <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.cpp</span></code> and the initial/boundary conditions implemented
+in the <cite>MyProblemSpecificFunctions</cite> struct of <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>. Alternatively, the user can write a custom
+function to enforce an ignition kernel through the <code class="docutils literal notranslate"><span class="pre">patchFlowVariables</span></code> function in the
+problem-specific functions struct.
+It should be kept in mind that the <code class="docutils literal notranslate"><span class="pre">patchFlowVariables</span></code> function can be used if the user wants to patch certain
+flow variables after reading an existing solution from a plot file ( <code class="docutils literal notranslate"><span class="pre">peleLM.initDataPlt_patch_flow_variables</span></code> should be set to true).</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>, the <cite>MyProblemSpecificFunctions</cite> struct contains several functions in addition to
+<cite>initdata</cite> and <cite>bcnormal</cite> previously described in the <a class="reference internal" href="Tutorials_FlameSheet.html"><span class="doc">Premixed flame sheet with harmonic perturbations</span></a>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bcnormal_eb()</span></code> : takes in the EB face center coordinates and return a vector
+for the entire state vector. For isothermal walls, only the <code class="docutils literal notranslate"><span class="pre">TEMP</span></code> component is required. For inflows,
+the whole state must be specified.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bctype_eb()</span></code> : even though <code class="docutils literal notranslate"><span class="pre">peleLM.isothermal_EB=1</span></code> is activated, the user can locally decide to use
+an adiabatic wall on part of the EB. To do so, this function takes in the EB face center coordinates
+and return a flag that indicates the boundary type. Additionally, it also returns a real valued parameter,
+<cite>EBfaceFrac</cite>, that indicates the fraction of the face that is isothermal or inflow.</p></li>
+</ul>
+<p>In the present case, we set the EB temperature to <code class="docutils literal notranslate"><span class="pre">T_wall</span></code> everywhere on the EB in <code class="docutils literal notranslate"><span class="pre">bcnormal_eb()</span></code> but
+the EB flag is only set to 1 on the vertical EB faces (<span class="math notranslate nohighlight">\(x\)</span> normal) such that the top of the EB box
+is adiabatic.</p>
+</section>
+<section id="numerical-parameters">
+<h3>Numerical parameters<a class="headerlink" href="#numerical-parameters" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">PeleLM</span> <span class="pre">CONTROL</span></code> block contains a few of the <cite>PeleLMeX</cite> algorithmic parameters. Many more
+unspecified parameters are relying on their default values which can be found in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.
+Of particular interest are the <code class="docutils literal notranslate"><span class="pre">peleLM.sdc_iterMax</span></code> parameter controlling the number of
+SDC iterations (see <a class="reference internal" href="Model.html"><span class="doc">The PeleLMeX Model</span></a> for more details on SDC in <cite>PeleLMeX</cite>) and the
+<code class="docutils literal notranslate"><span class="pre">peleLM.num_init_iter</span></code> one controlling the number of initial iteration the solver will do
+after initialization to obtain a consistent pressure and velocity field.</p>
+</section>
+</section>
+<section id="building-the-executable">
+<h2>Building the executable<a class="headerlink" href="#building-the-executable" title="Link to this heading"></a></h2>
+<p>Now that we have reviewed the basic ingredients required to setup the case, it is time to build the <cite>PeleLMeX</cite> executable.
+Although both GNUmake and CMake are available, it is advised to use GNUmake. The <code class="docutils literal notranslate"><span class="pre">GNUmakefile</span></code> file provides some compile-time options
+regarding the simulation we want to perform.
+The first few lines specify the paths towards the source codes of <cite>PeleLMeX</cite>, <cite>AMReX</cite>, <cite>AMReX-Hydro</cite> and <cite>PelePhysics</cite>, overwriting
+any environment variable if necessary, and might have been already updated in <a class="reference internal" href="#sec-tuto-bfs-prepstep"><span class="std std-ref">Setting-up your environment</span></a> earlier.</p>
+<p>The next few lines specify AMReX compilation options and compiler selection:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span># AMREX
+DIM             = 2
+DEBUG           = FALSE
+PRECISION       = DOUBLE
+VERBOSE         = FALSE
+TINY_PROFILE    = FALSE
+USE_EB          = TRUE
+USE_HYPRE       = FALSE
+
+# Compilation
+COMP            = gnu
+USE_MPI         = TRUE
+USE_OMP         = FALSE
+USE_CUDA        = FALSE
+USE_HIP         = FALSE
+USE_SYCL        = FALSE
+</pre></div>
+</div>
+<p>It allows users to specify the number of spatial dimensions (2D), activate the compilation of the EB aware AMReX source code,
+trigger debug compilation and other AMReX options. The compiler (<code class="docutils literal notranslate"><span class="pre">gnu</span></code>) and the parallelism paradigm
+(in the present case only MPI is used) are then selected. Note that on OSX platform, one should update the compiler to <code class="docutils literal notranslate"><span class="pre">llvm</span></code>.</p>
+<p>The user also needs to make sure the additional C++ header employed to define the EB state is included in the build:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span># PeleLMeX
+CEXE_headers    += EBUserDefined.H
+</pre></div>
+</div>
+<p>In <cite>PeleLMeX</cite>, the chemistry model (set of species, their thermodynamic and transport properties as well as the description
+of their of chemical interactions) is specified at compile time. Chemistry models available in
+<cite>PelePhysics</cite> can used in <cite>PeleLMeX</cite> by specifying the name of the folder in <cite>PelePhysics/Mechanisms</cite> containing
+the relevant files, for example:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Chemistry_Model = drm19
+</pre></div>
+</div>
+<p>Here, the model <code class="docutils literal notranslate"><span class="pre">drm19</span></code> contains 21 species and describe the chemical decomposition of methane. Advanced users may also specify
+<code class="docutils literal notranslate"><span class="pre">USE_CUSTOM_CHEMISTRY</span> <span class="pre">=</span> <span class="pre">TRUE</span></code>, in which case <code class="docutils literal notranslate"><span class="pre">Chemistry_Model</span></code> is interpreted as a path and can point to models not included in
+PelePhysics by default, though the new model directory must contain valid chemistry model files.
+The user is referred to the <a class="reference external" href="https://pelephysics.readthedocs.io/en/latest/">PelePhysics</a> documentation for a
+list of available mechanisms and more information regarding the EOS, chemistry and transport models specified:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Eos_Model       := Fuego
+Transport_Model := Simple
+</pre></div>
+</div>
+<p>Finally, <cite>PeleLMeX</cite> utilizes the chemical kinetic ODE integrator <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">CVODE</a>. This
+Third Party Library (TPL) is shipped as a submodule of the <cite>PeleLMeX</cite> distribution and can be readily installed through the makefile system
+of <cite>PeleLMeX</cite>. To do so, type in the following command:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4 TPL
+</pre></div>
+</div>
+<p>Note that the installation of <cite>CVODE</cite> requires CMake 3.23.1 or higher.</p>
+<p>You are now ready to build your first <cite>PeleLMeX</cite> executable!! Type in:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4
+</pre></div>
+</div>
+<p>The option here tells <cite>make</cite> to use up to 4 processors to create the executable (internally, <cite>make</cite> follows a dependency graph to ensure any required ordering in the build is satisfied). This step should generate the following file (providing that the build configuration you used matches the one above):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PeleLMeX2d.gnu.MPI.ex
+</pre></div>
+</div>
+<p>You’re good to go!</p>
+</section>
+<section id="checking-the-initial-conditions">
+<h2>Checking the initial conditions<a class="headerlink" href="#checking-the-initial-conditions" title="Link to this heading"></a></h2>
+<p>It is always a good practice to check the initial conditions. To do so, run the simulation specifying
+an <code class="docutils literal notranslate"><span class="pre">amr.max_step</span></code> of 0. Open the <code class="docutils literal notranslate"><span class="pre">eb_bfs.inp</span></code> with your favorite editor and update the following parameters</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Time Stepping CONTROL --------------------
+amr.max_step      = 0             # Maximum number of time steps
+</pre></div>
+</div>
+<p>Since we’ve set the maximum number of steps to 0, the solver will exit after
+the initial solution is obtained. Let’s run the simulation with the default problem parameter
+listed in the input file. To do so, use:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp
+</pre></div>
+</div>
+<p>A variety of information is printed to the screen:</p>
+<ol class="arabic simple">
+<li><p>AMReX/SUNDIALs initialization along with the git hashes of the various subrepositories</p></li>
+<li><p>A summary of the <cite>PeleLMeX</cite> state components</p></li>
+<li><p>Initial projection and initial iterations.</p></li>
+<li><p>Saving the initial solution to <cite>plt00000</cite> file.</p></li>
+</ol>
+<p>Use Amrvis, Paraview or yt to visualize the plot file. Using Amrvis, the solution should look
+similar to <a class="reference internal" href="#bfs-initsol"><span class="std std-numref">Fig. 20</span></a>.</p>
+<figure class="align-center" id="bfs-initsol" style="width: 95%">
+<img alt="_images/BFS_InitSol.png" src="_images/BFS_InitSol.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 20 </span><span class="caption-text">: Contour plots of temperature, O2 mass fraction, <span class="math notranslate nohighlight">\(x\)</span>-velocity component and divergence constraint after initialization.</span><a class="headerlink" href="#bfs-initsol" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Note that in <cite>PeleLMeX</cite>, EB-covered regions are set to zero in plotfiles. Hot gases are found in the wake
+of the EB as expected, with a slightly higher O2 mass fraction compared to the upper part of the domain
+where CH4 is present in the mixture. The velocity field results from the initial projection, which uses
+the divergence constraint. The later is negative close to the isothermal EB because the cold EB leads
+to an increase of density. <cite>divU</cite> is also non zero at the interface between the incoming fresh gases and
+the hot air due to heat diffusion.</p>
+</section>
+<section id="advance-the-solution-on-coarse-grid">
+<h2>Advance the solution on coarse grid<a class="headerlink" href="#advance-the-solution-on-coarse-grid" title="Link to this heading"></a></h2>
+<p>Let’s now advance the solution for 250 steps, using only the base grid and the default time stepping
+parameters. To do so, ensure that:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.max_step = 250
+</pre></div>
+</div>
+<p>Additionally, make sure that <code class="docutils literal notranslate"><span class="pre">amr.check_int</span></code> is set to a positive value to trigger writing a
+checkpoint file from which to later restart the simulation. If available, use more than one MPI
+rank to run the simulation and redirect the standard output to a log file using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp &gt; logInitCoarse.dat &amp;
+</pre></div>
+</div>
+<p>Using 4 MPI ranks, it takes about 200 seconds to complete.
+A typical <cite>PeleLMeX</cite> stdout for a time step now looks like:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Est. time step - Conv: 9.42747435e-06, divu: 0.0002752479251
+STEP [125] - Time: 5.072407773e-05, dt 5.072441746e-06
+  SDC iter [1]
+  SDC iter [2]
+&gt;&gt; PeleLM::Advance() --&gt; Time: 0.877052
+</pre></div>
+</div>
+<p>clearly showing the use of 2 SDC iterations. The first line at each step provides
+the time step constraint from the CFL
+condition (<code class="docutils literal notranslate"><span class="pre">Conv:</span></code>) and from the density change condition (<code class="docutils literal notranslate"><span class="pre">divu:</span></code>).
+Since an initial <code class="docutils literal notranslate"><span class="pre">dt_shrink</span></code> was applied upon initialization, the
+current step is smaller than the CFL but progressively increases
+over the course of the simulation, eventually reaching the CFL constrained
+step size after 133 steps. After 250 steps, the simulation time is around 1.25 ms and
+the step size is of the order of 10 <span class="math notranslate nohighlight">\(\mu s\)</span>.</p>
+<p>Visualizing the <cite>plt00250</cite> file, we can see that the solution has evolved, with a
+vortex propagating downstream along the flame surface, while intermediate species
+can be found. Looking at the heat release rate and the H2 mass fraction, we can see that
+the flame front is very poorly resolved. The density along the isothermal EB also increased under
+the effect of the cold wall.</p>
+<figure class="align-center" id="bfs-250steps" style="width: 95%">
+<img alt="_images/BFS_250steps.png" src="_images/BFS_250steps.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 21 </span><span class="caption-text">: Contour plots of density, H2 mass fraction, <span class="math notranslate nohighlight">\(x\)</span>-velocity component and heat release rate after 250 steps.</span><a class="headerlink" href="#bfs-250steps" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>In order to illustrate one of <cite>PeleLMeX</cite> failure modes, we will now continue the simulation for
+another 50 steps, starting from <cite>chk00250</cite>, while increasing the CFL number to 0.6. Update the
+following keys in the input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Time Stepping CONTROL --------------------
+<span class="gh">amr.max_step = 300                          # Maximum number of time steps</span>
+<span class="gh">...</span>
+amr.cfl = 0.6                               # CFL number for hyperbolic system
+
+<span class="c">...</span>
+#---------------------- IO CONTROL -------------------------------
+amr.restart = chk00250                      # Restart checkpoint file
+</pre></div>
+</div>
+<p>and restart the simulation:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp &gt; logFail.dat &amp;
+</pre></div>
+</div>
+<p>The simulation will proceed, with the step size progressively increasing due to the higher CFL
+and changes to the velocity field, but after ~30 steps <cite>PeleLMeX</cite> will fail with the following error:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Est. time step - Conv: 1.550410967e-05, divu: 5.712875519e-05
+STEP [282] - Time: 0.001701680124, dt 1.550410967e-05
+  SDC iter [1]
+  SDC iter [2]
+amrex::Abort::3::Aborting from CVODE !!!
+SIGABRT
+From CVODE: At t = 1.43329e-05, mxstep steps taken before reaching tout.
+</pre></div>
+</div>
+<p>The combination of large time step size and poor flame resolution leads to a very stiff chemical system,
+where fuel, oxidizer, intermediate species and heat are mixed within the cell averaged state representation
+associated with finite volume. The CVODE error clearly states that the internal sub-stepping of the ODE
+integrator was not able to integrate past 1.43329e-05. This is an indication that the CFL constraint
+is too loose compared to chemical stiffness, even though a implicit solve is performed. This generally occurs
+in laminar flows with coarse resolution, but could also occurs in midly turbulent flames with stiff
+chemical mechanisms. If you plan on pushing the simulation forward without adding refinement, it is advised
+to reduce CFL to smaller value.</p>
+</section>
+<section id="refine-the-simulation">
+<h2>Refine the simulation<a class="headerlink" href="#refine-the-simulation" title="Link to this heading"></a></h2>
+<p>Instead, let’s add a first level of refinement and keep the CFL at a value of 0.6, while restarting again from
+<cite>chk00250</cite>. Enable AMR refinement by increasing the <code class="docutils literal notranslate"><span class="pre">amr.max_level</span></code>. It is also necessary to uncomment the
+<code class="docutils literal notranslate"><span class="pre">amr.ref_ratio</span></code> and <code class="docutils literal notranslate"><span class="pre">amr.regrid_int</span></code> lines, which  specify the refinement ratio for the new grid level
+(should be left at 2) and the interval between regridding steps while AMR is turned on, respectively.</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span><span class="gh">#---------------------- AMR CONTROL ------------------------------</span>
+<span class="gh">...</span>
+amr.max_level       = 1                     # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2               # refinement ratio
+<span class="gh">amr.regrid_int      = 5                     # how often to regrid</span>
+<span class="gh">...</span>
+</pre></div>
+</div>
+<p>And increase the maximum number of steps to 500:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Time Stepping CONTROL --------------------
+<span class="gh">amr.max_step = 500                          # Maximum number of time steps</span>
+<span class="gh">...</span>
+</pre></div>
+</div>
+<p>Restart the simulation:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp &gt; log1AMR.dat &amp;
+</pre></div>
+</div>
+<p>Using 4 MPI ranks, the simulation takes approximately 13 mn, so plenty of time to get
+a warm beverage. Looking at the solution after 500 steps (~3.2 ms), fine boxes can be found
+around the EB and along the flame. This is consistent with <cite>PeleLMeX</cite> default behavior which consists
+of refining the EB up to the finest level, and the refinement criterion specified in the
+<cite>Refinement CONTROL</cite> block near the end of the input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Refinement CONTROL------------------------
+amr.refinement_indicators = gradT
+amr.gradT.max_level     = 3
+amr.gradT.adjacent_difference_greater = 100
+amr.gradT.field_name    = temp
+</pre></div>
+</div>
+<p>This input block triggers cell tagging for refinement if the adjacent cell in any directions has a
+temperature difference larger than 100 K. Because the of the blocking factor and the grid efficiency
+value, most of the lower part of the computational domain is actually refined to Level 1.</p>
+<figure class="align-center" id="bfs-500steps" style="width: 95%">
+<img alt="_images/BFS_500steps.png" src="_images/BFS_500steps.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 22 </span><span class="caption-text">: Contour plots of temperature, H2 mass fraction, chemistry functCall and heat release rate after 500 steps, using 1 level of AMR.</span><a class="headerlink" href="#bfs-500steps" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The <cite>functCall</cite> variable corresponds to the number of time CVODE called the chemical right-hand-side function and is
+a good indicator of the computational cost of the integration of the implicit chemical system. Values up to ~70 can
+be found in the vicinity of the flame front while values &lt; 10 are found outside of the flame, highligthind the high
+spatial heterogeneity of combustion simulations. Even though a flame has established, the recirculation zone in the
+wake of the backward facing step is still mostly filled with the initial hot air mixture. Let’s restart the simulation again
+for another 500 steps using the same setup, only adding a few extra parameters:</p>
+<ul class="simple">
+<li><p>increase <cite>PeleLMeX</cite> verbose <code class="docutils literal notranslate"><span class="pre">peleLM.v</span> <span class="pre">=</span> <span class="pre">2</span></code> is order to get more information about the advance function.</p></li>
+<li><p>add following to the list of derived variables stored in plotfile (<code class="docutils literal notranslate"><span class="pre">amr.derive_plot_vars</span></code>): <cite>mixture_fraction</cite>, <cite>progress_variable</cite>.</p></li>
+</ul>
+<p>In order for the mixture fraction and progress variable to be properly define, users must provide the
+composition of the <cite>fuel</cite> and <cite>oxidizer</cite> streams, and the <cite>cold</cite> and <cite>hot</cite> mixture states, respectively. To do so,
+update the following block:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Derived CONTROLS -------------------------
+peleLM.fuel_name = CH4
+peleLM.mixtureFraction.format = Cantera
+peleLM.mixtureFraction.type   = mass
+peleLM.mixtureFraction.oxidTank = O2:0.233 N2:0.767
+peleLM.mixtureFraction.fuelTank = CH4:1.0
+peleLM.progressVariable.format = Cantera
+peleLM.progressVariable.weights = CO:1.0 CO2:1.0
+peleLM.progressVariable.coldState = CO:0.0 CO2:0.0
+peleLM.progressVariable.hotState = CO:0.003 CO2:0.122
+</pre></div>
+</div>
+<p>Update the <code class="docutils literal notranslate"><span class="pre">amr.restart</span></code> and <code class="docutils literal notranslate"><span class="pre">amr.max_step</span></code> to <cite>chk00500</cite> and <cite>1000</cite>, respectively and restart the simulation:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp &gt; log1AMRcnt.dat &amp;
+</pre></div>
+</div>
+<p>Once again, the simulation takes approximately 30 mn to complete. At this point, the flame is fairly well established
+in the downstream part of the domain, but the <cite>mixture_fraction</cite> field can clearly show that hot air is still trapped
+in the recirculation. Because of the cold EB wall, the flame is detached from the EB wall and stabilized by an
+ignition mechanism in the shear layer between the incoming fressh, flammable mixture and the recirculated hot gases.
+A look at the heat release rate field will show that the flame is still highly under-resolved. Let’s continue the
+simulation with an additional level of refinement. However, we could now want to keep the next level on the flame
+only. However, AMReX (and thus <cite>PeleLMeX</cite>) does not enable coarse-fine boundaries to intersect the EB. In other
+words, a continuous EB surface must be at the same level. But this level doesn’t have to be the finest level
+used in the simulation. In order to control the EB refinement level, let’s add the following lines to the
+<cite>Refinement CONTROL</cite> block:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>peleLM.refine_EB_type = Static
+peleLM.refine_EB_max_level = 1
+peleLM.refine_EB_buffer = 2.0
+</pre></div>
+</div>
+<p>These input keys will initiate a de-refining mechanism where local refinement triggered by other tagging criterions
+will be removed above the level specified (<cite>1</cite> in the present case), preventing coarse-fine boundary from intersecting
+the EB. The last keyword is a factor controlling how far from the EB the de-refining is applied is is useful for deep
+AMR hierarchy with complex geometries where proper nesting of finer levels might extend the reach of an AMR level far
+beyond the region where tagging for that level is triggered. Because <cite>PeleLMeX</cite> operates without subcycling, the
+step size decreases as we add refinement levels. As such, we can increase slightly the CFL number (but no higher than
+0.9) because we will now advance at a step size much small than the ones where we experienced CVODE integration
+issues earlier in this tutorial. Let’s set <code class="docutils literal notranslate"><span class="pre">amr.cfl=0.7</span></code>, increase the <code class="docutils literal notranslate"><span class="pre">amr.max_level=2</span></code> and restart the simulation
+for another 200 steps (updating again the restart file and max step).</p>
+<p>The simulation with take about 22 mn on 4 MPI ranks. A typical log file step with regridding will look like:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Regridding...
+Remaking level 1
+Remaking level 2
+Resetting fine-covered cells mask
+Est. time step - Conv: 4.947086647e-06, divu: 3.473512656e-05
+STEP [1195] - Time: 0.008834263469, dt 4.947086647e-06
+  SDC iter [1]
+  <span class="m">-</span> oneSDC()::MACProjection()   --&gt; Time: 0.241061
+  <span class="m">-</span> oneSDC()::ScalarAdvection() --&gt; Time: 0.141316
+  <span class="m">-</span> oneSDC()::ScalarDiffusion() --&gt; Time: 1.351
+  <span class="m">-</span> oneSDC()::ScalarReaction()  --&gt; Time: 1.368832
+  SDC iter [2]
+  <span class="m">-</span> oneSDC()::Update t^{n+1,k}  --&gt; Time: 0.53102
+  <span class="m">-</span> oneSDC()::MACProjection()   --&gt; Time: 0.136435
+  <span class="m">-</span> oneSDC()::ScalarAdvection() --&gt; Time: 0.1527
+  <span class="m">-</span> oneSDC()::ScalarDiffusion() --&gt; Time: 1.07304
+  <span class="m">-</span> oneSDC()::ScalarReaction()  --&gt; Time: 1.18373
+  <span class="m">-</span> Advance()::VelocityAdvance  --&gt; Time: 0.325139
+&gt;&gt; PeleLM::Advance() --&gt; Time: 7.528655
+</pre></div>
+</div>
+<p>The increased verbose explicitly shows the various pieces of <cite>PeleLMeX</cite> advance function and their computational
+cost. In the present case, diffusion and reaction are about the same computational cost, 5 to 10 times more expensive
+than the other parts of the algorithm. Both AMR levels where updated at the beginning of the time steps. With the
+additional refinement, the flame front is now resolved with a few grid cells (but still below DNS requirements).</p>
+<figure class="align-center" id="bfs-1200steps" style="width: 95%">
+<img alt="_images/BFS_1200steps.png" src="_images/BFS_1200steps.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 23 </span><span class="caption-text">: Contour plots of temperature, H2 mass fraction, H2 production rate and heat release rate after 1200 steps, using 2 levels of AMR.</span><a class="headerlink" href="#bfs-1200steps" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The AMR level 2 is clearly distant from the EB and concentrated mostly on the flame surface (except a small box at the bottom of the
+recirculation zone which could be alleviated by using a refinement criterion based a flame intermediate species rather
+than temperature difference). Let’s conclude this tutorial by another two AMR levels and provide an example of <cite>PeleLMeX</cite>
+runtime diagnostics. We will restart the simulation for another 10 steps with a <code class="docutils literal notranslate"><span class="pre">amr.max_level=3</span></code>. increasing the
+verbose to <code class="docutils literal notranslate"><span class="pre">peleLM.v</span> <span class="pre">=</span> <span class="pre">3</span></code> and defining a couple of diagnostics.</p>
+<p>We are interested in evaluating how much the premixed flame near the EB wall differs from the one further downstream. To provide
+quantitative data, we will compute conditional averaged value of reaction markers and intermediate species as function of the
+progress variable. We can do this by defining the same diagnostics but extracted on the upstream and downstream regions of the
+computational domain as follows:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>peleLM.diagnostics = CondMeanUp CondMeanDown
+peleLM.CondMeanUp.type = DiagConditional
+peleLM.CondMeanUp.int  = 10
+peleLM.CondMeanUp.filters = lowX middleY
+peleLM.CondMeanUp.lowX.field_name = x
+peleLM.CondMeanUp.lowX.value_inrange = 0.011 0.035
+peleLM.CondMeanUp.middleY.field_name = y
+peleLM.CondMeanUp.middleY.value_inrange = -0.005 0.005
+peleLM.CondMeanUp.conditional_type = Average
+peleLM.CondMeanUp.nBins = 40
+peleLM.CondMeanUp.condition_field_name = progress_variable
+peleLM.CondMeanUp.field_names = HeatRelease Y(H2) Y(CO) I_R(CH4) I_R(H2)
+
+peleLM.CondMeanDown.type = DiagConditional
+peleLM.CondMeanDown.int  = 10
+peleLM.CondMeanDown.filters = highX middleY
+peleLM.CondMeanDown.highX.field_name = x
+peleLM.CondMeanDown.highX.value_inrange = 0.035 0.07
+peleLM.CondMeanDown.middleY.field_name = y
+peleLM.CondMeanDown.middleY.value_inrange = -0.005 0.005
+peleLM.CondMeanDown.conditional_type = Average
+peleLM.CondMeanDown.nBins = 40
+peleLM.CondMeanDown.condition_field_name = progress_variable
+peleLM.CondMeanDown.field_names = HeatRelease Y(H2) Y(CO) I_R(CH4) I_R(H2)
+</pre></div>
+</div>
+<p>Using different <code class="docutils literal notranslate"><span class="pre">filters</span></code> option, the first diagnostic will extract data from the region comprised in the
+<span class="math notranslate nohighlight">\(x\)</span> [0.011:0.035] while the second one further downstream in <span class="math notranslate nohighlight">\(x\)</span> [0.035:0.07].</p>
+<p>Let’s restart the simulation for another 10 steps (updating the restart file and max step). The additional
+verbose allows to get an idea of the number of cells in the simulation:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Regridding...
+Remaking level 1
+with 37120 cells, over 56.640625% of the domain
+Remaking level 2
+with 67072 cells, over 25.5859375% of the domain
+Remaking level 3
+with 117760 cells, over 11.23046875% of the domain
+Making new level 4 from coarse
+with 189696 cells, over 4.522705078% of the domain
+Resetting fine-covered cells mask
+Est. time step - Conv: 1.221962099e-06, divu: 3.340072395e-05
+<span class="gh">STEP [1205] - Time: 0.008871299457, dt 1.221962099e-06</span>
+<span class="gh">...</span>
+</pre></div>
+</div>
+<p>Showing that the finest level contains as many cells as the next two coarser levels on only a fraction
+of the space. Two additional ASCII files containing the conditional averaged data have been created and
+using for example <cite>gnuplot</cite>, the user can compare the conditional averaged heat release rate between
+the upstream and downstream region of the flame.</p>
+<figure class="align-center" id="bfs-condaverage" style="width: 60%">
+<img alt="_images/BFS_CondAverage.png" src="_images/BFS_CondAverage.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 24 </span><span class="caption-text">: Conditional average and standard deviation of heat release rate after 1210 steps, using 4 levels of AMR.</span><a class="headerlink" href="#bfs-condaverage" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Note that for this analysis to be relevant, we would need to run the simulation longer to completely
+remove the effect of the initial hot air still trapped in the recirculation zone at this point and largely
+affecting the upstream average data.</p>
+</section>
+<section id="partially-premixed-case-with-eb-inflow">
+<h2>Partially premixed case with EB-inflow<a class="headerlink" href="#partially-premixed-case-with-eb-inflow" title="Link to this heading"></a></h2>
+<p>This case also includes a separate input file designed to demonstrate the experimental EB-inflow
+capability in PeleLMeX. This input file <code class="docutils literal notranslate"><span class="pre">eb_bfs_pp.inp</span></code> corresponds to a partially premixed
+flame, with a fuel jet flowing upward from the horizontal EB surface and mixing with oxidizer
+flowing in through the left domain boundary.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Tutorials_FlowPastCyl.html" class="btn btn-neutral float-left" title="Non-reacting flow past a cylinder" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Tutorials_BFSRecycling.html" class="btn btn-neutral float-right" title="3D backward facing step with recycling-plane inflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

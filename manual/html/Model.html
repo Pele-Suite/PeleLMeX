@@ -1,0 +1,569 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The PeleLMeX Model &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Source code" href="Implementation.html" />
+    <link rel="prev" title="Welcome to PeleLMeX’s documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The <cite>PeleLMeX</cite> Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview-of-pelelmex">Overview of <cite>PeleLMeX</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mathematical-background">Mathematical background</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#the-low-mach-number-flow-equations">The low Mach number flow equations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#confined-domain-ambient-pressure">Confined domain ambient pressure</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pelelmex-algorithm">PeleLMeX Algorithm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#low-mach-number-projection-scheme">Low Mach number projection scheme</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advection-schemes">Advection schemes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#amr-extension">AMR extension</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#geometry-with-embedded-boundaries">Geometry with Embedded Boundaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mesh-mapping">Mesh Mapping</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#large-eddy-simulation">Large Eddy Simulation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">The <cite>PeleLMeX</cite> Model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Model.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="the-pelelmex-model">
+<span id="sec-model"></span><h1>The <cite>PeleLMeX</cite> Model<a class="headerlink" href="#the-pelelmex-model" title="Link to this heading"></a></h1>
+<p>In this section, we present the actual model that is evolved numerically by <cite>PeleLMeX</cite>, and the numerical algorithms
+to do it.  There are many control parameters to customize the solution strategy and process, and in order to actually
+set up and run specific problems with <cite>PeleLMeX</cite>, the user must specific the chemical model, and provide routines
+that implement initial and boundary data and refinement criteria for the adaptive mesh refinement.  We discuss
+setup and control of <cite>PeleLMeX</cite> in later sections.</p>
+<section id="overview-of-pelelmex">
+<h2>Overview of <cite>PeleLMeX</cite><a class="headerlink" href="#overview-of-pelelmex" title="Link to this heading"></a></h2>
+<p><cite>PeleLMeX</cite> is the non-subcycling version of <a class="reference external" href="https://amrex-combustion.github.io/PeleLM/">PeleLM</a> a parallel,
+adaptive mesh refinement (AMR) code that solves the reacting Navier-Stokes equations in the low Mach number regime.
+<cite>PeleLM</cite> is officially deprecated now with support that is not guaranteed to be current.</p>
+<p>In a nutshell, <cite>PeleLMeX</cite> features include:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Software :</dt><dd><ul>
+<li><p>Written in C++</p></li>
+<li><p>Parallelization using MPI+X approach, with X one of OpenMP, CUDA, HIP or SYCL</p></li>
+<li><p>Parallel I/O</p></li>
+<li><p>Built-in profiling tools</p></li>
+<li><p>Plotfile format supported by <a class="reference external" href="https://github.com/AMReX-Codes/Amrvis/">Amrvis</a>, <a class="reference external" href="http://yt-project.org/">yt</a>, <a class="reference external" href="https://www.paraview.org/">ParaView</a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Physics &amp; numerics :</dt><dd><ul>
+<li><p>Finite volume, block-structured AMR approach</p></li>
+<li><p>2D-Cartesian, 2D-Axisymmetric and 3D support</p></li>
+<li><p>Combustion (transport, kinetics, thermodynamics) models based on Cantera and EGLib through <a class="reference external" href="https://github.com/AMReX-Combustion/PelePhysics">PelePhysics</a></p></li>
+<li><p>Complex geometries using Embedded Boundaries (EB)</p></li>
+<li><p>Optional grid-aligned mesh mapping; several specific mappings provided</p></li>
+<li><p>Second-order projection methodology for enforcing the low Mach number constraint</p></li>
+<li><p>Time advance based on a spectral-deferred corrections approach that discretely conserves species mass and energy while evolving the system on the equation of state</p></li>
+<li><p>Several second-order Godunov integration schemes for advection</p></li>
+<li><p>Temporally implicit viscosity, species mass diffusion, thermal conductivity, chemical kinetics</p></li>
+<li><p>Closed chamber algorithm enables time-varying background pressure changes</p></li>
+<li><p>Lagrangian spray description and Hybrid Method of Moments Soot modeling using <a class="reference external" href="https://github.com/AMReX-Combustion/PelePhysics">PelePhysics</a> (formerly these were part of <a class="reference external" href="https://github.com/AMReX-Combustion/PeleMP">PeleMP</a>).</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="mathematical-background">
+<h2>Mathematical background<a class="headerlink" href="#mathematical-background" title="Link to this heading"></a></h2>
+<p><cite>PeleLMeX</cite> evolves chemically reacting low Mach number flows with block-structured adaptive mesh refinement (AMR) on coordinate-aligned mapped rectangular grids. The code depends upon the <a class="reference external" href="https://github.com/AMReX-Codes/amrex">AMReX</a> library to provide the underlying data structures and tools to manage and operate on them across massively parallel computing heterogeneous compute architectures. <cite>PeleLMeX</cite> also utilizes the source code and algorithmic infrastructure of <a class="reference external" href="https://github.com/AMReX-Fluids/AMReX-Hydro">AMReX-Hydro</a>. The core algorithm of <cite>PeleLMeX</cite> borrows heavily from <a class="reference external" href="https://amrex-combustion.github.io/PeleLM/">PeleLM</a> but is simplified to avoid temporal subcycling across the AMR mesh hierarchy. The core algorithms in <cite>PeleLM</cite> are described in the following series of papers:</p>
+<ul class="simple">
+<li><p><em>A conservative, thermodynamically consistent numerical approach for low Mach number combustion. I. Single-level integration</em>, A. Nonaka, J. B. Bell, and M. S. Day, <em>Combust. Theor. Model.</em>, <strong>22</strong> (1) 156-184 (2018)</p></li>
+<li><p><em>A Deferred Correction Coupling Strategy for Low Mach Number Flow with Complex Chemistry</em>, A. Nonaka, J. B. Bell, M. S. Day, C. Gilet, A. S. Almgren, and M. L. Minion, <em>Combust. Theory and Model</em>, <strong>16</strong> (6) 1053-1088 (2012)</p></li>
+<li><p><em>Numerical Simulation of Laminar Reacting Flows with Complex Chemistry</em>, M. S. Day and J. B. Bell, <em>Combust. Theory Model</em> <strong>4</strong> (4) 535-556 (2000)</p></li>
+<li><p><em>An Adaptive Projection Method for Unsteady, Low-Mach Number Combustion</em>, R. B. Pember, L. H. Howell, J. B. Bell, P. Colella, W. Y. Crutchfield, W. A. Fiveland, and J. P. Jessee, <em>Comb. Sci. Tech.</em>, <strong>140</strong> 123-168 (1998)</p></li>
+<li><p><em>A Conservative Adaptive Projection Method for the Variable Density Incompressible Navier-Stokes Equations,</em> A. S. Almgren, J. B. Bell, P. Colella, L. H. Howell, and M. L. Welcome, <em>J. Comp. Phys.</em>, <strong>142</strong> 1-46 (1998)</p></li>
+</ul>
+<section id="the-low-mach-number-flow-equations">
+<h3>The low Mach number flow equations<a class="headerlink" href="#the-low-mach-number-flow-equations" title="Link to this heading"></a></h3>
+<p><cite>PeleLMeX</cite> solves the reacting Navier-Stokes flow equations in the <em>low Mach number</em> regime, where the characteristic fluid velocity is small compared to the sound speed, and the effect of acoustic wave propagation is unimportant to the overall dynamics of the system. Accordingly, acoustic wave propagation can be mathematically removed from the equations of motion, allowing for a numerical time step based on an advective CFL condition, and this leads to an increase in the allowable time step of order <span class="math notranslate nohighlight">\(1/M\)</span> over an explicit, fully compressible method (<span class="math notranslate nohighlight">\(M\)</span> is the Mach number).  In this mathematical framework, the total pressure is decomposed into the sum of a spatially constant (ambient) thermodynamic pressure <span class="math notranslate nohighlight">\(p_0\)</span> and a perturbational pressure, <span class="math notranslate nohighlight">\(\pi({\vec x})\)</span> that drives the flow.  Under suitable conditions, <span class="math notranslate nohighlight">\(\pi/p_0 = \mathcal{O} (M^2)\)</span>. Note that <span class="math notranslate nohighlight">\(p_0\)</span> is spatially constant, but can be time-dependent as described in the next section.</p>
+<p>The set of conservation equations specialized to the low Mach number regime is a system of PDEs with advection, diffusion and reaction (ADR) processes that are constrained to evolve on the manifold of a spatially constant <span class="math notranslate nohighlight">\(p_0\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}&amp;\frac{\partial (\rho \boldsymbol{u})}{\partial t} +
+\nabla \cdot \left(\rho  \boldsymbol{u} \boldsymbol{u} + \tau \right)
+= -\nabla \pi + \boldsymbol{S}_{\text{ext},\rho\boldsymbol{u}},\\
+&amp;\frac{\partial (\rho Y_m)}{\partial t} +
+\nabla \cdot \left( \rho Y_m \boldsymbol{u}
++ \boldsymbol{\mathcal{F}}_{m} \right)
+= \rho \dot{\omega}_m + S_{\text{ext},\rho\boldsymbol{Y_m}},\\
+&amp;\frac{ \partial (\rho h)}{ \partial t} +
+\nabla \cdot \left( \rho h \boldsymbol{u}
++ \boldsymbol{\mathcal{Q}} \right) = S_{\text{ext},\rho\boldsymbol{h}} ,\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\rho\)</span> is the density, <span class="math notranslate nohighlight">\(\boldsymbol{u}\)</span> is the velocity, <span class="math notranslate nohighlight">\(h\)</span> is the mass-weighted enthalpy, <span class="math notranslate nohighlight">\(T\)</span> is temperature and <span class="math notranslate nohighlight">\(Y_m\)</span> is the mass fraction of species <span class="math notranslate nohighlight">\(m\)</span>. <span class="math notranslate nohighlight">\(\dot{\omega}_m\)</span> is the molar production rate for species <span class="math notranslate nohighlight">\(m\)</span>, the modeling of which will be described later in this section. <span class="math notranslate nohighlight">\(\tau\)</span> is the stress tensor, <span class="math notranslate nohighlight">\(\boldsymbol{\mathcal{Q}}\)</span> is the heat flux and <span class="math notranslate nohighlight">\(\boldsymbol{\mathcal{F}}_m\)</span> are the species diffusion fluxes. These transport fluxes require the evaluation of transport coefficients (e.g., the viscosity <span class="math notranslate nohighlight">\(\mu\)</span>, the conductivity <span class="math notranslate nohighlight">\(\lambda\)</span> and the diffusivity matrix <span class="math notranslate nohighlight">\(D\)</span>) which are computed using the library EGLIB, as will be described in more depth in the diffusion section. The source terms, <span class="math notranslate nohighlight">\(S_{\text{ext}}\)</span>, are user defined external forcing terms.  For example, we have used <span class="math notranslate nohighlight">\(\boldsymbol{S}_{\text{ext},\rho\boldsymbol{u}} = \rho\boldsymbol{F}\)</span> to implement a long-wavelength time-dependent force to establish and maintain quasi-stationary turbulence.</p>
+<p>These evolution equations are supplemented by an equation of state for the thermodynamic pressure.  For example, the ideal gas law,</p>
+<div class="math notranslate nohighlight">
+\[p_0(\rho,Y_m,T)=\frac{\rho \mathcal{R} T}{W}=\rho \mathcal{R} T
+\sum_m \frac{Y_m}{W_m} .\]</div>
+<p>In the above, <span class="math notranslate nohighlight">\(W_m\)</span> and <span class="math notranslate nohighlight">\(W\)</span> are the species <span class="math notranslate nohighlight">\(m\)</span>, and mean molecular weights, respectively.  To close the system we also require a relationship between enthalpy, species and temperature.  We adopt the definition used in the CHEMKIN standard,</p>
+<div class="math notranslate nohighlight">
+\[h=\sum_m Y_m h_m(T)\]</div>
+<p>where <span class="math notranslate nohighlight">\(h_m\)</span> is the species <span class="math notranslate nohighlight">\(m\)</span> enthalpy.  Note that expressions for <span class="math notranslate nohighlight">\(h_m(T)\)</span> see &lt;section on thermo properties&gt; incorporate the heat of formation for each species.</p>
+<p>Neither species diffusion nor reactions redistribute the total mass, hence we have <span class="math notranslate nohighlight">\(\sum_m \boldsymbol{\mathcal{F}}_m = 0\)</span> and <span class="math notranslate nohighlight">\(\sum_m \dot{\omega}_m = 0\)</span>. Thus, summing the species equations and using the definition <span class="math notranslate nohighlight">\(\sum_m Y_m = 1\)</span> we obtain the continuity equation:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial \rho}{\partial t} + \nabla \cdot \rho \boldsymbol{u} = S_{\text{ext},\rho}\]</div>
+<p>This, together with the conservation equations form a differential-algebraic equation (DAE) system that describes an evolution subject to a constraint.  A standard approach to attacking such a system computationally is to differentiate the constraint until it can be recast as an initial value problem.  Following this procedure, we set the thermodynamic pressure constant in the frame of the fluid,</p>
+<div class="math notranslate nohighlight">
+\[\frac{Dp_0}{Dt} = 0\]</div>
+<p>and observe that if the initial conditions satisfy the constraint, an evolution satisfying the above will continue to satisfy the constraint over all time.  Expanding this expression via the chain rule and continuity:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} = \frac{1}{T}\frac{DT}{Dt}
++ W \sum_m \frac{1}{W_m} \frac{DY_m}{Dt} + \frac{1}{\rho}S_{\text{ext},\rho} = S.\]</div>
+<p>The constraint here takes the form of a condition on the divergence of the flow.  Note that the actual expressions to use here will depend upon the equation of state and the chosen models for evaluating the transport fluxes.</p>
+<p>For the standard ideal gas EOS,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\frac{DT}{Dt} &amp;= \frac{1}{\rho}\Big[ - \nabla \cdot \boldsymbol{Q} + S_{\text{ext},\rho h} - h S_{\text{ext},\rho}\Big] - \sum_m \frac{h_m}{ c_p} \frac{DY_m}{Dt}, \\
+\frac{DY_m}{Dt} &amp;= \frac{1}{\rho}\Big[ - \nabla \cdot \boldsymbol{\mathcal{F_m}} + \rho \dot \omega_m + S_{\text{ext},\rho Y_m} - Y_m S_{\text{ext},\rho}\Big].\end{split}\]</div>
+<p>The corresponding divergence constraint on velocity in this case becomes:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\nabla \cdot \boldsymbol{u} &amp;= \frac{1}{\rho c_p T} \Big(-\nabla \cdot \boldsymbol{Q} + S_{\text{ext},\rho h} - h S_{\text{ext},\rho}\Big) \\
+&amp;\;\;\;\; +  \sum_m \bigg( \frac{W}{\rho W_m} -  \frac{h_m}{\rho c_p T}\bigg)\bigg( - \nabla \cdot \boldsymbol{\mathcal{F}}_m + \rho \dot \omega_m + S_{\text{ext},\rho Y_m} - Y_m S_{\text{ext},\rho}\bigg) + \frac{1}{\rho} S_{\text{ext},\rho}\equiv S .\end{split}\]</div>
+<p>However, it can be shown that</p>
+<div class="math notranslate nohighlight">
+\[\sum_m \frac{W}{\rho W_m} Y_m S_{\text{ext},\rho} = \frac{1}{\rho}S_{\text{ext},\rho}\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\sum_m h_m Y_m S_{\text{ext},\rho} = h S_{\text{ext},\rho}.\]</div>
+<p>Thus, the terms containing <span class="math notranslate nohighlight">\(S_{\text{ext},\rho}\)</span> cancel and the divergence constraint for the standard ideal gas EOS simplifies to:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} = \frac{1}{\rho c_p T} \Big(-\nabla \cdot \boldsymbol{Q} + S_{\text{ext},\rho h} \Big)
++  \sum_m \bigg( \frac{W}{\rho W_m} -  \frac{h_m}{\rho c_p T}\bigg)\bigg( - \nabla \cdot \boldsymbol{\mathcal{F}}_m + \rho \dot \omega_m + S_{\text{ext},\rho Y_m} \bigg) \equiv S .\]</div>
+<p>In addition to the flow equations, <cite>PeleLMeX</cite> can also solve for a set of quantities that are neither advected nor diffused, satisfying:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial B_k}{\partial t} = S_{\text{ext},B_k}.\]</div>
+</section>
+<section id="confined-domain-ambient-pressure">
+<h3>Confined domain ambient pressure<a class="headerlink" href="#confined-domain-ambient-pressure" title="Link to this heading"></a></h3>
+<p>In unconfined domains, the ambient pressure will remain constant in time, but for confined domains, this is not the case. Above, we assumed that <span class="math notranslate nohighlight">\(p_0\)</span> was constant. If <span class="math notranslate nohighlight">\(p_0\)</span> is a function of time, the pressure derivative term must be restored in the velocity divergence constraint as:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} + \theta \frac{dp_0}{dt} = S ,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\theta \equiv 1/(\Gamma_1 p_0)\)</span>, with <span class="math notranslate nohighlight">\(\Gamma_1 = \partial ln(p)/\partial ln(\rho)|_s\)</span> being the first adiabatic exponent. <span class="math notranslate nohighlight">\(\Gamma_1\)</span> depends on the composition and is not a constant. Both <span class="math notranslate nohighlight">\(\theta\)</span> and <span class="math notranslate nohighlight">\(S\)</span> can be decomposed into mean and fluctuating components and the above equation can be rewritten as:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} + (\overline \theta + \delta \theta)\frac{dp_0}{dt} = \overline S + \delta S,\]</div>
+<p>where <span class="math notranslate nohighlight">\(\overline \theta\)</span> and <span class="math notranslate nohighlight">\(\overline S\)</span> are the mean values of <span class="math notranslate nohighlight">\(\theta\)</span> and <span class="math notranslate nohighlight">\(S\)</span> over the domain, and <span class="math notranslate nohighlight">\(\delta \theta\)</span> and <span class="math notranslate nohighlight">\(\delta S\)</span> are the perturbations off their respective means. Both <span class="math notranslate nohighlight">\(\delta \theta\)</span> and <span class="math notranslate nohighlight">\(\delta S\)</span> integrate to zero over the domain, by definition. Integrating over the domain volume:</p>
+<div class="math notranslate nohighlight">
+\[\int_V \nabla \cdot \boldsymbol{u} dV + \int_V (\overline \theta + \delta \theta)\frac{dp_0}{dt} dV = \int_V (\overline S + \delta S) dV\]</div>
+<p>Since the perturbations integrate to zero over the domain volume and the mean values are spatially constant, <span class="math notranslate nohighlight">\(p_0\)</span> is only a function of time, and the above simplifies to:</p>
+<div class="math notranslate nohighlight">
+\[\frac{1}{V} \int_V \nabla \cdot \boldsymbol{u} dV + \overline \theta \frac{dp_0}{dt} = \overline S .\]</div>
+<p>Solving for <span class="math notranslate nohighlight">\(dp_0/dt\)</span> yields an evolution equation of <span class="math notranslate nohighlight">\(p_0\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\frac{dp_0}{dt} = \frac{1}{\overline \theta} \left(\overline S - \frac{1}{V} \int_A \boldsymbol{u} dA \right) ,\]</div>
+<p>where we have used the divergence theorem to convert the volume integral into a surface integral over the domain boundaries: <span class="math notranslate nohighlight">\(\int_V \nabla \cdot \boldsymbol{u} dV = \int_A \boldsymbol{u} dA\)</span>. The above pressure evolution is accompanied by a modified velocity constraint:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} = \delta S - \delta \theta \frac{\overline S}{\overline \theta} - \left(1 + \frac{\theta}{\overline \theta} \right) \frac{1}{V} \int_A \boldsymbol{u} dA\]</div>
+<p>The above equations hold for any fully enclosed or partially enclosed domain where there can be mass flowing into or out of the domain, but the net flowrate is non-zero and therefore the pressure should be adjusted in time. In a perfectly enclosed domain, where there is no mass in or out of the system, <span class="math notranslate nohighlight">\(\int_A \boldsymbol{u} dA = 0\)</span> and the pressure evolution simplifies further to:</p>
+<div class="math notranslate nohighlight">
+\[\frac{dp_0}{dt} = \frac{\overline S}{\overline \theta} ,\]</div>
+<p>with the corresponding constraint on the velocity:</p>
+<div class="math notranslate nohighlight">
+\[\nabla \cdot \boldsymbol{u} = \delta S - \delta \theta \frac{\overline S}{\overline \theta} .\]</div>
+<p>The next section summarizes how <cite>PeleLMeX</cite> evolves the conservation equations while satisfying this constraint.</p>
+</section>
+</section>
+<section id="pelelmex-algorithm">
+<h2>PeleLMeX Algorithm<a class="headerlink" href="#pelelmex-algorithm" title="Link to this heading"></a></h2>
+<p>An overview of <cite>PeleLMeX</cite> time-advance function is provided in <a class="reference internal" href="#lmex-algo"><span class="std std-numref">Fig. 1</span></a> and details are provided in the following subsections.</p>
+<figure class="align-center" id="lmex-algo" style="width: 50%">
+<img alt="_images/PeleLMeX_Algorithm.png" src="_images/PeleLMeX_Algorithm.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 1 </span><span class="caption-text">: Flowchart of the <em>PeleLMeX</em> advance function.</span><a class="headerlink" href="#lmex-algo" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The three main steps of the low Mach number projection scheme, described <a class="reference internal" href="#ssec-projscheme"><span class="std std-ref">below</span></a>, are referenced
+here to emphasize how the thermodynamic solve is closely weaved into a fractional step approach. Striped boxes indicate where the
+<a class="reference internal" href="#ssec-advscheme"><span class="std std-ref">Godunov procedure</span></a> is employed, and the four different linear solves required for the algoriuthm are highlighted.</p>
+<section id="low-mach-number-projection-scheme">
+<h3>Low Mach number projection scheme<a class="headerlink" href="#low-mach-number-projection-scheme" title="Link to this heading"></a></h3>
+<p id="ssec-projscheme"><cite>PeleLMeX</cite> implements a finite-volume, Cartesian grid discretization approach, where
+<span class="math notranslate nohighlight">\(U\)</span>, <span class="math notranslate nohighlight">\(\rho\)</span>, <span class="math notranslate nohighlight">\(\rho Y_m\)</span>, <span class="math notranslate nohighlight">\(\rho h\)</span>, and <span class="math notranslate nohighlight">\(T\)</span> represent cell averages, and the pressure field, <span class="math notranslate nohighlight">\(\pi\)</span>, is defined on the nodes
+of the grid, and is temporally constant on the intervals over the time step. The discretization is formulated in a uniform grid space, but an
+a number of optional coordinate-aligned mesh mapping are supported, as discussed in the <a class="reference internal" href="#ssec-meshmapping"><span class="std std-ref">mesh mapping</span></a> section.</p>
+<p>The projection scheme used in <cite>PeleLMeX</cite> is based on a fractional step approach where the velocity is first advanced in time
+using the momentum equation (<strong>Step 1</strong>) ignoring the constraint, and subsequently projected to enforce the constraint with a linear elliptic solve (<strong>Step 3</strong>). When
+considering variable density flows, the advance of thermodynamic scalars is performed between these two steps (<strong>Step 2</strong>). An SDC approach interlaces
+<strong>Step 1</strong> and <strong>Step 2</strong> into a tightly coupled advance. The three major steps of the algorithm, as detailed in the references,
+Almgren <em>et al.</em> 1998, Day and Bell, 2000, Nonaka <em>et al.</em> 2012), are summarized here:</p>
+<p><strong>Step 1</strong>: (<em>Compute advection velocities</em>) Use a second-order Godunov procedure to predict a time-centered
+velocity, <span class="math notranslate nohighlight">\(U^{{\rm ADV},*}\)</span>, on cell faces using the cell-centered data (plus sources due to any auxiliary forcing) at <span class="math notranslate nohighlight">\(t^n\)</span>,
+and the lagged pressure gradient from the previous time interval, which we denote as <span class="math notranslate nohighlight">\(\nabla \pi^{n-1/2}\)</span>.
+This provisional field, <span class="math notranslate nohighlight">\(U^{{\rm ADV},*}\)</span>, fails to satisfy the divergence constraint, in general. We apply a discrete
+projection (termed <em>MAC</em>-projection) by solving the elliptic equation with a time-centered source term:</p>
+<div class="math notranslate nohighlight">
+\[D^{{\rm FC}\rightarrow{\rm CC}}\frac{1}{\rho^n}G^{{\rm CC}\rightarrow{\rm FC}}\phi
+= D^{{\rm FC}\rightarrow{\rm CC}}U^{{\rm ADV},*} - S^{MAC}\]</div>
+<p>for <span class="math notranslate nohighlight">\(\phi\)</span> at cell-centers, where <span class="math notranslate nohighlight">\(D^{{\rm FC}\rightarrow{\rm CC}}\)</span> represents a cell-centered divergence of face-centered data,
+<span class="math notranslate nohighlight">\(G^{{\rm CC}\rightarrow{\rm FC}}\)</span> represents a face-centered gradient of cell-centered data, and <span class="math notranslate nohighlight">\(\rho^n\)</span> is computed on
+cell faces using arithmetic averaging from neighboring cell centers. Also, <span class="math notranslate nohighlight">\(S^{MAC}\)</span> refers to the RHS of the constraint
+equation, with adjustments to be discussed in the next section – these adjustments are computed to ensure that the final update
+satisfies the equation of state. The solution, <span class="math notranslate nohighlight">\(\phi\)</span>, is then used to define:</p>
+<div class="math notranslate nohighlight">
+\[U^{\rm ADV} = U^{{\rm ADV},*} - \frac{1}{\rho^n}G^{{\rm CC}\rightarrow{\rm FC}}\phi,\]</div>
+<p>After the <em>MAC</em>-projection, <span class="math notranslate nohighlight">\(U^{\rm ADV}\)</span> is a second-order accurate, staggered (face-centered) grid vector
+field at <span class="math notranslate nohighlight">\(t^{n+1/2}\)</span> that discretely satisfies the constraint. This field is the advection velocity that will be
+used for computing the time-explicit advective fluxes for <span class="math notranslate nohighlight">\(U\)</span>, <span class="math notranslate nohighlight">\(\rho h\)</span>, and <span class="math notranslate nohighlight">\(\rho Y_m\)</span>.</p>
+<p><strong>Step 2</strong>: (<em>Advance thermodynamic variables</em>) Integrate <span class="math notranslate nohighlight">\((\rho Y_m,\rho h)\)</span> over the full time step using a spectral deferred correction (SDC) approach, the details of which can be found in <a class="reference external" href="https://amrex-combustion.github.io/PeleLM/manual/html/Model.html#sdc-preliminaries">PeleLM documentation</a>. An even more detailed version of the algorithm is available in Nonaka <em>et al.</em>, 2018.</p>
+<ul>
+<li><p>We begin by computing the diffusion terms <span class="math notranslate nohighlight">\(D^n\)</span> at <span class="math notranslate nohighlight">\(t^n\)</span> that will be needed throughout the SDC iterations. Specifically, we evaluate the transport coefficients <span class="math notranslate nohighlight">\((\lambda,C_p,\mathcal D_m,h_m)^n\)</span> from <span class="math notranslate nohighlight">\((Y_m,T)^n\)</span> at cell centers and averaged to faces. The provisional diffusion fluxes, <span class="math notranslate nohighlight">\(\widetilde{\boldsymbol{\cal F}}_m^n\)</span>, are computed with these averaged transport coefficients and state gradients computed with differences across each face.  These fluxes are conservatively corrected (i.e., adjusted to sum to zero by adding a mass-weighted “correction velocity”) to obtain <span class="math notranslate nohighlight">\({\boldsymbol{\cal F}}_m^n\)</span> such that <span class="math notranslate nohighlight">\(\sum {\boldsymbol{\cal F}}_m^n = 0\)</span>. Finally, we copy the transport coefficients, diffusion fluxes and the thermodynamic state from <span class="math notranslate nohighlight">\(t^n\)</span> as starting values for <span class="math notranslate nohighlight">\(t^{n+1,(k=0)}\)</span>, and initialize the reaction terms, <span class="math notranslate nohighlight">\(I_R\)</span> from the values used in the previous step.</p></li>
+<li><p>The following sequence is then repeated for each “SDC” iteration <span class="math notranslate nohighlight">\(k&lt;k_{max}\)</span> starting at <span class="math notranslate nohighlight">\(k=0\)</span>:</p>
+<ol class="arabic">
+<li><p>if <span class="math notranslate nohighlight">\(k&gt;0\)</span>, compute the lagged transport properties from the previous <span class="math notranslate nohighlight">\(k\)</span> state iteration, and update the diffusion terms <span class="math notranslate nohighlight">\(D^{n+1,(k)}\)</span> and divergence constraint <span class="math notranslate nohighlight">\(\widehat S^{n+1,(k)}\)</span></p></li>
+<li><p>construct the time-centered <em>MAC</em>-projection RHS, <span class="math notranslate nohighlight">\(S^{MAC}\)</span> by combining <span class="math notranslate nohighlight">\(t^n\)</span> and <span class="math notranslate nohighlight">\(t^{n+1,(k)}\)</span> estimates of <span class="math notranslate nohighlight">\(\widehat S\)</span>, and the pressure correction <span class="math notranslate nohighlight">\(\chi\)</span> (Nonaka <em>et al</em>, 2018):</p>
+<div class="math notranslate nohighlight">
+\[S^{MAC} = \frac{1}{2}(\widehat S^n + \widehat S^{n+1,(k)}) + \sum_{i=0}^k \frac{1}{p_{therm}^{n+1,(i)}}\frac{p_{therm}^{n+1,(i)}-p_0}{\Delta t}\]</div>
+<p>In this update, it is optional whether to update the <span class="math notranslate nohighlight">\(\widehat S^{n+1}\)</span> term on every SDC iteration, or to simply compute it for <span class="math notranslate nohighlight">\(k = 0\)</span> and then hold it constant, with the <span class="math notranslate nohighlight">\(\chi\)</span> correction iterations accounting for changes during the SDC iterations. The latter strategy has been observed to improve convergence in some cases.</p>
+</li>
+<li><p>Perform <strong>Step 1</strong> to obtain the time-centered, staggered <span class="math notranslate nohighlight">\(U^{ADV}\)</span></p></li>
+<li><p>Use a 2nd order Godunov integrator to predict species time-centered edge states, <span class="math notranslate nohighlight">\((\rho Y_m)^{n+1/2,(k+1)}\)</span> and corresponding advection terms <span class="math notranslate nohighlight">\(A_m^{n+1/2,(k+1)}\)</span> using <span class="math notranslate nohighlight">\(U^{ADV}\)</span>. Source terms for this prediction include explicit diffusion forcing, <span class="math notranslate nohighlight">\(D^{n}\)</span>, and an iteration-lagged reaction term, <span class="math notranslate nohighlight">\(I_R^{(k)}\)</span>. Since the diffusion and chemistry will not affect the new-time density, we can already compute <span class="math notranslate nohighlight">\(\rho^{n+1,(k+1)}\)</span>. This will be needed in the trapezoidal-in-time diffusion solves. We also compute <span class="math notranslate nohighlight">\(A_h^{n+1/2,(k+1)}\)</span>: we could also use a Godunov scheme for <span class="math notranslate nohighlight">\(h\)</span> directly but because <span class="math notranslate nohighlight">\(h\)</span> contains the heat of formation scaled to an arbitrary reference state, it is not generally monotonic through flames an so would be difficult to properly limit numerically. Also, because the equation of state is generally nonlinear, this will often lead to numerically-generated non-mononoticity in the temperature field. Using the fact that temperature should be smooth and monotonic through the flame, we instead elect to predict temperature with the Godunov scheme and use face-centered <span class="math notranslate nohighlight">\(T\)</span>, <span class="math notranslate nohighlight">\(\rho = \sum (\rho Y_m)\)</span> and <span class="math notranslate nohighlight">\(Y_m = (\rho Y_m)/\rho\)</span> to evaluate <span class="math notranslate nohighlight">\(h\)</span> there. We then evaluate the enthalpy advective flux divergence, <span class="math notranslate nohighlight">\(A_h^{n+1/2,(k+1)}\)</span>, for <span class="math notranslate nohighlight">\(\rho h\)</span>.</p></li>
+<li><p>Compute provisional, time-advanced species mass fractions, <span class="math notranslate nohighlight">\(\widetilde Y_{m,{\rm AD}}^{n+1,(k+1)}\)</span>, by solving a backward Euler type correction equation for the Crank-Nicolson update. Note that the provisional species diffusion fluxes reads <span class="math notranslate nohighlight">\(\widetilde{\boldsymbol{\cal F}}_{m,{\rm AD}}^{(k)} = -\rho^n D_{m,mix}^n \nabla \widetilde X_{m,{\rm AD}}^{(k)}\)</span>. This expression couples together all of the species mass fractions (<span class="math notranslate nohighlight">\(Y_m\)</span>) in the update of each, even for the mixture-averaged model. Computationally, it is much more tractable to write this as a diagonal matrix update with a lagged correction by noting that <span class="math notranslate nohighlight">\(X_m = (W/W_m)Y_m\)</span>. Using the chain rule, <span class="math notranslate nohighlight">\(\widetilde{\boldsymbol{\cal F}}_{m,{\rm AD}}^{(k)}\)</span> then has components proportional to <span class="math notranslate nohighlight">\(\nabla Y_m\)</span> and <span class="math notranslate nohighlight">\(\nabla W\)</span>. The latter is lagged in the iterations, and is typically very small. The former term can be coupled with the time-derivative and leads to a linear operation.  In the limit of sufficient SDC iterations, diffusion is driven by the true form of the the driving force, <span class="math notranslate nohighlight">\(d_m\)</span>, but with this strategy each iteration involves decoupled diagonal solves. Following the SDC formalism used above:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\rho^{n+1,(k+1)}\widetilde Y_{m,{\rm AD}}^{n+1,(k+1)} - (\rho Y_m)^n}{\Delta t} = A_m^{{n+1/2,(k+1)}} + \widetilde D_{m,AD}^{n+1,(k+1)} + \frac{1}{2}(D_m^n - D_m^{n+1,(k)}) + I_{R,m}^{(k)}\]</div>
+<p>The resulting <span class="math notranslate nohighlight">\(\rho^{n+1,(k+1)}\widetilde Y_{m,{\rm AD}}^{n+1,(k+1)}\)</span> are used to compute the implicit (conservatively-corrected) species diffusion fluxes and implicit diffusion term <span class="math notranslate nohighlight">\(D_{m,AD}^{n+1,(k+1)}\)</span>, which is employed to get a final AD updated <span class="math notranslate nohighlight">\(\rho^{n+1,(k+1)}\widetilde Y_{m,{\rm AD}}^{n+1,(k+1)}\)</span>. Next, we compute the time-advanced enthalpy, <span class="math notranslate nohighlight">\(h_{\rm AD}^{n+1,(k+1)}\)</span>.  Much like for the diffusion of the <span class="math notranslate nohighlight">\(\rho Y_m\)</span>, the <span class="math notranslate nohighlight">\(\nabla T\)</span> driving force leads to a nonlinear, coupled Crank-Nicolson update for <span class="math notranslate nohighlight">\(\rho h\)</span>. We define an alternative linearized strategy by following the same SDC-correction formalism used for the species, and write the nonlinear update for <span class="math notranslate nohighlight">\(\rho h\)</span> (noting that there is no reaction source term here):</p>
+<div class="math notranslate nohighlight">
+\[\begin{split} \frac{\rho^{n+1,(k+1)} h_{{\rm AD}}^{n+1,(k+1)} - (\rho h)^n}{\Delta t} = A_h^{n+1/2,(k+1)} + D_{T,AD}^{n+1,(k+1)} + H_{AD}^{n+1,(k+1)} \\
++ \frac{1}{2} \Big( D_T^n - D_T^{n+1,(k)} + H^n - H^{n+1,(k)} \Big)\end{split}\]</div>
+<p>However, since we cannot compute <span class="math notranslate nohighlight">\(h_{{\rm AD}}^{n+1,(k+1)}\)</span> directly, we solve this iteratively based on the approximation <span class="math notranslate nohighlight">\(h_{{\rm AD}}^{(k+1),\ell+1} \approx h_{{\rm AD}}^{(k+1),\ell} + C_{p}^{(k+1),\ell} \delta T^{(k+1),\ell+1}\)</span>, with <span class="math notranslate nohighlight">\(\delta T^{(k+1),\ell+1} = T_{{\rm AD}}^{(k+1),\ell+1} - T_{{\rm AD}}^{(k+1),\ell}\)</span>, and iteration index, <span class="math notranslate nohighlight">\(\ell\)</span> = 1:<span class="math notranslate nohighlight">\(\,\ell_{MAX}\)</span>. The enthalpy update equation is thus recast into a linear equation for <span class="math notranslate nohighlight">\(\delta T^{(k+1);\ell+1}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\rho^{n+1,(k+1)} C_p^{(k+1),\ell} \delta T^{(k+1),\ell+1} -\Delta t \, \nabla \cdot \lambda^{(k)} \nabla (\delta T^{(k+1),\ell +1}) = \rho^n h^n - \rho^{n+1,(k+1)}  \\
+h_{AD}^{(k+1),\ell} + \Delta t \Big( A_h^{n+1/2,(k+1)} + D_{T,AD}^{(k+1),\ell} + H_{AD}^{(k+1),\ell} \Big) + \frac{\Delta t}{2} \Big( D_T^n - D_T^{n+1,(k)} + H^n - H^{n+1,(k)} \Big)\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(H_{AD}^{(k+1),\ell} = - \nabla \cdot \sum h_m(T_{AD}^{(k+1),\ell}) \, {\boldsymbol{\cal F}}_{m,AD}^{n+1,(k+1)}\)</span> and <span class="math notranslate nohighlight">\(D_{T,AD}^{(k+1),\ell} = \nabla \cdot \lambda^{(k)} \, \nabla T_{AD}^{(k+1),\ell}\)</span>. After each iteration, update <span class="math notranslate nohighlight">\(T_{{\rm AD}}^{(k+1),\ell+1} = T_{{\rm AD}}^{(k+1),\ell} + \delta T^{(k+1),\ell+1}\)</span> and re-evaluate <span class="math notranslate nohighlight">\((C_p ,h_m)^{(k+1),\ell+1}\)</span> using <span class="math notranslate nohighlight">\((T_{{\rm AD}}^{(k+1),\ell+1}, Y_{m,{\rm AD}}^{n+1,(k+1)}\)</span>).</p>
+</li>
+<li><p>Based on the updates above, we define an effective contribution of advection and diffusion to the update of <span class="math notranslate nohighlight">\(\rho Y_m\)</span> and <span class="math notranslate nohighlight">\(\rho h\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}&amp;&amp;Q_{m}^{n+1,(k+1)} = A_m^{n+1/2,(k+1)} + D_{m,AD}^{(n+1,k+1)} + \frac{1}{2}(D_m^n - D_m^{n+1,(k)}) \\
+&amp;&amp;Q_{h}^{n+1,(k+1)} = A_h^{n+1/2,(k+1)} + D_{T,AD}^{n+1,(k+1)} + H_{AD}^{n+1,(k+1)} + \frac{1}{2}(D_T^n - D_T^{n+1,(k)} + H^n - H^{n+1,(k)} )\end{split}\]</div>
+<p>that we treat as piecewise-constant source terms to advance <span class="math notranslate nohighlight">\((\rho Y_m,\rho h)^n\)</span> to <span class="math notranslate nohighlight">\((\rho Y_m,\rho h)^{n+1,(k+1)}\)</span>. The ODE system for the reaction part over <span class="math notranslate nohighlight">\(\Delta t^n\)</span> then takes the following form:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\frac{\partial(\rho Y_m)}{\partial t} &amp;=&amp; Q_{m}^{n+1,(k+1)} + \rho\dot\omega_m(Y_m,T)\\
+\frac{\partial(\rho h)}{\partial t} &amp;=&amp; Q_{h}^{n+1,(k+1)}.\end{split}\]</div>
+<p>After the integration is complete, we make one final call to the equation of state to compute <span class="math notranslate nohighlight">\(T^{n+1,(k+1)}\)</span> from <span class="math notranslate nohighlight">\((Y_m,h)^{n+1,(k+1)}\)</span>.  We also can compute the effect of reactions in the evolution of <span class="math notranslate nohighlight">\(\rho Y_m\)</span> using,</p>
+<div class="math notranslate nohighlight">
+\[I_{R,m}^{(k+1)} = \frac{(\rho Y_m)^{n+1, (k+1)} - (\rho Y_m)^n}{\Delta t} - Q_{m}^{n+1,(k+1)}.\]</div>
+<p>If <span class="math notranslate nohighlight">\(k=k_{max}-1\)</span>, the time-advancement of the thermodynamic variables is complete, set <span class="math notranslate nohighlight">\((\rho Y_m,\rho h)^{n+1} = (\rho Y_m,\rho h)^{n+1,(k+1)}\)</span>.</p>
+</li>
+</ol>
+</li>
+<li><p>Before moving to <strong>Step 3</strong>, the new time viscosity and instantaneous divergence constraint <span class="math notranslate nohighlight">\(\widehat S^{n+1}\)</span> are re-evaluated.</p></li>
+</ul>
+<p><strong>Step 3</strong>: (<em>Advance the velocity</em>) Compute an intermediate cell-centered velocity field, <span class="math notranslate nohighlight">\(U^{n+1,*}\)</span> using the lagged pressure
+gradient, by solving</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\rho^{n+1/2}\frac{U^{n+1,*}-U^n}{\Delta t}
++ \rho^{n+1/2}\left(U^{\rm ADV}\cdot\nabla U\right)^{n+1/2} = \\
+\frac{1}{2}\left(\nabla\cdot\tau^n
++ \nabla\cdot\tau^{n+1,*}\right) - \nabla\pi^{n-1/2} + \frac{1}{2}(F^n + F^{n+1}),\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\tau^{n+1,*} = \mu^{n+1}[\nabla U^{n+1,*} +(\nabla U^{n+1,*})^T - \frac{2}{3} \mathcal{I} \, \nabla \cdot U^{n+1,*}]\)</span> and
+<span class="math notranslate nohighlight">\(\rho^{n+1/2} = (\rho^n + \rho^{n+1})/2\)</span>, and <span class="math notranslate nohighlight">\(F\)</span> is the velocity forcing.  This is a semi-implicit discretization for <span class="math notranslate nohighlight">\(U\)</span>, requiring
+a linear solve that couples together all velocity components.  The time-centered velocity in the advective derivative,
+<span class="math notranslate nohighlight">\(U^{n+1/2}\)</span>, is computed in the same way as <span class="math notranslate nohighlight">\(U^{{\rm ADV},*}\)</span>, but also includes the viscous stress tensor
+evaluated at <span class="math notranslate nohighlight">\(t^n\)</span> as a source term in the Godunov integrator.  At
+this point, the intermediate velocity field <span class="math notranslate nohighlight">\(U^{n+1,*}\)</span> does not satisfy the constraint.  Hence, we apply an
+approximate projection to update the pressure and to project <span class="math notranslate nohighlight">\(U^{n+1,*}\)</span> onto the constraint surface. Note that this
+final projection is a linear solve for nodal quantities and is distinct from the <cite>MAC</cite> projection and diffusion solvers, all of which solve for
+cell-centered quantities.  For the RHS of this nodal projection, we compute <span class="math notranslate nohighlight">\(\widehat S^{n+1}\)</span> from the new-time
+thermodynamic variables and an estimate of <span class="math notranslate nohighlight">\(\dot\omega_m^{n+1}\)</span>, which is evaluated
+directly from the new-time thermodynamic variables. We project the new-time velocity by solving the elliptic equation,</p>
+<div class="math notranslate nohighlight">
+\[L^{{\rm N}\rightarrow{\rm N}}\phi = D^{{\rm CC}\rightarrow{\rm N}}\left(U^{n+1,*}
++ \frac{\Delta t}{\rho^{n+1/2}}G^{{\rm N}\rightarrow{\rm CC}}\pi^{n-1/2}\right) - \widehat S^{n+1}\]</div>
+<p>for nodal values of <span class="math notranslate nohighlight">\(\phi\)</span>.  The linear operator here, <span class="math notranslate nohighlight">\(L^{{\rm N}\rightarrow{\rm N}}\)</span>, operates on nodal data and computes
+the standard bilinear finite-element approximation to <span class="math notranslate nohighlight">\(\nabla\cdot(1/\rho^{n+1/2})\nabla\)</span>.
+Also, <span class="math notranslate nohighlight">\(D^{{\rm CC}\rightarrow{\rm N}}\)</span> is a discrete second-order operator that approximates the divergence at nodes from cell-centered data
+and <span class="math notranslate nohighlight">\(G^{{\rm N}\rightarrow{\rm CC}}\)</span> approximates a cell-centered gradient from nodal data. Nodal
+values for <span class="math notranslate nohighlight">\(\widehat S^{n+1}\)</span> required for this equation are obtained by interpolating the cell-centered values. Finally, we
+determine the new-time cell-centered velocity field using</p>
+<div class="math notranslate nohighlight">
+\[U^{n+1} = U^{n+1,*} - \frac{\Delta t}{\rho^{n+1/2}}G^{{\rm N}\rightarrow{\rm CC}}(\phi-\pi^{n-1/2}),\]</div>
+<p>and the new time-centered pressure using <span class="math notranslate nohighlight">\(\pi^{n+1/2} = \phi\)</span>.</p>
+<p>Thus, as mentioned, there are three different types of linear solves required to advance the velocity field.  The first is the <em>MAC</em> solve
+in order to obtain <em>face-centered</em> velocities used to compute advective fluxes. The second is the multi-component <em>cell-centered</em> solver
+is used to obtain the provisional new-time velocities. Finally, a <em>nodal</em> solver is used to project the provisional new-time velocities so
+that they satisfy the constraint.</p>
+</section>
+<section id="advection-schemes">
+<h3>Advection schemes<a class="headerlink" href="#advection-schemes" title="Link to this heading"></a></h3>
+<p id="ssec-advscheme"><cite>PeleLMeX</cite> relies on the <a class="reference external" href="https://github.com/AMReX-Fluids/AMReX-Hydro">AMReX-Hydro</a> implementation of the 2nd-order Godunov method, with several variants available. The basis of the Godunov approach is to extrapolate the cell-centered quantity of interest (<span class="math notranslate nohighlight">\(U\)</span>, <span class="math notranslate nohighlight">\(\rho Y\)</span>, <span class="math notranslate nohighlight">\(\rho h\)</span>) to cell faces using a second-order Taylor series expansion in space and time. As detailed in <a class="reference external" href="https://amrex-fluids.github.io/amrex-hydro/docs_html/Schemes.html#godunov-methods">AMReX-Hydro documentation</a>, the choice of the slope order and limiting scheme define the exact variant of the Godunov method. Of particular interest for combustion applications, where sharp gradients of intermediate chemical species are found within flame fronts, the <cite>Godunov_BDS</cite> approach provides a bound-preserving advection scheme which greatly limits the appearance of over-/under-shoots. Such non-monotonicity would otherwise lead to critical failure of the stiff chemical kinetic integration.</p>
+<p>Note that in the presence of EB, only the <cite>Godunov_PLM</cite> variant is currently available.</p>
+</section>
+<section id="amr-extension">
+<h3>AMR extension<a class="headerlink" href="#amr-extension" title="Link to this heading"></a></h3>
+<p>In contrast with <a class="reference external" href="https://amrex-combustion.github.io/PeleLM/">PeleLM</a>, <cite>PeleLMeX</cite> does not rely a on subcycling approach to advance the AMR hierarchy.
+This difference is illustrated in the figure below comparing the multi-level time-stepping approach in both codes:</p>
+<figure class="align-center" style="width: 60%">
+<img alt="_images/PeleLMeX_Subcycling.png" src="_images/PeleLMeX_Subcycling.png" />
+</figure>
+<ul class="simple">
+<li><p><cite>PeleLM</cite> will recursively advance finer levels, halving the time step size (when using a refinement ratio of 2) at each level. For instance, considering a 3 levels simulation, <cite>PeleLM</cite> advances the coarse <cite>Level0</cite> over a <span class="math notranslate nohighlight">\(\Delta t_0\)</span> step, then <cite>Level1</cite> over a <span class="math notranslate nohighlight">\(\Delta t_1\)</span> step and <cite>Level2</cite> over two <span class="math notranslate nohighlight">\(\Delta t_2\)</span> steps, performing an interpolation of the <cite>Level1</cite> data after the first <cite>Level2</cite> step. At this point, a synchronization step is performed to ensure that the fluxes are conserved at coarse-fine interface and a second <cite>Level1</cite> step is performed, followed by the same two <cite>Level2</cite> steps. At this point, two synchronizations are needed between the two pairs of levels.</p></li>
+<li><p>In order to get to the same physical time, <cite>PeleLMeX</cite> will perform 4 time steps of size similar to <cite>PeleLM</cite>’s <span class="math notranslate nohighlight">\(\Delta t_2\)</span>, advancing all the levels at once. The coarse-fine fluxes consistency is this time ensured by averaging down the face-centered fluxes from fine to coarse levels. Additionally, the state itself is averaged down at the end of each SDC iteration.</p></li>
+</ul>
+<p>In practice, <cite>PeleLM</cite> will perform a total of 7 single-level advance steps, while <cite>PeleLMeX</cite> will perform 4 multi-level ones to reach the same physical time, advancing the coarser levels at a smaller CFL number whereas <cite>PeleLM</cite> maintain a fixed CFL at all the level. It might seem that <cite>PeleLMeX</cite> is thus performing extra work, but because it ignores fine-covered regions, <cite>PeleLMeX</cite> does not need to perform the expensive (and often very under-resolved) chemistry integration in fine-covered areas. Synchronization across levels in <cite>PeleLMeX</cite> is also far simpler.  An exact evaluation of the benefits and drawbacks of each approach is under way.</p>
+</section>
+<section id="geometry-with-embedded-boundaries">
+<h3>Geometry with Embedded Boundaries<a class="headerlink" href="#geometry-with-embedded-boundaries" title="Link to this heading"></a></h3>
+<p id="ssec-geoeb"><cite>PeleLMeX</cite> relies on <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/EB_Chapter.html">AMReX’s implementation</a> of
+the Embedded Boundaries (EB) approach to represent geometrical objects. In this approach, the underlying computational
+mesh is uniform and block-structured, but the boundary of the irregular-shaped computational domain conceptually cuts
+through this mesh. Each cell in the mesh becomes labeled as regular, cut or covered, and the finite-volume
+based discretization methods traditionally used in AMReX applications need to be modified to incorporate these cell shapes.
+AMReX provides the necessary EB data structures, including volume and area fractions, surface normals and centroids,
+as well as local connectivity information. The fluxes described in <a class="reference internal" href="#ssec-projscheme"><span class="std std-ref">the projection scheme section</span></a> are then modified to account
+for the aperture opening between adjacent cells and the additional EB-fluxes are included when constructing the cell flux divergences.</p>
+<p>A common problem arising with EB is the presence of the small cut-cells which can either introduce undesirable constraint on
+the explicit time step size or lead to numerical instabilities if not accounterd for. <cite>PeleLMeX</cite> relies on a combination of
+classical flux redistribution (FRD) (Pember et al, 1998) and state redistribution (SRD) (Giuliani et al., 2022) to circumvent the issue.
+In particular, explicit advective fluxes <span class="math notranslate nohighlight">\(A^{n+1/2,(k+1)}\)</span> are treated using SRD while explicit diffusion fluxes
+<span class="math notranslate nohighlight">\(D^{n}\)</span> and SDC iteration-lagged <span class="math notranslate nohighlight">\(D^{n+1,(k)}\)</span> are treated with FRD.
+Note that implicit diffusion fluxes are not redistributed as AMReX’s linear operators are EB-aware.</p>
+<p>The use of AMReX’s multigrid linear solver introduces constraint on the complexity of the geometry <cite>PeleLMeX</cite> is able to handle. The
+efficiency of the multigrid approach relies on generating coarse version of the linear problem. If the geometry includes thin elements
+(such as tube or plate) or narrow channels, coarsening of the geometry is rapidly limited by the occurrence of multi-cut cells (not
+supported by AMReX) and the linear solvers are no longer able to robustly tackle projections and implicit diffusion solves. AMReX
+include an interface to HYPRE which can help circumvent the issue by sending the coarse-level geometry directly to HYPRE algebraic
+multigrid solvers. More details on how to use HYPRE is provided in control Section.</p>
+</section>
+<section id="mesh-mapping">
+<span id="ssec-meshmapping"></span><h3>Mesh Mapping<a class="headerlink" href="#mesh-mapping" title="Link to this heading"></a></h3>
+<p>The AMReX framework inherently assumes spatially constant grid spacing in each coordinate direction. Localized isotropic refinement
+is available via the dynamic placement of logically rectangular patches of mesh, typically refined by a factor of 2 or 4.
+<cite>PeleLMeX</cite> expands the ability for local refinement by supporting a limited form of coordinate-aligned mapped meshes,
+which can be used to concentrate grid refinement along specific boundaries, for example, to aid in capturing anisotropic physical
+processes, such as turbulent boundary layers along physical walls.  The mesh mapping can then be combined with AMR to dramatically
+enhance and locally focus computational resources where needed in certain types of problems.</p>
+<p>The mappings supported are specified via the coordinate-aligned transformation <span class="math notranslate nohighlight">\(\Xi(x,y,z) = (x(\chi), y(\eta), z(\xi))\)</span>,
+where <span class="math notranslate nohighlight">\((\chi,\eta,\xi)\)</span> are the uniform coordinates along each AMReX-supported indexing direction.  Such a formulation
+allows arbitrarily stretched meshes in each coordinate direction while enforcing that directions along the AMR mesh indexing
+remain aligned with the underlying physical coordinate directions. The implementation
+of this capability sits on top of the uniform-mesh numerics of <cite>PeleLMeX</cite> and <cite>AMReX-Hydro</cite> by exploiting the flexibility of
+the underlying operators, using pre- and post-scaling of the differential operators and vectors that form the discretization.
+In this context, the physical mesh spacing, <span class="math notranslate nohighlight">\((dx,dy,dz)\)</span> becomes <span class="math notranslate nohighlight">\((x_{\chi} dx, y_{\eta} dy, z_{\xi} dz)\)</span>. This represents
+a diagnonal transformation, <span class="math notranslate nohighlight">\(T\)</span>, with associated Jacobian, <span class="math notranslate nohighlight">\(J\)</span>, that represents the local change of discrete cell volume.
+A vector <span class="math notranslate nohighlight">\(U\)</span> in uniform mesh coordinates can be transformed to one expressed in physical coordinates by premultiplying
+its components by the transformation matrix, <span class="math notranslate nohighlight">\(T\)</span>, i.e., <span class="math notranslate nohighlight">\({\bar U} = T U\)</span>. The divergence of <span class="math notranslate nohighlight">\(U\)</span>, computed with
+uniform coordinate components, <span class="math notranslate nohighlight">\((\chi,\eta,\xi)\)</span>, and with differences in uniform space can be converted to the physical
+divergence of the physical vector, <span class="math notranslate nohighlight">\(\nabla \cdot U = \frac{1}{J} {{\tilde \nabla} \cdot {\bar U}}\)</span>. Similarly, all vectors
+and differential operators used in <cite>PeleLMeX</cite> can be written in terms of uniform-grid operators and subsequent mesh transformations.</p>
+<figure class="align-center" id="id3" style="width: 80%">
+<img alt="_images/vort_1000_33.png" src="_images/vort_1000_33.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 2 </span><span class="caption-text"><cite>PeleLMeX</cite> solution computed using <cite>TanhStretchMap</cite> in a 2D example, <cite>LidDrivenCavity</cite> with Re=1000. Here, the stretching
+factor, <span class="math notranslate nohighlight">\(\beta=3\)</span> in both directions, concentrating mesh cells along all 4 boundaries.</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Several mesh mapping functions are provided with <cite>PeleLMeX</cite> currently, including <cite>ConstantMap</cite>, <cite>ExpStretchMap</cite> and <cite>TanhStretchMap</cite>.
+<cite>ConstantMap</cite> provides a simple, piecewise-constant stretching in each coordinate direction.  <cite>ExpStretchMap</cite> allows for an
+exponential stretching in a single direction to concentrate cells toward one boundary. <cite>TanhStretchMap</cite> allows concentration of
+cells along both the low and high sides of each dimension independently. Allowable parameters to control this feature are described
+in <a class="reference internal" href="LMeXControls.html#ssec-meshmappingparameters"><span class="std std-ref">the controls section</span></a>. Examples that employ these transformations appear in
+the <cite>RegTests</cite> folder, including <cite>LidDrivenCavity</cite> and <cite>PipeFlow</cite>.  Note that stretching beyond a <span class="math notranslate nohighlight">\(\beta\)</span> factor of
+above about 3-4 begins to degrade the converence of the discrete operators in <cite>PeleLMeX</cite>, and <span class="math notranslate nohighlight">\(\beta &gt; 2\)</span> requires that
+the numerical linear solvers be changed from AMReX’s default of MLMG to Hypre.  Note that <cite>amrvis</cite> and <cite>yt</cite> are unable to display
+computed solution with the mappings applied.  The above image was created using ParaView, after loading the plotfile and choosing
+<cite>Warp By Vector</cite> from the list of available Filters.  Any analysis carried out with solutions computed with this mesh mappings
+will need to incorporate the mappings as appropriate.  Also note that this capability is currently incompatible with the turbulent
+inflow tools.</p>
+<p><strong>Setting initial and boundary conditions.</strong> Because the AMReX index space corresponds to the <em>uniform</em> <span class="math notranslate nohighlight">\((\chi,\eta,\xi)\)</span>
+coordinates, the physical location of a cell is <strong>not</strong> its uniform-space position — it is recovered by applying the map. A problem
+whose initial state depends on the physical coordinate must therefore use the mapping-aware <code class="docutils literal notranslate"><span class="pre">initdata_mapped</span></code> signature, which receives
+a device-callable <code class="docutils literal notranslate"><span class="pre">MeshMapEvaluator</span></code> that returns the physical coordinate of any cell or face from its integer index:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">initdata_mapped</span><span class="p">(</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">is_incompressible</span><span class="p">,</span>
+<span class="w">  </span><span class="n">amrex</span><span class="o">::</span><span class="n">Array4</span><span class="o">&lt;</span><span class="n">amrex</span><span class="o">::</span><span class="n">Real</span><span class="o">&gt;</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">state</span><span class="p">,</span>
+<span class="w">  </span><span class="n">amrex</span><span class="o">::</span><span class="n">Array4</span><span class="o">&lt;</span><span class="n">amrex</span><span class="o">::</span><span class="n">Real</span><span class="o">&gt;</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">aux</span><span class="p">,</span>
+<span class="w">  </span><span class="n">amrex</span><span class="o">::</span><span class="n">GeometryData</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">geomdata</span><span class="p">,</span>
+<span class="w">  </span><span class="n">MeshMapEvaluator</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">mmap</span><span class="p">,</span>
+<span class="w">  </span><span class="n">ProbParm</span><span class="w"> </span><span class="k">const</span><span class="o">&amp;</span><span class="w"> </span><span class="n">prob_parm</span><span class="p">,</span>
+<span class="w">  </span><span class="n">pele</span><span class="o">::</span><span class="n">physics</span><span class="o">::</span><span class="n">PMF</span><span class="o">::</span><span class="n">PmfData</span><span class="o">::</span><span class="n">DataContainer</span><span class="w"> </span><span class="k">const</span><span class="o">*</span><span class="w"> </span><span class="n">pmf_data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="c1">// Physical cell-centre coordinates (curvilinear, NOT the xi-space ones):</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">Real</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mmap</span><span class="p">.</span><span class="n">x_phys_cc</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">geomdata</span><span class="p">);</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">Real</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mmap</span><span class="p">.</span><span class="n">x_phys_cc</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="n">geomdata</span><span class="p">);</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">amrex</span><span class="o">::</span><span class="n">Real</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mmap</span><span class="p">.</span><span class="n">x_phys_cc</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">geomdata</span><span class="p">);</span>
+<span class="w">  </span><span class="c1">// ... initialize state(i,j,k,*) using the physical (x,y,z) ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>When a problem defines <code class="docutils literal notranslate"><span class="pre">initdata_mapped</span></code> it is selected automatically (via the <code class="docutils literal notranslate"><span class="pre">has_initdata_mapped_v&lt;&gt;</span></code> dispatch in
+<code class="docutils literal notranslate"><span class="pre">PeleLM::initLevelData</span></code>); otherwise the standard <code class="docutils literal notranslate"><span class="pre">initdata</span></code> is used, which remains appropriate for position-independent initial
+states. Inflow values supplied through <code class="docutils literal notranslate"><span class="pre">bcnormal</span></code> likewise receive the physical coordinate. Worked examples appear in the
+<code class="docutils literal notranslate"><span class="pre">LidDrivenCavity</span></code>, <code class="docutils literal notranslate"><span class="pre">PipeFlow</span></code>, <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code> and <code class="docutils literal notranslate"><span class="pre">SingleDropEvap</span></code> cases under the <cite>RegTests</cite> folder.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The cell-centered state, and the AMReX plotfiles written under mesh mapping, live on the <em>uniform</em> <span class="math notranslate nohighlight">\((\chi,\eta,\xi)\)</span> grid —
+not the physical grid. <strong>Any code that uses spatial coordinates — initial conditions, boundary conditions, in-situ diagnostics, and
+especially external post-processing or analysis — must first map the uniform index location to its physical coordinate, and must
+transform vector and differential-operator quantities accordingly.</strong> Treating the stored data as though it lived on a uniform physical
+mesh yields incorrect distances, gradients, fluxes, and integrals wherever the mesh is stretched. Plotfiles render in
+<span class="math notranslate nohighlight">\((\chi,\eta,\xi)\)</span>-space unless warped by the nodal-displacement field that <cite>PeleLMeX</cite> writes when
+<code class="docutils literal notranslate"><span class="pre">peleLM.plot_mesh_mapping</span> <span class="pre">=</span> <span class="pre">1</span></code> (for example via ParaView’s <cite>Warp By Vector</cite>); <cite>amrvis</cite> and <cite>yt</cite> cannot display the mapped solution.</p>
+</div>
+<p><strong>Transforming vectors and operators.</strong> Let <span class="math notranslate nohighlight">\(f_i\)</span> denote the local per-direction stretch factor (the diagonal entries of
+<span class="math notranslate nohighlight">\(T\)</span>: <span class="math notranslate nohighlight">\(f_x = x_\chi\)</span>, <span class="math notranslate nohighlight">\(f_y = y_\eta\)</span>, <span class="math notranslate nohighlight">\(f_z = z_\xi\)</span>) and <span class="math notranslate nohighlight">\(J = f_x f_y f_z\)</span> the cell-volume Jacobian. Both are
+maintained internally by the solver (<span class="math notranslate nohighlight">\(J\)</span> is the <code class="docutils literal notranslate"><span class="pre">detJ</span></code> metric, <span class="math notranslate nohighlight">\(f_i\)</span> the <code class="docutils literal notranslate"><span class="pre">fac</span></code> metric). The physical spacing in
+direction <span class="math notranslate nohighlight">\(i\)</span> is <span class="math notranslate nohighlight">\(f_i\)</span> times the uniform spacing, so a derivative formed from uniform-space differences is converted to a
+physical derivative by dividing by the corresponding factor, and the physical divergence of a physical vector
+<span class="math notranslate nohighlight">\(\bar{\boldsymbol{u}} = T \boldsymbol{u}\)</span> follows from the uniform-space divergence:</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial \phi}{\partial x_i} = \frac{1}{f_i}\,\frac{\partial \phi}{\partial \xi_i},
+\qquad
+\nabla \cdot \boldsymbol{u} = \frac{1}{J}\, \tilde{\nabla} \cdot \bar{\boldsymbol{u}},\]</div>
+<p>where <span class="math notranslate nohighlight">\(\xi_i \in (\chi,\eta,\xi)\)</span> and <span class="math notranslate nohighlight">\(\tilde{\nabla}\)</span> denotes differences taken in the uniform space. As a concrete
+analysis example, the out-of-plane vorticity computed from the (physical) velocity components <span class="math notranslate nohighlight">\((u,v)\)</span> is</p>
+<div class="math notranslate nohighlight">
+\[\omega_z = \frac{\partial v}{\partial x} - \frac{\partial u}{\partial y}
+         = \frac{1}{f_x}\frac{\partial v}{\partial \chi} - \frac{1}{f_y}\frac{\partial u}{\partial \eta},\]</div>
+<p>i.e. each uniform-space difference must be divided by the stretch factor for its direction. A naive uniform-grid post-processor that
+omits the <span class="math notranslate nohighlight">\(1/f_i\)</span> weights will over- or under-estimate every gradient in the stretched regions, by exactly the local factor
+<span class="math notranslate nohighlight">\(f_i\)</span>.</p>
+</section>
+<section id="large-eddy-simulation">
+<h3>Large Eddy Simulation<a class="headerlink" href="#large-eddy-simulation" title="Link to this heading"></a></h3>
+<p>To provide closure for the unresolved turbulent stress/flux terms in Large Eddy Simulation (LES), PeleLMeX supports the
+constant-coefficient Smagorinsky, WALE and Sigma models for turbulent transport of momentum, species, and energy. These models are
+based on a gradient transport assumption, resulting in terms analogous to the molecular transport of these quantities, but with
+modified turbulent transport coefficients. The basis of all these algebraic closures is to model the subgrid scale (sgs) viscosity with:</p>
+<div class="math notranslate nohighlight">
+\[\nu_{t} = \nu_{sgs} = ( C_m \Delta )^2 \mathcal{D}(\boldsymbol{u})\]</div>
+<p>where <span class="math notranslate nohighlight">\(C_m\)</span> is a model constant, <span class="math notranslate nohighlight">\(\Delta\)</span> is the subgrid length scale (typically the grid size) and <span class="math notranslate nohighlight">\(\mathcal{D}(\boldsymbol{u})\)</span>
+is a differential operator acting on the filtered velocity. <span class="math notranslate nohighlight">\(\mu_t\)</span> is then calculated using the filtered density <span class="math notranslate nohighlight">\(\mu_t = \overline{\rho} \cdot \nu_{t}\)</span>.
+In the <a class="reference external" href="https://journals.ametsoc.org/view/journals/mwre/91/3/1520-0493_1963_091_0099_gcewtp_2_3_co_2.xml">Smagorinsky</a> model, <span class="math notranslate nohighlight">\(C_m = C_s = 0.18\)</span> and <span class="math notranslate nohighlight">\(\mathcal{D}\)</span> writes:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{D}_{s} = |\widetilde{S}| = \sqrt{2 \widetilde{S}_{ij}\widetilde{S}_{ij}}, \hspace{12pt} \widetilde{S}_{ij} = \frac{1}{2} \left(\frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i} \right).\]</div>
+<p>where filtered quantities are indicated with an overbar, Favre-filtered quantities are indicated with
+a tilde. In the <a class="reference external" href="https://doi.org/10.1023/A:1009995426001">WALE</a>  model, <span class="math notranslate nohighlight">\(C_m = C_w = 0.60\)</span> and <span class="math notranslate nohighlight">\(\mathcal{D}\)</span> writes:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{D}_{w} = \frac{\left(\widetilde{S}_{ij}^{d}\widetilde{S}_{ij}^{d} \right)^{3/2} + }{\left(\widetilde{S}_{ij}\widetilde{S}_{ij} \right)^{5/2} + \left(\widetilde{S}_{ij}^{d}\widetilde{S}_{ij}^{d} \right)^{5/4}},
+\hspace{12pt} \widetilde{S}_{ij}^d = \frac{1}{2}\left( \left(\frac{\partial \widetilde{u}_i}{\partial x_j} \right)^2 + \left(\frac{\partial \widetilde{u}_j}{\partial x_i} \right)^2 \right) - \frac{\delta_{ij}}{3} \left(\frac{\partial \widetilde{u}_k}{\partial x_k} \right)^{2}.\]</div>
+<p>When using the <a class="reference external" href="https://doi.org/10.1063/1.3623274">Sigma</a> model, <span class="math notranslate nohighlight">\(C_m = C_{\sigma} = 1.35\)</span> and <span class="math notranslate nohighlight">\(\mathcal{D}\)</span> writes:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{D}_{\sigma} = \frac{\sigma_3(\sigma_1-\sigma_2)(\sigma_2-\sigma_3)}{\sigma_1^2},\]</div>
+<p>where the <span class="math notranslate nohighlight">\(\sigma\)</span> are the singular values of the filtered velocity gradient tensor.</p>
+<p>The total diffusive transport of momentum from both viscous and turbulent stresses is then computed as</p>
+<div class="math notranslate nohighlight">
+\[\frac{\partial}{\partial x_j}{ \left( \bar{\sigma}_{ij} \right)}
+- \frac{\partial}{\partial x_j}{ \left(\bar{\rho}\widetilde{u_i u_j} - \bar{\rho}\widetilde{u_i} \widetilde{u_j} \right)}
+= \frac{\partial}{\partial x_j}\left[\left(\widetilde{\mu} + \mu_t \right)\left(\frac{\partial \widetilde{u}_i}{\partial x_j}
++ \frac{\partial \widetilde{u}_j}{\partial x_i}- \frac{2}{3} \frac{\partial \widetilde{u}_k}{\partial x_k}\delta_{ij} \right)  \right]\]</div>
+<p>The thermal conducivity and species diffusivities are similarly modified with turbulent contributions, <span class="math notranslate nohighlight">\(\lambda_t = \mu_t \widetilde{c_p} / Pr_t\)</span> and <span class="math notranslate nohighlight">\((\rho D)_t = \mu_t/Sc_t\)</span>. The solution algorithm is unchanged other than the addition of these turbulent coefficients to the corresponding molecular transport properties. Nominal values for the model coefficient <span class="math notranslate nohighlight">\(Sc_t = Pr_t = 0.7\)</span>.</p>
+<p><strong>Limitations</strong>: Because the turbulent transport coefficients are nonlinear functions of the velocity field, the treatment of
+the diffusion terms is not fully implicit when LES models are active. While the implicit solves as described above are kept
+in place to ensure numerical stability, the turbulent transport coefficients are evaluated only at the old timestep, with the
+old turbulent values also used to approximate the values at the new timestep. Additionally, the present implementation cannot
+be used with PLASMA.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to PeleLMeX’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Implementation.html" class="btn btn-neutral float-right" title="Source code" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

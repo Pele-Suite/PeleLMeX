@@ -1,0 +1,320 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Troubleshooting &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorials" href="Tutorials.html" />
+    <link rel="prev" title="PeleLMeX controls" href="LMeXControls.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#linear-solver-failure">Linear solver failure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chemistry-integration-failure">Chemistry integration failure</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Troubleshooting</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Troubleshooting.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="troubleshooting">
+<h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h1>
+<p>This section is intended to gather information on common failure mode of PeleLMeX.
+Additional information can be found in GitHub issues of <a class="reference external" href="https://github.com/AMReX-Combustion/PeleLM/issues">PeleLM</a> and <a class="reference external" href="https://github.com/AMReX-Combustion/PeleLMeX/issues">PeleLMeX</a></p>
+<section id="linear-solver-failure">
+<h2>Linear solver failure<a class="headerlink" href="#linear-solver-failure" title="Link to this heading"></a></h2>
+<p>The PeleLMeX algorithm involves multiple linear solves to handle projections
+and implicit diffusion. In the event of the solver is enable to solve the
+problem, the code will abort with the following message:</p>
+<p><code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">amrex::Abort::0::MLMG</span> <span class="pre">failed</span> <span class="pre">!!!</span>
+<span class="pre">`</span></code></p>
+<p>or</p>
+<p><code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">amrex::Abort::0::MLMG</span> <span class="pre">failing</span> <span class="pre">so</span> <span class="pre">lets</span> <span class="pre">stop</span> <span class="pre">here</span> <span class="pre">!!!</span>
+<span class="pre">`</span></code></p>
+<p>appearing multiple times when using more than one MPI rank. The first thing to do
+is to identify which linear solve is failing and how. To do so, one needs to increase
+PeleLMeX, as well as the projection and diffusion solve’s verbosity (see the <a class="reference external" href="https://amrex-combustion.github.io/PeleLMeX/LMeXControls.html">Control</a>
+section for more details on LMeX controls):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">peleLM</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="mi">4</span>
+</pre></div>
+</div>
+<p>which will increase the default verbosity for all linear solvers to 2 (more generally to peleLM.v - 2),
+although the solver verbosity may also be controlled for the solvers individually:</p>
+<dl class="simple">
+<dt>::</dt><dd><p>nodal_proj.verbose = 2
+mac_proj.verbose = 2
+diffusion.verbose = 2
+tensor_diffusion.verbose = 2</p>
+</dd>
+</dl>
+<p>Note that we focused on the projection solves here because they are generally more
+prone to failure than the diffusion ones. You can then restart the simulation
+again and identify if the code is failing in the nodal projection, either during the
+initial projection (following <em>Initial velocity projection</em>) or during the time step
+one (following <em>- oneSDC()::ScalarReaction()  –&gt;</em>), or in the MAC-projection (right after
+<em>SDC iter [1]</em>). Then, the linear solver verbose is useful to understand how the solver
+fails. If the solver hangs around a small value following an initial reduction of the
+residual:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MLMG</span><span class="p">:</span> <span class="c1"># of AMR levels: 1</span>
+  <span class="c1"># of MG levels on the coarsest AMR level: 9</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Initial</span> <span class="n">rhs</span>               <span class="o">=</span> <span class="mf">2666.243975</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Initial</span> <span class="n">residual</span> <span class="p">(</span><span class="n">resid0</span><span class="p">)</span> <span class="o">=</span> <span class="mf">2666.243975</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">1</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">0.03858916872</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">2</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">0.001142880258</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">3</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">3.300053779e-04</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">4</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">9.433906375e-06</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">5</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.665697369e-07</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">6</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">7.40910596e-09</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">7</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.071981144e-10</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">8</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.66772528e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">9</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.568558082e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">10</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.713587827e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">11</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.490776046e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">12</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.41198728e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">13</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.527429436e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">14</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.431036667e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">15</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.479456555e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">16</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.28960372e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">17</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.541484652e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">18</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.522691579e-11</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">19</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.508988366e-11</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>it generally means that the required solver tolerance is too small for the problem. The
+default relative tolerances of all solvers in PeleLMeX is <cite>1e-11</cite>, but increasing the
+resolution, using a small <cite>amr.blocking_factor</cite> (&lt;16) or large flow divergence across
+coarse-fine interfaces can lead to the example above. In this case, one can increase the
+tolerance of the faulty solver using one of:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nodal_proj</span><span class="o">.</span><span class="n">rtol</span> <span class="o">=</span> <span class="mf">5e-11</span>
+<span class="n">mac_proj</span><span class="o">.</span><span class="n">rtol</span>   <span class="o">=</span> <span class="mf">5e-11</span>
+<span class="n">diffusion</span><span class="o">.</span><span class="n">rtol</span>  <span class="o">=</span> <span class="mf">5e-11</span>
+</pre></div>
+</div>
+<p>It is sometimes necessary to increase the tolerance up <cite>5e-10</cite>. If you need to go higher
+than this ballpark value, it probably indicates that something is wrong in the problem
+setup and one should take a closer look at the solution to understand the problem.
+Alternatively, the solver can fail as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Nodal</span> <span class="n">Projection</span><span class="p">:</span>
+<span class="o">&gt;&gt;</span> <span class="n">Before</span> <span class="n">projection</span><span class="p">:</span>
+<span class="o">*</span> <span class="n">On</span> <span class="n">lev</span> <span class="mi">0</span> <span class="nb">max</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">rhs</span><span class="p">))</span> <span class="o">=</span> <span class="mf">32972.4697</span>
+
+<span class="n">MLMG</span><span class="p">:</span> <span class="c1"># of AMR levels: 1</span>
+    <span class="c1"># of MG levels on the coarsest AMR level: 5</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Initial</span> <span class="n">rhs</span>               <span class="o">=</span> <span class="mf">29416.37315</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Initial</span> <span class="n">residual</span> <span class="p">(</span><span class="n">resid0</span><span class="p">)</span> <span class="o">=</span> <span class="mf">29416.37315</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">1</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">0.003754141785</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">2</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">0.104435142</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">3</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.918558728</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">4</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">81.56015694</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">5</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2279.227794</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">6</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">63693.83698</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">7</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">1779947.086</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">8</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">49741258.78</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>   <span class="mi">9</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mi">1390037291</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">10</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">3.884508992e+10</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">11</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">1.08553995e+12</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">12</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">3.033580267e+13</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">13</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">8.477448701e+14</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">14</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">2.369053401e+16</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">15</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">6.620404574e+17</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">16</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">1.850095768e+19</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Iteration</span>  <span class="mi">17</span> <span class="n">Fine</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">5.170158884e+20</span>
+<span class="n">MLMG</span><span class="p">:</span> <span class="n">Failing</span> <span class="n">to</span> <span class="n">converge</span> <span class="n">after</span> <span class="mi">17</span> <span class="n">iterations</span><span class="o">.</span> <span class="n">resid</span><span class="p">,</span> <span class="n">resid</span><span class="o">/</span><span class="n">bnorm</span> <span class="o">=</span> <span class="mf">1.52087323e+25</span><span class="p">,</span> <span class="mf">5.170158884e+20</span>
+</pre></div>
+</div>
+<p>In this case, the solver diverges and it is generally a clear indication that the problem
+is not properly setup. To aid in debugging, it may be useful to dump plotfiles of the residual
+and solution at the time of the failure to visually inspect where the solution is diverging.
+This can be accomplished by enabling residual plotting on MLMG failure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">peleLM</span><span class="o">.</span><span class="n">mlmg_fail_plt_residuals</span> <span class="o">=</span> <span class="n">true</span>       <span class="c1"># [OPT, DEF=false] Dump MLMG residuals plotfiles on MLMG failure</span>
+</pre></div>
+</div>
+<p>In the example above, plotfiles named <code class="docutils literal notranslate"><span class="pre">&lt;plot_dir&gt;/pltMLMGResidual_&lt;solver&gt;_&lt;step&gt;_&lt;iters&gt;</span></code>
+would be created after the failure in the 17th iteration of the nodal projection at the given time step.
+However, given that <code class="docutils literal notranslate"><span class="pre">resid/bnorm</span> <span class="pre">=</span> <span class="pre">5.170158884e+20</span></code> here, it is likely that the
+residual is large everywhere in the domain. Therefore, it may be more useful to dump the residuals
+after a smaller number of iterations, e.g., iteration 3 or 4 where the residual is still relatively small,
+but clearly growing. Since the nodal projection is always the last MLMG solve for a given time step,
+this can be accomplihed by setting <cite>nodal_proj.maxiter=4</cite>. This results in the following output upon failure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>MLMG: # of AMR levels: 1
+    # of MG levels on the coarsest AMR level: 5
+MLMG: Initial rhs               = 29416.37318
+MLMG: Initial residual (resid0) = 29416.37318
+MLMG: Iteration   1 Fine resid/bnorm = 0.003754106743
+MLMG: Iteration   2 Fine resid/bnorm = 0.1044336961
+MLMG: Iteration   3 Fine resid/bnorm = 2.918500162
+MLMG: Iteration   4 Fine resid/bnorm = 81.55801241
+MLMG: Failed to converge after 4 iterations. resid, resid/bnorm = 2399140.929, 81.55801241
+
+*** Nodal projection MLMG solve failed! ***
+Error: MLMG failed to converge.
+Dumping residuals for debugging...
+</pre></div>
+</div>
+<p>For the other solvers (MAC projection, species/temperature diffusion, and tensor diffusion),
+users can further control when to dump the residuals for debugging based on
+a minimum number of SDC and, when appropriate, deltaT iterations.  This is done
+on a per-solver basis using the following options:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># MAC projection controls</span>
+<span class="n">mac_proj</span><span class="o">.</span><span class="n">mlmg_fail_sdc_miniter</span> <span class="o">=</span> <span class="mi">2</span>                             <span class="c1"># [OPT, DEF=-1] Minimum SDC iterations before dumping residuals on MLMG failure</span>
+<span class="n">mac_proj</span><span class="o">.</span><span class="n">mlmg_fail_maxiter_after_sdc_miniter</span> <span class="o">=</span> <span class="mi">3</span>               <span class="c1"># [OPT, DEF=-1] Maximum MLMG solver iters after minimum SDC iters have been reached</span>
+
+<span class="c1"># Species/Temperature diffusion controls</span>
+<span class="n">diffusion</span><span class="o">.</span><span class="n">mlmg_fail_sdc_miniter</span> <span class="o">=</span> <span class="mi">1</span>                            <span class="c1"># [OPT, DEF=-1] Minimum SDC iterations before dumping residuals on MLMG failure</span>
+<span class="n">diffusion</span><span class="o">.</span><span class="n">mlmg_fail_deltaT_miniter</span> <span class="o">=</span> <span class="mi">4</span>                         <span class="c1"># [OPT, DEF=-1] Minimum deltaT iterations before dumping residuals on MLMG failure (only for temperature diffusion)</span>
+<span class="n">diffusion</span><span class="o">.</span><span class="n">mlmg_fail_species_maxiter_after_sdc_miniter</span> <span class="o">=</span> <span class="mi">5</span>      <span class="c1"># [OPT, DEF=-1] Maximum species MLMG solver iters after minimum SDC iters have been reached</span>
+<span class="n">diffusion</span><span class="o">.</span><span class="n">mlmg_fail_temp_maxiter_after_sdc_deltaT_miniter</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># [OPT, DEF=-1] Maximum temp MLMG solver iters after minimum SDC and deltaT iters have been reached</span>
+
+<span class="c1"># Velocity diffusion controls</span>
+<span class="n">tensor_diffusion</span><span class="o">.</span><span class="n">mlmg_fail_sdc_miniter</span> <span class="o">=</span> <span class="mi">1</span>                     <span class="c1"># [OPT, DEF=-1] Minimum SDC iterations before dumping residuals on MLMG failure</span>
+<span class="n">tensor_diffusion</span><span class="o">.</span><span class="n">mlmg_maxiter_after_sdc_miniter</span> <span class="o">=</span> <span class="mi">6</span>            <span class="c1"># [OPT, DEF=-1] Maximum MLMG solver iters after minimum SDC iters have been reached</span>
+</pre></div>
+</div>
+<p>As an example, setting <code class="docutils literal notranslate"><span class="pre">diffusion.mlmg_fail_sdc_miniter</span> <span class="pre">=</span> <span class="pre">2</span></code>, <code class="docutils literal notranslate"><span class="pre">diffusion.mlmg_fail_deltaT_miniter</span> <span class="pre">=</span> <span class="pre">2</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">diffusion.mlmg_fail_temp_maxiter_after_sdc_deltaT_miniter</span> <span class="pre">=</span> <span class="pre">3</span></code> would result in dumping the temperature diffusion
+residuals for debugging only if the failure occurs after at least 2 SDC iterations and 2 deltaT iterations, and
+the MLMG solver has performed at least 3 iterations after those minimums have been reached.</p>
+</section>
+<section id="chemistry-integration-failure">
+<h2>Chemistry integration failure<a class="headerlink" href="#chemistry-integration-failure" title="Link to this heading"></a></h2>
+<p>PeleLMeX relies on <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">Sundials CVODE</a> to
+integrate the stiff ODE resulting of the chemical system (along with advection/diffusion
+forcing). CVODE has multiple failure modes, but the most common one appearing in PeleLMeX
+will promp a message similar to one of the following:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>From CVODE: At t = 0 and h = 6.01889e-195, the corrector convergence test failed repeatedly or with |h| = hmin.```
+From CVODE: At t = 2.459e-6 and h = 6.01889e-16, the corrector convergence test failed repeatedly or with |h| = hmin.```
+[CVODE ERROR]  CVode
+    At t = 5.09606e-09, mxstep steps taken before reaching tout.
+</pre></div>
+</div>
+<p>All of which indicate that the internal sub-stepping algorithm of CVODE did not managed to integrate
+the system of ODEs up to the CFL-constrained time step requested by PeleLMeX because CVODE logic
+reauired awfully small substep size.</p>
+<p>In the case of the first message, one can see that CVODE failed right away (<cite>At t = 0</cite>) which suggests
+that the state given to CVODE was wrong. If this happens right at the start of the simulation, your
+initial solution is most likely erroneous.</p>
+<p>In the case of the second message, the system was integrated up to 2.459e-6 s, but CVODE was not able
+to proceed any further as its internal step size dropped to a small value. This could indicates that your
+CFL condition is too loose and the chemical stiffness can’t be properly handled by
+CVODE. You can consider reduce your CFL number:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">peleLM</span><span class="o">.</span><span class="n">cfl</span> <span class="o">=</span> <span class="mf">0.1</span>
+</pre></div>
+</div>
+<p>if your CFL step size is too large (generally &gt;1e-5 s). e.g. as for a slow, laminar case. This message
+can also appear if your state contains species mass fraction undershoots due to poor spatial resolution.
+In this case, one can use the following option:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ode</span><span class="o">.</span><span class="n">clean_init_massfrac</span> <span class="o">=</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>where the ODE integration is then computed as an increment where the initial species mass fractions
+[0-1] bounds are enforced.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="LMeXControls.html" class="btn btn-neutral float-left" title="PeleLMeX controls" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

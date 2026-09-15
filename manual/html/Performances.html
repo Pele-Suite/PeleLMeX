@@ -1,0 +1,348 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Performances &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PeleLMeX controls" href="LMeXControls.html" />
+    <link rel="prev" title="PeleLMeX Verification &amp; Validations" href="Validation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Performances</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#single-node-performances-flamesheet-case">Single node performances: FlameSheet case</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#case-description">Case description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results-on-perlmutter-nersc">Results on Perlmutter (NERSC)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results-on-crusher-ornl">Results on Crusher (ORNL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results-on-summit-ornl">Results on Summit (ORNL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#system-comparison">System comparison</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#weak-scaling-performances-flamesheet-case">Weak scaling performances: FlameSheet case</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Case description</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Performances</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Performances.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="performances">
+<h1>Performances<a class="headerlink" href="#performances" title="Link to this heading"></a></h1>
+<p><cite>PeleLMeX</cite> development was driven by the need to create a simulation code efficiently
+leveraging the computational power of ExaScale super-computers. As mentioned earlier,
+<cite>PeleLMeX</cite> is built upon the AMR library <cite>AMReX</cite> and inherits most of its High Performance Computing
+features.</p>
+<p><cite>PeleLMeX</cite> parallel paradigm is based on an MPI+`X` approach, where <cite>X</cite> can be OpenMP, or any of
+CUDA, HIP or SYCL, for Nvidia, AMD and Intel GPUs vendor, respectively. The actual performances
+gain of using accelerator within <cite>PeleLMeX</cite> is a moving target as both hardware and software are
+continuously improving. In the following we demonstrate the gain at a given time (specified and
+subject to updates) and on selected platforms.</p>
+<section id="single-node-performances-flamesheet-case">
+<h2>Single node performances: FlameSheet case<a class="headerlink" href="#single-node-performances-flamesheet-case" title="Link to this heading"></a></h2>
+<section id="case-description">
+<h3>Case description<a class="headerlink" href="#case-description" title="Link to this heading"></a></h3>
+<p>The simple case of a laminar premixed flame with harmonic perturbation can be found in
+<cite>Exec/RegTests/FlameSheet</cite>. For the following test, the mixture is composed of
+dodecane and air at ambient temperature and pressure. The chemical mechanism used consist
+of 35 transported species and 18 species assumed in Quqsi-Steady State (QSS) and the <cite>Simple</cite>
+transport model with the <cite>Fuego</cite> EOS is used:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Chemistry_Model</span> <span class="o">=</span> <span class="n">dodecane_lu_qss</span>
+<span class="n">Eos_Model</span>       <span class="o">=</span> <span class="n">Fuego</span>
+<span class="n">Transport_Model</span> <span class="o">=</span> <span class="n">Simple</span>
+</pre></div>
+</div>
+<p>The initial solution is provided from a Cantera simulation and averaged on the cartesian grid.
+The input file <cite>Exec/RegTests/FlameSheet/inputs.3d_DodecaneQSS</cite> is used, with modifications detailed hereafter.
+Simulations are conducted at a fixed time step size for 16 steps, bypassing the initial reduction of
+the time step size usually employed to remove artifacts from the initial data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">amr</span><span class="o">.</span><span class="n">max_step</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">dt_shrink</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">fixed_dt</span> <span class="o">=</span> <span class="mf">2.5e-7</span>
+</pre></div>
+</div>
+<p>Additionally, unless otherwise specified, all the tests on GPUs are conducted
+using the MAGMA dense-direct solver to solve for the Newton direction within CVODE’s non-linear integration.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cvode</span><span class="o">.</span><span class="n">solve_type</span> <span class="o">=</span> <span class="n">magma_direct</span>
+</pre></div>
+</div>
+<p>and the dense direct analytical Jacobian solver on CPUs:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cvode</span><span class="o">.</span><span class="n">solve_type</span> <span class="o">=</span> <span class="n">denseAJ_direct</span>
+</pre></div>
+</div>
+<p>The actual number of cells in each direction and the number of levels will depends on the amount
+of memory available on the different platform and will be specified later on.</p>
+</section>
+<section id="results-on-perlmutter-nersc">
+<h3>Results on Perlmutter (NERSC)<a class="headerlink" href="#results-on-perlmutter-nersc" title="Link to this heading"></a></h3>
+<p>Perlmutter’s <a class="reference external" href="https://docs.nersc.gov/systems/perlmutter/architecture/#gpu-nodes">GPU nodes</a> consists of a single AMD EPYC 7763 (Milan)
+CPU connected to 4 NVIDIA A100 GPUs. The <a class="reference external" href="https://docs.nersc.gov/systems/perlmutter/architecture/#cpu-nodes">CPU nodes</a> consists of
+two of the same AMD EPYC, 64-cores CPUs. When running on the GPU node, <cite>PeleLMeX</cite> will use 4 MPI ranks with each access to one A100, while
+when running on a CPU node, we will use 128 MPI-ranks.</p>
+<p>The FlameSheet case is ran using 2 levels of refinement (3 levels total) and the following domain size and cell count:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">geometry</span><span class="o">.</span><span class="n">prob_lo</span>     <span class="o">=</span> <span class="mf">0.0</span> <span class="mf">0.0</span> <span class="mf">0.0</span>        <span class="c1"># x_lo y_lo (z_lo)</span>
+<span class="n">geometry</span><span class="o">.</span><span class="n">prob_hi</span>     <span class="o">=</span> <span class="mf">0.008</span> <span class="mf">0.016</span> <span class="mf">0.016</span>  <span class="c1"># x_hi y_hi (z_hi)</span>
+
+<span class="n">amr</span><span class="o">.</span><span class="n">n_cell</span>           <span class="o">=</span> <span class="mi">32</span> <span class="mi">64</span> <span class="mi">64</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">max_level</span>        <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>leading to an initial cell count of 3.276 M, i.e. 0.8M/cells per GPU. The git hashes of <cite>PeleLMeX</cite> and its dependencies for
+these tests are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">=================</span> <span class="n">Build</span> <span class="n">infos</span> <span class="o">=================</span>
+<span class="n">PeleLMeX</span>    <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v22</span><span class="mf">.12</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">AMReX</span>       <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="mf">22.12</span><span class="o">-</span><span class="mi">1</span><span class="o">-</span><span class="n">g4a53367b1</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">PelePhysics</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v0</span><span class="mf">.1</span><span class="o">-</span><span class="mi">1052</span><span class="o">-</span><span class="n">g234a8089</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">AMReX</span><span class="o">-</span><span class="n">Hydro</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">d959ee9</span>
+<span class="o">===============================================</span>
+</pre></div>
+</div>
+<p>The graph below compares the timings of the two runs obtained from <cite>AMReX</cite> TinyProfiler.
+Inclusive averaged data are presented here, for separates portion of the <cite>PeleLMeX</cite> algorithm
+(see the <a class="reference external" href="https://amrex-combustion.github.io/PeleLMeX/manual/html/Model.html#pelelmex-algorithm">algorithm page</a> for more
+details):</p>
+<figure class="align-center" style="width: 90%">
+<img alt="_images/SingleNodePMF_PM.png" src="_images/SingleNodePMF_PM.png" />
+</figure>
+<p>The total time comparison shows close to a 4x speed-up on a node basis on this platform, with the AMD Milan CPU being amongst
+the most performant to date. The detailed distribution of the computational time within each run highlight the dominant contribution
+of the stiff chemistry integration, especially on the GPU.</p>
+</section>
+<section id="results-on-crusher-ornl">
+<h3>Results on Crusher (ORNL)<a class="headerlink" href="#results-on-crusher-ornl" title="Link to this heading"></a></h3>
+<p>Crusher is the testbed for DOE’s first ExaScale platform Frontier. <a class="reference external" href="https://docs.olcf.ornl.gov/systems/crusher_quick_start_guide.html#crusher-compute-nodes">Crusher’s nodes</a> consists of a single AMD EPYC 7A53 (Trento), 64 cores CPU connected to 4 AMD MI250X,
+each containing 2 Graphics Compute Dies (GCDs) for a total of 8 GCDs per node. When running with GPU acceleration, <cite>PeleLMeX</cite> will use 8 MPI ranks with each access to one GCD, while when running on flat MPI, we will use 64 MPI-ranks.</p>
+<p>The FlameSheet case is ran using 2 levels of refinement (3 levels total) and the following domain size and cell count:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">geometry</span><span class="o">.</span><span class="n">prob_lo</span>     <span class="o">=</span> <span class="mf">0.0</span> <span class="mf">0.0</span> <span class="mf">0.0</span>        <span class="c1"># x_lo y_lo (z_lo)</span>
+<span class="n">geometry</span><span class="o">.</span><span class="n">prob_hi</span>     <span class="o">=</span> <span class="mf">0.016</span> <span class="mf">0.016</span> <span class="mf">0.016</span>  <span class="c1"># x_hi y_hi (z_hi)</span>
+
+<span class="n">amr</span><span class="o">.</span><span class="n">n_cell</span>           <span class="o">=</span> <span class="mi">64</span> <span class="mi">64</span> <span class="mi">64</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">max_level</span>        <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>leading to an initial cell count of 6.545 M, i.e. 0.8M/cells per GPU. The git hashes of <cite>PeleLMeX</cite> and its dependencies for
+these tests are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">=================</span> <span class="n">Build</span> <span class="n">infos</span> <span class="o">=================</span>
+<span class="n">PeleLMeX</span>    <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v22</span><span class="mf">.12</span><span class="o">-</span><span class="mi">15</span><span class="o">-</span><span class="n">g769168c</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">AMReX</span>       <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="mf">22.12</span><span class="o">-</span><span class="mi">15</span><span class="o">-</span><span class="n">gff1cce552</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">PelePhysics</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v0</span><span class="mf">.1</span><span class="o">-</span><span class="mi">1054</span><span class="o">-</span><span class="n">gd6733fef</span>
+<span class="n">AMReX</span><span class="o">-</span><span class="n">Hydro</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">cc9b82d</span>
+<span class="o">===============================================</span>
+</pre></div>
+</div>
+<p>The graph below compares the timings of the two runs obtained from <cite>AMReX</cite> TinyProfiler.
+Inclusive averaged data are presented here, for separates portion of the <cite>PeleLMeX</cite> algorithm
+(see the <a class="reference external" href="https://amrex-combustion.github.io/PeleLMeX/manual/html/Model.html#pelelmex-algorithm">algorithm page</a> for more
+details):</p>
+<figure class="align-center" style="width: 90%">
+<img alt="_images/SingleNodePMF_Crusher.png" src="_images/SingleNodePMF_Crusher.png" />
+</figure>
+<p>The total time comparison shows more than a 7.5x speed-up on a node basis on this platform,
+The detailed distribution of the computational time within each run highlight the dominant contribution
+of the stiff chemistry integration, especially on the GPU.</p>
+</section>
+<section id="results-on-summit-ornl">
+<h3>Results on Summit (ORNL)<a class="headerlink" href="#results-on-summit-ornl" title="Link to this heading"></a></h3>
+<p>Summit was launched in 2018 as the first DOE’s fully GPU-accelerated platform.
+<a class="reference external" href="https://docs.olcf.ornl.gov/systems/summit_user_guide.html#summit-nodes">Summit’s nodes</a> consists
+of a two IBM Power9 CPU connected to 6 NVIDIA V100 GPUs. When running with GPU acceleration, <cite>PeleLMeX</cite> will
+use 6 MPI ranks with each access to one V100, while when running on flat MPI, we will use 42 MPI-ranks.
+Note that in contrast with newer GPUs available on Perlmutter or Crusher, Summit’s V100s only have 16GBs of
+memory which limit the number of cells/GPU. For this reason, the chemical linear solver used within Sundials is
+modified to the the less memory demanding <em>cuSparse</em> solver:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cvode</span><span class="o">.</span><span class="n">solve_type</span> <span class="o">=</span> <span class="n">sparse_direct</span>
+</pre></div>
+</div>
+<p>The FlameSheet case is ran using 2 levels of refinement (3 levels total) and the following domain size and cell count:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">geometry</span><span class="o">.</span><span class="n">prob_lo</span>     <span class="o">=</span> <span class="mf">0.0</span> <span class="mf">0.0</span> <span class="mf">0.0</span>        <span class="c1"># x_lo y_lo (z_lo)</span>
+<span class="n">geometry</span><span class="o">.</span><span class="n">prob_hi</span>     <span class="o">=</span> <span class="mf">0.004</span> <span class="mf">0.008</span> <span class="mf">0.016</span>  <span class="c1"># x_hi y_hi (z_hi)</span>
+
+<span class="n">amr</span><span class="o">.</span><span class="n">n_cell</span>           <span class="o">=</span> <span class="mi">16</span> <span class="mi">32</span> <span class="mi">64</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">max_level</span>        <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>leading to an initial cell count of 0.819 M, i.e. 0.136M/cells per GPU. The git hashes of <cite>PeleLMeX</cite> and its dependencies for
+these tests are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">=================</span> <span class="n">Build</span> <span class="n">infos</span> <span class="o">=================</span>
+<span class="n">PeleLMeX</span>    <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v22</span><span class="mf">.12</span><span class="o">-</span><span class="mi">15</span><span class="o">-</span><span class="n">g769168c</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">AMReX</span>       <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="mf">22.12</span><span class="o">-</span><span class="mi">15</span><span class="o">-</span><span class="n">gff1cce552</span><span class="o">-</span><span class="n">dirty</span>
+<span class="n">PelePhysics</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">v0</span><span class="mf">.1</span><span class="o">-</span><span class="mi">1054</span><span class="o">-</span><span class="n">gd6733fef</span>
+<span class="n">AMReX</span><span class="o">-</span><span class="n">Hydro</span> <span class="n">git</span> <span class="nb">hash</span><span class="p">:</span> <span class="n">cc9b82d</span>
+<span class="o">===============================================</span>
+</pre></div>
+</div>
+<p>The graph below compares the timings of the two runs obtained from <cite>AMReX</cite> TinyProfiler.
+Inclusive averaged data are presented here, for separates portion of the <cite>PeleLMeX</cite> algorithm
+(see the <a class="reference external" href="https://amrex-combustion.github.io/PeleLMeX/manual/html/Model.html#pelelmex-algorithm">algorithm page</a> for more
+details):</p>
+<figure class="align-center" style="width: 90%">
+<img alt="_images/SingleNodePMF_Summit.png" src="_images/SingleNodePMF_Summit.png" />
+</figure>
+<p>The total time comparison shows close to a 4.5x speed-up on a node basis on this platform,
+The detailed distribution of the computational time within each run highlight the dominant contribution
+of the stiff chemistry integration,</p>
+</section>
+<section id="system-comparison">
+<h3>System comparison<a class="headerlink" href="#system-comparison" title="Link to this heading"></a></h3>
+<p>It is interesting to compare the performances of each system on a node basis, normalizing by the number of cells
+to provide a node time / million of cells.</p>
+<figure class="align-center" style="width: 60%">
+<img alt="_images/SingleNodePMFComparison.png" src="_images/SingleNodePMFComparison.png" />
+</figure>
+<p>Results show that a 3x and 4.2x speed is obtained on a node basis going from Summit to more recent
+Perlmutter or Crusher, respectively.</p>
+</section>
+</section>
+<section id="weak-scaling-performances-flamesheet-case">
+<h2>Weak scaling performances: FlameSheet case<a class="headerlink" href="#weak-scaling-performances-flamesheet-case" title="Link to this heading"></a></h2>
+<section id="id3">
+<h3>Case description<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<p>Once again the case of a laminar premixed flame with harmonic perturbations is employed. On
+a single node, the case is similar to the one used in the previous section. To perform the
+weak scaling study (characterising the ability of the solver to scale up while keeping the
+same amount of work per compute unit), the dimensions of the computational domain are
+increased by a factor 2 in <span class="math notranslate nohighlight">\(x\)</span> and <span class="math notranslate nohighlight">\(y\)</span> alternatively as the number of
+compute nodes is doubled. The periodicity of the initial conditions allow to ensure
+that the amount of work per node remains constant.</p>
+<p>To provide a more comprehensive test of <cite>PeleLMeX</cite>, the scaling study is also reproduced in the case
+of a flame freely propagating in a quiescient mixture towards an EB flat wall. The presence of the
+EB triggers numerous changes in the actual code path employed (from advection scheme to linear solvers).</p>
+<p>The stude is performed on ORNL’s Crusher machine and the FlameSheet case is ran using 2 levels
+of refinement (3 levels total) and the following domain size and cell count:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">geometry</span><span class="o">.</span><span class="n">prob_lo</span>     <span class="o">=</span> <span class="mf">0.0</span> <span class="mf">0.0</span> <span class="mf">0.0</span>        <span class="c1"># x_lo y_lo (z_lo)</span>
+<span class="n">geometry</span><span class="o">.</span><span class="n">prob_hi</span>     <span class="o">=</span> <span class="mf">0.016</span> <span class="mf">0.016</span> <span class="mf">0.016</span>  <span class="c1"># x_hi y_hi (z_hi)</span>
+
+<span class="n">amr</span><span class="o">.</span><span class="n">n_cell</span>           <span class="o">=</span> <span class="mi">64</span> <span class="mi">64</span> <span class="mi">64</span>
+<span class="n">amr</span><span class="o">.</span><span class="n">max_level</span>        <span class="o">=</span> <span class="mi">2</span>
+</pre></div>
+</div>
+<p>When introducing the EB plane, the following EB definition is employed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">eb2</span><span class="o">.</span><span class="n">geom_type</span>     <span class="o">=</span> <span class="n">plane</span>
+<span class="n">eb2</span><span class="o">.</span><span class="n">plane_point</span>   <span class="o">=</span> <span class="mf">0.00</span> <span class="mf">0.00</span> <span class="mf">0.0004</span>
+<span class="n">eb2</span><span class="o">.</span><span class="n">plane_normal</span>  <span class="o">=</span> <span class="mi">0</span> <span class="mi">0</span> <span class="o">-</span><span class="mf">1.0</span>
+</pre></div>
+</div>
+<p>and because nothing interesting is happening at the EB surface, it is maintained on the base
+level using the following parameters:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">peleLM</span><span class="o">.</span><span class="n">refine_EB_type</span> <span class="o">=</span> <span class="n">Static</span>
+<span class="n">peleLM</span><span class="o">.</span><span class="n">refine_EB_max_level</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">peleLM</span><span class="o">.</span><span class="n">refine_EB_buffer</span> <span class="o">=</span> <span class="mf">2.0</span>
+</pre></div>
+</div>
+<p>The parallel efficiency, defined as the time to solution obtained on a single node divided by the
+time to solution obtained with an increasing number of nodes is reported in the figure below
+for the case wo. EB and w. EB. The efficiency is found to drop to 90% when going from 1 to 128
+Crusher nodes (8 to 1024 GPUs) and a closer look at the scaling data shows that most of the
+efficiency loss is associated with the communication intensive linear solves.</p>
+<figure class="align-center" style="width: 60%">
+<img alt="_images/WeakScalingFSCrusher.png" src="_images/WeakScalingFSCrusher.png" />
+</figure>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Validation.html" class="btn btn-neutral float-left" title="PeleLMeX Verification &amp; Validations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="LMeXControls.html" class="btn btn-neutral float-right" title="PeleLMeX controls" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

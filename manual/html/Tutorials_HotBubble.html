@@ -1,0 +1,587 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rising light bubble &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Premixed flame sheet with harmonic perturbations" href="Tutorials_FlameSheet.html" />
+    <link rel="prev" title="Tutorials" href="Tutorials.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Rising light bubble</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-your-environment">Setting-up your environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#case-setup">Case setup</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geometry-grid-and-boundary-conditions">Geometry, grid and boundary conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#problem-specifications">Problem specifications</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#numerical-parameters">Numerical parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#building-the-executable">Building the executable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-the-initial-conditions">Checking the initial conditions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advance-the-solution">Advance the solution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#in-situ-visualization-with-ascent">In-situ visualization with Ascent</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#building-with-ascent">Building with Ascent</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#runtime-activation">Runtime activation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#published-fields">Published fields</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-run">Example run</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlameSheet.html">Premixed flame sheet with harmonic perturbations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSFlame.html">Backward facing step anchored premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSRecycling.html">3D backward facing step with recycling-plane inflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="Tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">Rising light bubble</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Tutorials_HotBubble.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="rising-light-bubble">
+<span id="sec-tutorialhb"></span><h1>Rising light bubble<a class="headerlink" href="#rising-light-bubble" title="Link to this heading"></a></h1>
+<section id="introduction">
+<span id="sec-tuto-hb-intro"></span><h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p>At the core of <cite>PeleLMeX</cite> algorithm is a variable-density, low Mach number Navier-Stokes solver based
+on a fractional step approach. This short <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code> tutorial presents the case of a rising light bubble under
+the influence of a gravity field, which exercise this algorithm without the added complexity
+of chemical reactions or embedded boundaries.</p>
+</section>
+<section id="setting-up-your-environment">
+<span id="sec-tuto-hb-prepstep"></span><h2>Setting-up your environment<a class="headerlink" href="#setting-up-your-environment" title="Link to this heading"></a></h2>
+<p>Getting a functioning environment in which to compile and run <cite>PeleLMeX</cite> is the first step of this tutorial.
+Follow the steps listed below to get to this point:</p>
+<ol class="arabic">
+<li><p>The first step is to get <cite>PeleLMeX</cite> and its dependencies. To do so, use a recursive <em>git clone</em>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--shallow-submodules</span></code> and <code class="docutils literal notranslate"><span class="pre">--single-branch</span></code> flags are recommended for most users as they
+substantially reduce the size of the download by skipping extraneous parts of the git history.
+Developers may wish to omit these flags in order download the complete git history of PeleLMeX
+and its submodules, though standard <code class="docutils literal notranslate"><span class="pre">git</span></code> commands may also be used after a shallow clone to
+obtain the skipped portions if needed.</p>
+</li>
+<li><p>Move into the Exec folder containing your tutorial. To do so:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>cd PeleLMeX/Exec/RegTests/&lt;CaseName&gt;
+</pre></div>
+</div>
+<p>where &lt;CaseName&gt; is the name of your tutorial, e.g. <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code>, <code class="docutils literal notranslate"><span class="pre">FlameSheet</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EB_BackwardStepFlame</span></code>, <code class="docutils literal notranslate"><span class="pre">EB_FlowPastCylinder</span></code>, or <code class="docutils literal notranslate"><span class="pre">TripleFlame</span></code>.</p>
+</li>
+</ol>
+<p>You’re good to go!</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The makefile system is set up such that default paths are automatically set to the
+submodules obtained with the recursive <em>git clone</em>, however advanced users can set their own dependencies
+in the <cite>GNUmakefile</cite> for each case by updating the top-most lines as follows:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PELE_HOME     = &lt;path_to_PeleLMeX&gt;
+AMREX_HOME        = &lt;path_to_MyAMReX&gt;
+AMREX_HYDRO_HOME  = &lt;path_to_MyAMReXHydro&gt;
+PELE_PHYSICS_HOME = &lt;path_to_MyPelePhysics&gt;
+SUNDIALS_HOME     = &lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>or directly through shell environment variables (using <em>bash</em> for instance):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>export PELE_HOME=&lt;path_to_PeleLMeX&gt;
+export AMREX_HOME=&lt;path_to_MyAMReX&gt;
+export AMREX_HYDRO_HOME=&lt;path_to_MyAMReXHydro&gt;
+export PELE_PHYSICS_HOME=&lt;path_to_MyPelePhysics&gt;
+export SUNDIALS_HOME=&lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>Note that using the first option will overwrite any
+environment variables you might have previously defined when using this <cite>GNUmakefile</cite>.</p>
+</div>
+</section>
+<section id="case-setup">
+<h2>Case setup<a class="headerlink" href="#case-setup" title="Link to this heading"></a></h2>
+<p>A <cite>PeleLMeX</cite> case folder contains a minimal set of files to enable compilation,
+and the reader is referred to the FlameSheet tutorial <a class="reference internal" href="Tutorials_FlameSheet.html"><span class="doc">Premixed flame sheet with harmonic perturbations</span></a> for a
+more detailed description of <cite>PeleLMeX</cite> case setup. The case of interest for this
+tutorial can be found in <cite>PeleLMeX</cite> Exec folder:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Exec/RegTests/HotBubble
+</pre></div>
+</div>
+<section id="geometry-grid-and-boundary-conditions">
+<h3>Geometry, grid and boundary conditions<a class="headerlink" href="#geometry-grid-and-boundary-conditions" title="Link to this heading"></a></h3>
+<p>This simulation is performed on a 0.016x0.032 <span class="math notranslate nohighlight">\(m^2\)</span> 2D computational domain,
+with the bottom left corner located at (0.0:0.0) and the top right corner at (0.016:0.032).
+Two versions of that domain will be considered: 1) a 2D-cartesian case, 2) a 2D-RZ
+case where the <span class="math notranslate nohighlight">\(x\)</span>-low is the symmetry axis of the azimuthally homogeneous case. In both cases, the
+<span class="math notranslate nohighlight">\(x\)</span>-low boundary is treated as symmetry BC while <span class="math notranslate nohighlight">\(x\)</span>-high is treated as an adiabatic slip wall,
+the <span class="math notranslate nohighlight">\(y\)</span>-low boundary is treated as an adiabatic slip wall, while the <span class="math notranslate nohighlight">\(y\)</span>-high boundary is an <code class="docutils literal notranslate"><span class="pre">Outflow</span></code>.</p>
+<p>All of the geometrical information can be specified the first two blocks of the input file (<cite>input.2d-regt_sym</cite>):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 0 0                  # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                    # 0 =&gt; cart, 1 =&gt; RZ
+geometry.prob_lo     = 0.0 0.0              # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.016 0.032          # x_hi y_hi (z_hi)
+
+# &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;  BC FLAGS &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Symmetry      SlipWallAdiab
+peleLM.hi_bc = SlipWallAdiab Outflow
+</pre></div>
+</div>
+<p>In the 2D-RZ case (<cite>input.2d-regt_symRZ</cite>), the <code class="docutils literal notranslate"><span class="pre">geometry.coord_sys</span></code> is updated to <code class="docutils literal notranslate"><span class="pre">1</span></code> to trigger the use of a polar
+coordinates system.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that when running 2D simulations, it is not necessary to specify entries for the third dimension.</p>
+</div>
+<p>The base grid is decomposed into a 64x128 cell array with AMR triggered up to level 2.</p>
+<p>The refinement ratio between each level is set to 2 and <cite>PeleLMeX</cite> currently does not support
+refinement ratio of 4. Regrid operation will be performed every 5 steps. <code class="docutils literal notranslate"><span class="pre">amr.n_error_buf</span></code> specifies,
+for each level, the number of buffer cells used around the cell tagged for refinement, while <code class="docutils literal notranslate"><span class="pre">amr.grid_eff</span></code>
+describes the grid efficiency, i.e. how much of the new grid contains tagged cells. Higher values lead
+to tighter grids around the tagged cells. For more information on how these parameters affect grid generation,
+see the <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/GridCreation.html">AMReX documentation</a>.</p>
+<p>All of those parameters are specified in the <cite>AMR CONTROL</cite> block:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#------------------------- AMR CONTROL ----------------------------
+amr.n_cell          = 64 128         # Level 0 number of cells in each direction
+amr.v               = 1              # AMR verbose
+amr.max_level       = 2              # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2        # refinement ratio
+amr.regrid_int      = 5              # how often to regrid
+amr.n_error_buf     = 1 1 2 2        # number of buffer cells in error est
+amr.grid_eff        = 0.7            # what constitutes an efficient grid
+amr.blocking_factor = 16             # block factor in grid generation (min box size)
+amr.max_grid_size   = 128            # max box size
+</pre></div>
+</div>
+</section>
+<section id="problem-specifications">
+<h3>Problem specifications<a class="headerlink" href="#problem-specifications" title="Link to this heading"></a></h3>
+<p id="sec-tuto-hb-problem">The problem setup is mostly contained in the two C++ source/header files described in <a class="reference internal" href="Tutorials_FlameSheet.html"><span class="doc">Premixed flame sheet with harmonic perturbations</span></a>.
+The user parameters are gathered in the struct defined in  <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>struct ProbParm : public ProbParmDefault
+{
+    amrex::Real P_mean        = 101325.0;
+    amrex::Real T_mean        = 300.0;
+    amrex::Real T_bubble      = 600.0;
+    amrex::Real bubble_rad    = 0.005;
+    amrex::Real bubble_y0     = 0.01;
+    int         bubble_is_mix = 0;
+    int           is_sym      = 0;
+};
+</pre></div>
+</div>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">P_mean</span></code> : initial thermodynamic pressure</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">T_mean</span></code> : the ambient gas temperature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">T_bubble</span></code> : the bubble gas temperature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bubble_rad</span></code> : the radius of the light bubble</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bubble_y0</span></code> : the initial position of the bubble in the <span class="math notranslate nohighlight">\(y\)</span> direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bubble_is_mix</span></code> : a flag to switch to a mixture-based density change in the bubble</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">is_sym</span></code> : a flag to indicate that the initial conditions are for a <span class="math notranslate nohighlight">\(x\)</span>-low symmetric case.</p></li>
+</ul>
+<p>The initial solution consists of air at the pressure/temperature specified by the user, with a bubble
+of a different temperature/mixture intended to be lighter such that the bubble will rise under the
+influence of gravity. Note that the user can easily reverse the problem with a heavier bubble.
+The default parameters provided above are overwritten using AMReX ParmParse in <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.cpp</span></code>
+and the initial/boundary conditions implemented in <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>. Because this case does not feature
+any dirichlet BC on the state variables, the default <code class="docutils literal notranslate"><span class="pre">bcnormal</span></code> function is not overridden in
+the <cite>MyProblemSpecificFunctions</cite> struct defined in <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code>.</p>
+<p>The interesting aspect of this case is the inclusion of buoyancy effects in the presence of gravity.
+To trigger gravity the following input key is required:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>peleLM.gravity = 0.0 -9.81 0.0
+</pre></div>
+</div>
+<p>which in this case defines an usual Earth-like gravity oriented towards <span class="math notranslate nohighlight">\(y\)</span>-low.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>At the moment, the hydrostatic outflow boundqry conditions are not available in PeleLMeX, so Outflow should not be
+employed in the direction transverse to the gravity vector !</p>
+</div>
+</section>
+<section id="numerical-parameters">
+<h3>Numerical parameters<a class="headerlink" href="#numerical-parameters" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">PeleLM</span> <span class="pre">CONTROL</span></code> block contains a few of the <cite>PeleLMeX</cite> algorithmic parameters. Many more
+unspecified parameters are relying on their default values which can be found in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.
+Of particular interest are the <code class="docutils literal notranslate"><span class="pre">peleLM.sdc_iterMax</span></code> parameter controlling the number of
+SDC iterations (see <a class="reference internal" href="Model.html"><span class="doc">The PeleLMeX Model</span></a> for more details on SDC in <cite>PeleLMeX</cite>) and the
+<code class="docutils literal notranslate"><span class="pre">peleLM.num_init_iter</span></code> one controlling the number of initial iteration the solver will do
+after initialization to obtain a consistent pressure and velocity field.</p>
+</section>
+</section>
+<section id="building-the-executable">
+<h2>Building the executable<a class="headerlink" href="#building-the-executable" title="Link to this heading"></a></h2>
+<p>Now that we have reviewed the basic ingredients required to setup the case, it is time to build the <cite>PeleLMeX</cite> executable.
+Although both GNUmake and CMake are available, it is advised to use GNUmake. The <code class="docutils literal notranslate"><span class="pre">GNUmakefile</span></code> file provides some compile-time options
+regarding the simulation we want to perform.
+The first few lines specify the paths towards the source codes of <cite>PeleLMeX</cite>, <cite>AMReX</cite>, <cite>AMReX-Hydro</cite> and <cite>PelePhysics</cite>, overwriting
+any environment variable if necessary, and might have been already updated in <a class="reference internal" href="#sec-tuto-hb-prepstep"><span class="std std-ref">Setting-up your environment</span></a> earlier.</p>
+<p>The next few lines specify AMReX compilation options and compiler selection:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span># AMREX
+DIM             = 2
+DEBUG           = FALSE
+PRECISION       = DOUBLE
+VERBOSE         = FALSE
+TINY_PROFILE    = FALSE
+
+# Compilation
+COMP            = gnu
+USE_MPI         = TRUE
+USE_OMP         = FALSE
+USE_CUDA        = FALSE
+USE_HIP         = FALSE
+USE_SYCL        = FALSE
+</pre></div>
+</div>
+<p>It allows users to specify the number of spatial dimensions (2D),
+trigger debug compilation and other AMReX options. The compiler (<code class="docutils literal notranslate"><span class="pre">gnu</span></code>) and the parallelism paradigm
+(in the present case only MPI is used) are then selected. Note that on OSX platform, one should update the compiler to <code class="docutils literal notranslate"><span class="pre">llvm</span></code>.</p>
+<p>In <cite>PeleLMeX</cite>, the chemistry model (set of species, their thermodynamic and transport properties as well as the description
+of their of chemical interactions) is specified at compile time. Chemistry models available in
+<cite>PelePhysics</cite> can used in <cite>PeleLMeX</cite> by specifying the name of the folder in <cite>PelePhysics/Mechanisms</cite> containing
+the relevant files, for example:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Chemistry_Model = air
+</pre></div>
+</div>
+<p>Here, the model <code class="docutils literal notranslate"><span class="pre">air</span></code> contains only 2 species (O2 and N2) without any reactions. Advanced users may also specify
+<code class="docutils literal notranslate"><span class="pre">USE_CUSTOM_CHEMISTRY</span> <span class="pre">=</span> <span class="pre">TRUE</span></code>, in which case <code class="docutils literal notranslate"><span class="pre">Chemistry_Model</span></code> is interpreted as a path and can point to models not included in
+PelePhysics by default, though the new model directory must contain valid chemistry model files. A constant transport model is used
+and transport properties are set to zero in the input files which is effectively equivalent to solving the variable-density
+Euler equations.
+The user is referred to the <a class="reference external" href="https://pelephysics.readthedocs.io/en/latest/">PelePhysics</a> documentation for a
+list of available mechanisms and more information regarding the EOS, chemistry and transport models specified:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Eos_Model       := Fuego
+Transport_Model := Constant
+</pre></div>
+</div>
+<p>Finally, <cite>PeleLMeX</cite> utilizes the chemical kinetic ODE integrator <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">CVODE</a>. This
+Third Party Library (TPL) is shipped as a submodule of the <cite>PeleLMeX</cite> distribution and can be readily installed through the makefile system
+of <cite>PeleLMeX</cite>. To do so, type in the following command:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4 TPL
+</pre></div>
+</div>
+<p>Note that the installation of <cite>CVODE</cite> requires CMake 3.23.1 or higher.</p>
+<p>You are now ready to build your first <cite>PeleLMeX</cite> executable!! Type in:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4
+</pre></div>
+</div>
+<p>The option here tells <cite>make</cite> to use up to 4 processors to create the executable (internally, <cite>make</cite> follows a dependency graph to ensure any required ordering in the build is satisfied). This step should generate the following file (providing that the build configuration you used matches the one above):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PeleLMeX2d.gnu.MPI.ex
+</pre></div>
+</div>
+<p>You’re good to go!</p>
+</section>
+<section id="checking-the-initial-conditions">
+<h2>Checking the initial conditions<a class="headerlink" href="#checking-the-initial-conditions" title="Link to this heading"></a></h2>
+<p>It is always a good practice to check the initial conditions. To do so, run the simulation specifying
+an <code class="docutils literal notranslate"><span class="pre">amr.max_step</span></code> of 0. Open the <code class="docutils literal notranslate"><span class="pre">input.2d-regt_sym</span></code> with your favorite editor and update the following parameters</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Time Stepping CONTROL --------------------
+amr.max_step      = 0             # Maximum number of time steps
+</pre></div>
+</div>
+<p>Since we’ve set the maximum number of steps to 0, the solver will exit after
+the initial solution is obtained. Let’s run the simulation with the default problem parameter
+listed in the input file. To do so, use:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>./PeleLMeX2d.gnu.MPI.ex input.2d-regt
+</pre></div>
+</div>
+<p>A variety of information is printed to the screen:</p>
+<ol class="arabic simple">
+<li><p>AMReX/SUNDIALs initialization along with the git hashes of the various subrepositories</p></li>
+<li><p>A summary of the <cite>PeleLMeX</cite> state components</p></li>
+<li><p>Initial projection and initial iterations.</p></li>
+<li><p>Saving the initial solution to <cite>plt00000</cite> file.</p></li>
+</ol>
+<p>Use Amrvis, Paraview or yt to visualize the plot file. Using Amrvis, the solution should look
+similar to <a class="reference internal" href="#hb-initsol"><span class="std std-numref">Fig. 9</span></a>.</p>
+<figure class="align-center" id="hb-initsol" style="width: 95%">
+<img alt="_images/HB_InitSol.png" src="_images/HB_InitSol.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 9 </span><span class="caption-text">: Contour plots of density, temperature, cell-averaged pressure after initialization.</span><a class="headerlink" href="#hb-initsol" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The cell-averaged pressure (the perturbational pressure in node-centered in the projection-based scheme
+employed in PeleLMeX, see <a class="reference external" href="https://www.sciencedirect.com/science/article/abs/pii/S0021999198958909">Almgren</a> for more details)
+clearly shows the effect of the gravity field with the presence of an hydrostatic pressure gradient.</p>
+</section>
+<section id="advance-the-solution">
+<h2>Advance the solution<a class="headerlink" href="#advance-the-solution" title="Link to this heading"></a></h2>
+<p>Let’s now advance the solution for 400 steps, using the base grid and 2 AMR level and the default time stepping
+parameters. To do so, ensure that:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.max_step = 400
+</pre></div>
+</div>
+<p>Additionally, make sure that <code class="docutils literal notranslate"><span class="pre">amr.check_int</span></code> is set to a positive value to trigger writing a
+checkpoint file from which to later restart the simulation. If available, use more than one MPI
+rank to run the simulation and redirect the standard output to a log file using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex input.2d-regt_sym &gt; logInit.dat &amp;
+</pre></div>
+</div>
+<p>A typical <cite>PeleLMeX</cite> stdout for a time step now looks like:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Est. time step - Conv: 7.249645299e-05, divu: 1e+20
+STEP [384] - Time: 0.05931322581, dt 7.249645299e-05
+  SDC iter [1]
+&gt;&gt; PeleLMeX::Advance() --&gt; Time: 0.2141339779
+</pre></div>
+</div>
+<p>clearly showing the use of 1 SDC iteration. The first line at each step provides
+the time step constraint from the CFL
+condition (<code class="docutils literal notranslate"><span class="pre">Conv:</span></code>) and from the density change condition (<code class="docutils literal notranslate"><span class="pre">divu:</span></code>).
+In the absence of reaction and diffusion, the <code class="docutils literal notranslate"><span class="pre">divu:</span></code> constraint is irrelevant and set to a
+large value.</p>
+<p>Visualizing the <cite>plt00400</cite> file, we can see that the solution has evolved. The light bubble started rising
+under the effect of buoyancy, resulting in a shear layer at the interface of between the hot and cold gases.
+Vorticies appears in the shear layer, wrinking the interface. Smearing of the temperature gradient at the interface
+is induced by the numerical scheme diffusion, but appearances of local extrema are very limited.</p>
+<figure class="align-center" id="hb-400steps2lvl" style="width: 95%">
+<img alt="_images/HB_400steps2lvl.png" src="_images/HB_400steps2lvl.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 10 </span><span class="caption-text">: Contour plots of density, both velocity components and vorticity after 400 steps.</span><a class="headerlink" href="#hb-400steps2lvl" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>In order to compare 2D-cartesian and 2D-RZ, you can now start another simulation using <cite>input.2d-regt_symRZ</cite>. To insure
+both simulations evolved for the same physical time, set the final time of the 2D-RZ simulation to that of the first run:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.max_step = 1000
+amr.stop_time = 0.060458236391426
+</pre></div>
+</div>
+<p>and change the prefix of the plotfile output for clarity:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.plot_file = "pltRZ"
+</pre></div>
+</div>
+<p>then start the 2D-RZ run:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 4 ./PeleLMeX2d.gnu.MPI.ex input.2d-regt_symRZ &gt; logInitRZ.dat &amp;
+</pre></div>
+</div>
+<p>The 2D-RZ simulation is found to have a smaller time step size resulting from the stronger acceleration of the bubble. Indeed,
+in the 2D-cartesian case, the hot region is actually an infinitely long cylinder which has inertia larger than that of the
+bubble effectively represented in the 2D-RZ case.</p>
+<p>This is end of the guided section of this tutorial. Interested users can explore the effects of the following parameters
+on the simulation results since the computational time is minimal:</p>
+<ul class="simple">
+<li><p>Spatial resolution: increase the maximum number of AMR levels, ensuring that the simulation final time matches that of the initial run. What is the effect on the rising bubble’s velocity and shape ?</p></li>
+<li><p>Switch to a mixture composition change instead of a temperature one or reverse the problem by using a bubble temperature lower than that of the ambient air.</p></li>
+<li><p>Switch to a different advection scheme (see the <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a> page for a list of available schemes). What is the effect on the interface wrinkling and smearing ?</p></li>
+<li><p>If your computational resources allows, build the 3D version of the case and compare the 2D-RZ and 3D results.</p></li>
+</ul>
+</section>
+<section id="in-situ-visualization-with-ascent">
+<span id="sec-tuto-hb-ascent"></span><h2>In-situ visualization with Ascent<a class="headerlink" href="#in-situ-visualization-with-ascent" title="Link to this heading"></a></h2>
+<p><cite>PeleLMeX</cite> supports in-situ visualization via <a class="reference external" href="https://ascent.readthedocs.io">Ascent</a>, an open-source many-core capable
+lightweight in-situ visualization and analysis library developed as part of the
+<a class="reference external" href="https://alpine-dav.github.io/ascent/">Alpine</a> project. Ascent uses <a class="reference external" href="https://llnl-conduit.readthedocs.io">Conduit</a> to describe and pass simulation data,
+and the <a class="reference external" href="https://github.com/Viskores/viskores">Viskores</a> library for
+rendering on both CPU and GPU. Since the solver state is passed directly to
+Ascent without writing to disk, in-situ rendering eliminates the I/O bottleneck
+of traditional post-hoc workflows and is well-suited to large-scale GPU runs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Ascent and Conduit must be built and installed before enabling in-situ
+visualization. Refer to the <a class="reference external" href="https://ascent.readthedocs.io/en/latest/BuildingAscent.html">Ascent build documentation</a> and the
+<a class="reference external" href="https://llnl-conduit.readthedocs.io/en/latest/building.html">Conduit build documentation</a> for
+instructions. The <code class="docutils literal notranslate"><span class="pre">build_ascent.sh</span></code> script provided in the Ascent
+repository (<code class="docutils literal notranslate"><span class="pre">scripts/build_ascent/build_ascent.sh</span></code>) builds both Ascent
+and Conduit together and is the recommended approach.</p>
+</div>
+<section id="building-with-ascent">
+<h3>Building with Ascent<a class="headerlink" href="#building-with-ascent" title="Link to this heading"></a></h3>
+<p>Ascent support is enabled at compile time by passing the following flags to
+the GNUmake build system (the <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code> GNUmakefile is unchanged):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j8 USE_CUDA=TRUE CUDA_ARCH=89         \
+         USE_ASCENT=TRUE                    \
+         ASCENT_DIR=/path/to/ascent/install \
+         USE_CONDUIT=TRUE                   \
+         CONDUIT_DIR=/path/to/conduit/install
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">/path/to/ascent/install</span></code> and <code class="docutils literal notranslate"><span class="pre">/path/to/conduit/install</span></code> with the
+paths to your Ascent and Conduit installations. <code class="docutils literal notranslate"><span class="pre">CUDA_ARCH</span></code> should match your
+GPU’s compute capability (e.g., <code class="docutils literal notranslate"><span class="pre">89</span></code> for NVIDIA RTX 40-series, <code class="docutils literal notranslate"><span class="pre">80</span></code> for
+A100). Omit the <code class="docutils literal notranslate"><span class="pre">USE_CUDA</span></code> flags to build a CPU-only Ascent-enabled
+executable.</p>
+</section>
+<section id="runtime-activation">
+<h3>Runtime activation<a class="headerlink" href="#runtime-activation" title="Link to this heading"></a></h3>
+<p>Ascent is activated at runtime by adding the following to the input file (or
+passing on the command line):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>ascent.plot_int = 10    # call Ascent every 10 time steps
+</pre></div>
+</div>
+<p>When <code class="docutils literal notranslate"><span class="pre">ascent.plot_int</span></code> is not set or is negative, Ascent is disabled and
+there is no runtime overhead.</p>
+<p>Ascent reads a YAML actions file named <code class="docutils literal notranslate"><span class="pre">ascent_actions.yaml</span></code> from the run
+directory automatically. This file describes what to render. A reference file
+is provided in the <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code> case directory:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Exec/RegTests/HotBubble/ascent_actions.yaml
+</pre></div>
+</div>
+<p>The reference file defines two scenes rendered simultaneously at each in-situ
+call with no additional solver cost:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>-
+  action: "add_scenes"
+  scenes:
+    scene1:
+      image_prefix: "hotbubble_temp_%05d"
+      plots:
+        plt1:
+          type: "pseudocolor"
+          field: "temp"
+    scene2:
+      image_prefix: "hotbubble_mesh_%05d"
+      plots:
+        plt1:
+          type: "pseudocolor"
+          field: "temp"
+        plt2:
+          type: "mesh"
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">scene1</span></code> renders the temperature field as a pseudocolor image.
+<code class="docutils literal notranslate"><span class="pre">scene2</span></code> renders the same temperature field with the AMR mesh overlaid,
+clearly showing the block-structured refinement levels that <cite>PeleLMeX</cite>
+automatically generates around the bubble interface.</p>
+<figure class="align-center" id="hb-ascent-combined" style="width: 95%">
+<img alt="_images/HB_Ascent_combined.png" src="_images/HB_Ascent_combined.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 11 </span><span class="caption-text">: Temperature field (left) and temperature with AMR mesh overlay (right) at step 200.</span><a class="headerlink" href="#hb-ascent-combined" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Ascent automatically selects the best available rendering backend — CUDA
+when available, otherwise OpenMP — based on how it was compiled. No
+additional configuration is required.</p>
+</section>
+<section id="published-fields">
+<h3>Published fields<a class="headerlink" href="#published-fields" title="Link to this heading"></a></h3>
+<p>The following fields from the PeleLMeX state vector are published to Ascent
+at each in-situ call and are available for rendering in <code class="docutils literal notranslate"><span class="pre">ascent_actions.yaml</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">x_velocity</span></code>, <code class="docutils literal notranslate"><span class="pre">y_velocity</span></code> (<code class="docutils literal notranslate"><span class="pre">z_velocity</span></code> in 3D)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">density</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rho.Y(&lt;species&gt;)</span></code> for each species in the mechanism (e.g. <code class="docutils literal notranslate"><span class="pre">rho.Y(N2)</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rhoh</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">temp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">RhoRT</span></code></p></li>
+</ul>
+</section>
+<section id="example-run">
+<h3>Example run<a class="headerlink" href="#example-run" title="Link to this heading"></a></h3>
+<p>To run the <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code> case with in-situ rendering every 50 steps:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 1 ./PeleLMeX2d.gnu.MPI.CUDA.ex input.2d-regt \
+    amr.max_step=400 amr.plot_int=-1 amr.check_int=-1   \
+    ascent.plot_int=50
+</pre></div>
+</div>
+<p>For more information on available Ascent actions (contours, volume rendering,
+Cinema databases, triggers, etc.), see the <a class="reference external" href="https://ascent.readthedocs.io/en/latest/Actions/Actions.html">Ascent actions documentation</a>.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Tutorials.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Tutorials_FlameSheet.html" class="btn btn-neutral float-right" title="Premixed flame sheet with harmonic perturbations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

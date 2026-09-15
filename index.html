@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--
+        This webpage is based on Transit by TEMPLATED
+	templated.co @templatedco
+	Released for free under the Creative Commons Attribution 3.0 license (templated.co/license)
+-->
+<html lang="en">
+  <head>
+
+    <meta charset="UTF-8">
+    <title>PeleLMeX: A non-subcycling adaptive mesh hydrodynamics simulation code for low Mach number reacting flows</title>
+    <link rel="icon" href="web_icon.ico" type="image/x-icon">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+    <!--[if lte IE 8]><script src="js/html5shiv.js"></script><![endif]-->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/skel.min.js"></script>
+    <script src="js/skel-layers.min.js"></script>
+    <script src="js/init.js"></script>
+    <noscript>
+      <link rel="stylesheet" href="css/skel.css" />
+      <link rel="stylesheet" href="css/style.css" />
+      <link rel="stylesheet" href="css/style-xlarge.css" />
+    </noscript>
+  </head>
+  <body class="landing">
+
+    <!-- Header -->
+    <header id="header">
+      <nav id="nav">
+	<ul>
+	  <li><a href="index.html" class="button special">Home</a></li>
+      <li><a href="overview.html" >Overview</a></li>
+      <li><a href="gallery.html" >Gallery</a></li>
+      <li><a href="help.html" >Get Help</a></li>
+	</ul>
+      </nav>
+    </header>
+
+    <!-- Banner -->
+    <section id="banner">
+      <h2>PeleLMeX</h2>
+      <p>An adaptive mesh hydrodynamics simulation code for low Mach number reacting flows
+      <ul class="actions">
+	<li>
+	  <a href="https://github.com/AMReX-Combustion/PeleLMeX" class="button big">Source Code</a>
+	  <a href="manual/html/index.html" class="button big">Documentation</a>
+	</li>
+      </ul>
+      <ul class="actions small">
+	<li>
+	  <a href="https://amrex-combustion.github.io" class="button special">Pele Suite Page</a>
+	</li>
+      </ul>
+    </section><!-- Two -->
+    <section id="two" class="wrapper style2 special">
+      <div class="container">
+	<ul class="alt">
+          <li><h3>Getting Started</h3>
+            <p>
+              PeleLMeX depends on several separate GitHub repositories, each under active development. This
+              can significantly complicate the required effort to keep all the required software up to date and internally
+              compatible. The Pele codes rely on git "submodules" to get the appropriate version of each component,
+              which dramatically simplifies the initial install/build/run procedure:
+            </p>
+	    <pre>
+              git clone --recursive https://github.com/AMReX-Combustion/PeleLMeX.git
+              cd Exec/RegTests/FlameSheet/
+              make TPL && make -j 12
+              mpiexec -np 8 ./PeleLMeX2d.gnu.MPI.ex input.2d-regt
+            </pre>
+            <p>
+              The <a href="manual/html/index.html">PeleLMeX Documentation</a>
+              continues to be the best place to learn more about the code.
+              You can also ask for help by opening up an issue on the
+              <a href="https://github.com/AMReX-Combustion/PeleLMeX">PeleLMeX GitHub webpage</a>.
+            </p>
+	    </li>
+	  </ul>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+      <div class="container">
+	<section class="ack">
+          <h4>Acknowledgment</h4>
+This research was supported by the Exascale Computing Project (ECP), Project Number: 17-SC-20-SC, a collaborative effort of two DOE organizations -- the Office of Science and the National Nuclear Security Administration -- responsible for the planning and preparation of a capable exascale ecosystem -- including software, applications, hardware, advanced system engineering, and early testbed platforms -- to support the nation's exascale computing imperative.
+	</section>
+	<div class="row">
+	  <div class="8u 12u$(medium)">
+	    <ul class="copyright">
+	      <li>&copy; Alliance for Sustainable Energy, LLC and The Regents of the University of California, through Lawrence Berkeley National Laboratory
+All rights reserved.</li>
+	    </ul>
+	  </div>
+	</div>
+      </div>
+    </footer>
+
+  </body>
+</html>

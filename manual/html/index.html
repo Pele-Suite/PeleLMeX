@@ -1,0 +1,217 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to PeleLMeX’s documentation! &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The PeleLMeX Model" href="Model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Welcome to PeleLMeX’s documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="welcome-to-pelelmex-s-documentation">
+<h1>Welcome to PeleLMeX’s documentation!<a class="headerlink" href="#welcome-to-pelelmex-s-documentation" title="Link to this heading"></a></h1>
+<p><cite>PeleLMeX</cite> is the non-subcycling version of <a class="reference external" href="https://amrex-combustion.github.io/PeleLM/">PeleLM</a>, an adaptive-mesh low Mach number hydrodynamics
+code for reacting flows. If you need help or have questions, please use the <a class="reference external" href="https://github.com/AMReX-Combustion/PeleLMeX/discussions">GitHub discussion</a>.
+The documentation pages appearing here are distributed with the code in the <code class="docutils literal notranslate"><span class="pre">Docs</span></code> folder as “restructured text” files.  The html is built
+automatically with certain pushes to the <cite>PeleLMeX</cite> GibHub repository. A local version can also be built as follows</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cd ${PELE_HOME}/Docs
+cmake -S . -B build
+cmake --build build
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">PELE_HOME</span></code> is the location of your clone of the <cite>PeleLMeX</cite> repository.  To view the local pages,
+point your web browser at the file <code class="docutils literal notranslate"><span class="pre">${PELE_HOME}/Docs/build/html/index.html</span></code>.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Model.html#overview-of-pelelmex">Overview of <cite>PeleLMeX</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="Model.html#mathematical-background">Mathematical background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Model.html#pelelmex-algorithm">PeleLMeX Algorithm</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#overview-of-source-code">Overview of source code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#data-structure-and-containers">Data structure and containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#parallelism">Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Implementation.html#debugging">Debugging</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Validation.html#laminar-premixed-flame">Laminar premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Validation.html#laminar-poiseuille-flow">Laminar Poiseuille flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Validation.html#taylor-green-vortex-breakdown">Taylor-Green vortex breakdown</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Validation.html#channel-flow-using-eb">Channel Flow using EB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Validation.html#laminar-counterflow-diffusion-flame">Laminar counterflow diffusion flame</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Performances.html#single-node-performances-flamesheet-case">Single node performances: FlameSheet case</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Performances.html#weak-scaling-performances-flamesheet-case">Weak scaling performances: FlameSheet case</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#computational-domain-definition">Computational domain definition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#grid-amr-parameters">Grid/AMR parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#load-balancing">Load balancing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#time-stepping-parameters">Time stepping parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#io-parameters">IO parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#refinement-controls">Refinement controls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#pelelmex-derived-variables">PeleLMeX derived variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#pelelmex-algorithm">PeleLMeX algorithm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#transport-coefficients-and-les">Transport coefficients and LES</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#mesh-mapping">Mesh Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#turbulent-forcing-and-velocity-plotfile">Turbulent Forcing and Velocity Plotfile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#recycling-plane-inflow">Recycling-plane inflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#chemistry-integrator">Chemistry integrator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#embedded-geometry">Embedded Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#linear-solvers">Linear solvers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#active-control">Active control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#run-time-diagnostics">Run-time diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#run-time-control">Run-time control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LMeXControls.html#selection-of-helpful-gnumakefile-flags">Selection of Helpful GNUmakefile Flags</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Troubleshooting.html#linear-solver-failure">Linear solver failure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Troubleshooting.html#chemistry-integration-failure">Chemistry integration failure</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_HotBubble.html">Rising light bubble</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlameSheet.html">Premixed flame sheet with harmonic perturbations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSFlame.html">Backward facing step anchored premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSRecycling.html">3D backward facing step with recycling-plane inflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Model.html" class="btn btn-neutral float-right" title="The PeleLMeX Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

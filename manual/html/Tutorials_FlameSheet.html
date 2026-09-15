@@ -1,0 +1,644 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premixed flame sheet with harmonic perturbations &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Non-reacting flow past a cylinder" href="Tutorials_FlowPastCyl.html" />
+    <link rel="prev" title="Rising light bubble" href="Tutorials_HotBubble.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="Tutorials.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_HotBubble.html">Rising light bubble</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Premixed flame sheet with harmonic perturbations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-your-environment">Setting-up your environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#case-setup">Case setup</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#geometry-grid-and-boundary-conditions">Geometry, grid and boundary conditions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#problem-specifications">Problem specifications</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#numerical-parameters">Numerical parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#building-the-executable">Building the executable</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-the-initial-conditions">Checking the initial conditions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advance-the-solution">Advance the solution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_FlowPastCyl.html">Non-reacting flow past a cylinder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSFlame.html">Backward facing step anchored premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_BFSRecycling.html">3D backward facing step with recycling-plane inflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="Tutorials_TripleFlame.html">A simple triple flame</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="Tutorials.html">Tutorials</a></li>
+      <li class="breadcrumb-item active">Premixed flame sheet with harmonic perturbations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Tutorials_FlameSheet.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="premixed-flame-sheet-with-harmonic-perturbations">
+<span id="sec-tutorialflamesheet"></span><h1>Premixed flame sheet with harmonic perturbations<a class="headerlink" href="#premixed-flame-sheet-with-harmonic-perturbations" title="Link to this heading"></a></h1>
+<section id="introduction">
+<span id="sec-tuto-fs-intro"></span><h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p><cite>PeleLMeX</cite> primary objective is to enable simulation of reactive flows on platforms ranging
+from small personal computer to Exascale supercomputer. This short <code class="docutils literal notranslate"><span class="pre">FlameSheet</span></code> tutorial describes
+the case of a 2D laminar methane/hydrogen/air premixed flame, perturbed using harmonic fluctuations
+on the initial conditions.</p>
+<p>The goal of this tutorial is to demonstrate <cite>PeleLMeX</cite> basic controls when dealing with reactive simulations.
+This document provides step by step instructions reviewing how to set-up the domain and boundary conditions,
+and how to construct an initial solution.</p>
+</section>
+<section id="setting-up-your-environment">
+<span id="sec-tuto-fs-prepstep"></span><h2>Setting-up your environment<a class="headerlink" href="#setting-up-your-environment" title="Link to this heading"></a></h2>
+<p>Getting a functioning environment in which to compile and run <cite>PeleLMeX</cite> is the first step of this tutorial.
+Follow the steps listed below to get to this point:</p>
+<ol class="arabic">
+<li><p>The first step is to get <cite>PeleLMeX</cite> and its dependencies. To do so, use a recursive <em>git clone</em>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--shallow-submodules</span></code> and <code class="docutils literal notranslate"><span class="pre">--single-branch</span></code> flags are recommended for most users as they
+substantially reduce the size of the download by skipping extraneous parts of the git history.
+Developers may wish to omit these flags in order download the complete git history of PeleLMeX
+and its submodules, though standard <code class="docutils literal notranslate"><span class="pre">git</span></code> commands may also be used after a shallow clone to
+obtain the skipped portions if needed.</p>
+</li>
+<li><p>Move into the Exec folder containing your tutorial. To do so:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>cd PeleLMeX/Exec/RegTests/&lt;CaseName&gt;
+</pre></div>
+</div>
+<p>where &lt;CaseName&gt; is the name of your tutorial, e.g. <code class="docutils literal notranslate"><span class="pre">HotBubble</span></code>, <code class="docutils literal notranslate"><span class="pre">FlameSheet</span></code>,
+<code class="docutils literal notranslate"><span class="pre">EB_BackwardStepFlame</span></code>, <code class="docutils literal notranslate"><span class="pre">EB_FlowPastCylinder</span></code>, or <code class="docutils literal notranslate"><span class="pre">TripleFlame</span></code>.</p>
+</li>
+</ol>
+<p>You’re good to go!</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The makefile system is set up such that default paths are automatically set to the
+submodules obtained with the recursive <em>git clone</em>, however advanced users can set their own dependencies
+in the <cite>GNUmakefile</cite> for each case by updating the top-most lines as follows:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PELE_HOME     = &lt;path_to_PeleLMeX&gt;
+AMREX_HOME        = &lt;path_to_MyAMReX&gt;
+AMREX_HYDRO_HOME  = &lt;path_to_MyAMReXHydro&gt;
+PELE_PHYSICS_HOME = &lt;path_to_MyPelePhysics&gt;
+SUNDIALS_HOME     = &lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>or directly through shell environment variables (using <em>bash</em> for instance):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>export PELE_HOME=&lt;path_to_PeleLMeX&gt;
+export AMREX_HOME=&lt;path_to_MyAMReX&gt;
+export AMREX_HYDRO_HOME=&lt;path_to_MyAMReXHydro&gt;
+export PELE_PHYSICS_HOME=&lt;path_to_MyPelePhysics&gt;
+export SUNDIALS_HOME=&lt;path_to_MySUNDIALS&gt;
+</pre></div>
+</div>
+<p>Note that using the first option will overwrite any
+environment variables you might have previously defined when using this <cite>GNUmakefile</cite>.</p>
+</div>
+</section>
+<section id="case-setup">
+<h2>Case setup<a class="headerlink" href="#case-setup" title="Link to this heading"></a></h2>
+<p>A <cite>PeleLMeX</cite> case folder generally contains a minimal set of files to enable compilation,
+provide user-defined functions defining initial and boundary conditions, input file(s) and
+any additional files necessary for the simulation (solution of a Cantera 1D flame for instance).</p>
+<p>The following two files in particular are necessary:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>pelelmex_prob.H
+pelelmex_prob.cpp
+</pre></div>
+</div>
+<p>The first file provides two C++ structs: <cite>MyProbParm</cite> and <cite>MyProblemSpecificFunctions</cite>. The former
+contains the set of user-defined variables
+used during the simulation (value of inlet temperature, amplitude of the initial
+perturbation, …), while the latter provides C++ kernels for applying the initial and
+boundary conditions and will be detailed later in this tutorial.
+The <cite>.cpp</cite> file uses AMReX <cite>ParmParse</cite> to read the run-time parameter contained
+in the <cite>MyProbParm</cite> struct.</p>
+<p>The following review the content of the various files required for the flame sheet test case.
+User keys listed in the <cite>input.2d-regt</cite> file are reviewed and linked to the specific aspects
+of the simulation setup. To get additional information about the keywords discussed,
+the reader is referred to <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.</p>
+<section id="geometry-grid-and-boundary-conditions">
+<h3>Geometry, grid and boundary conditions<a class="headerlink" href="#geometry-grid-and-boundary-conditions" title="Link to this heading"></a></h3>
+<p>This Direct Numerical Simulations (DNS) is performed on a 0.016x0.032 <span class="math notranslate nohighlight">\(m^2\)</span> 2D computational domain,
+with the bottom left corner located at (0.0:0.0) and the top right corner at (0.016:0.032). Periodic boundary
+conditions are used in the transverse (<span class="math notranslate nohighlight">\(x\)</span>) direction, while <code class="docutils literal notranslate"><span class="pre">Inflow</span></code> (dirichlet) and <code class="docutils literal notranslate"><span class="pre">Outflow</span></code> (0-neumann) boundary
+are used in the main flow direction (<span class="math notranslate nohighlight">\(y\)</span>). The flow goes from bottom to top. Finally a Cartesian coordinate system is
+used here. All of the above information is provided in the first two blocks of the input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- DOMAIN DEFINITION -------------------------
+geometry.is_periodic = 1 0             # Periodicity in each direction: 0 =&gt; no, 1 =&gt; yes
+geometry.coord_sys   = 0               # 0 =&gt; cart, 1 =&gt; RZ
+geometry.prob_lo     = 0.0   0.0       # x_lo y_lo
+geometry.prob_hi     = 0.016 0.032     # x_hi y_hi
+
+#---------------------- BC FLAGS ----------------------------------
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Interior Inflow         # bc in x_lo y_lo (z_lo)
+peleLM.hi_bc = Interior Outflow        # bc in x_hi y_hi (z_hi)
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that <cite>Interior</cite> BC must be imposed in the direction specified as periodic with <cite>geometry.is_periodic</cite>.</p>
+</div>
+<p>The base grid is decomposed into a 32x64 cells array, and initially 2 levels of refinement are used.
+When running serial, a single box is used on the base level as the <code class="docutils literal notranslate"><span class="pre">amr.max_grid_size</span></code> exceeds the
+number of cells in each direction. When running parallel, the base grid will be chopped into smaller
+boxes in the limit that no box smaller than the <code class="docutils literal notranslate"><span class="pre">amr.blocking_factor</span></code> can be created (16 <span class="math notranslate nohighlight">\(^2\)</span> here).</p>
+<p>The refinement ratio between each level is set to 2 and <cite>PeleLMeX</cite> currently does not support
+refinement ratio of 4. Regrid operation will be performed every 5 steps. <code class="docutils literal notranslate"><span class="pre">amr.n_error_buf</span></code> specifies,
+for each level, the number of buffer cells used around the cell tagged for refinement, while <code class="docutils literal notranslate"><span class="pre">amr.grid_eff</span></code>
+describes the grid efficiency, i.e. how much of the new grid contains tagged cells. Higher values lead
+to tighter grids around the tagged cells.</p>
+<p>All of those parameters are specified in the <cite>AMR CONTROL</cite> block:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#------------------------- AMR CONTROL ----------------------------
+amr.n_cell          = 32 64            # Level 0 number of cells in each direction
+amr.max_level       = 2                # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 5                # how often to regrid
+amr.n_error_buf     = 1 1 2 2          # number of buffer cells in error est
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 16               # block factor in grid generation
+amr.max_grid_size   = 256              # maximum box size
+</pre></div>
+</div>
+</section>
+<section id="problem-specifications">
+<h3>Problem specifications<a class="headerlink" href="#problem-specifications" title="Link to this heading"></a></h3>
+<p id="sec-tuto-fs-problem">The problem setup is mostly contained in the two C++ source/header files mentioned above.
+Looking into <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.H</span></code> first, this file contains two structs used throughout
+the code to define problem-specific parameters (such as initial and boundary conditions).
+We can see the set of parameters that will be used to specify the initial and boundary conditions:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>struct MyProbParm : public ProbParmDefault
+{
+   amrex::Real P_mean   = 101325.0;
+   amrex::Real standoff = 0.0;
+   amrex::Real pertmag  = 0.0004;
+   amrex::Real pertlength  = 0.008;
+};
+</pre></div>
+</div>
+<p>Because initial and boundary conditions for this case are mostly extracted from a 1D freely propagating
+premixed flame solution obtained with Cantera, only a handful of parameters need to be specified.
+The <code class="docutils literal notranslate"><span class="pre">standoff</span></code> parameter controls the position of the interpolated Cantera solution on the <cite>PeleLMeX</cite>
+domain while <code class="docutils literal notranslate"><span class="pre">pertmag</span></code> and <code class="docutils literal notranslate"><span class="pre">pertlength</span></code> control the amplitude and transerve length of the
+harmonic perturbations, respectively. Default values are provided for all the parameter. Note that the domain
+transverse size (the <span class="math notranslate nohighlight">\(x\)</span> length here) must be a multiple of the <code class="docutils literal notranslate"><span class="pre">pertlength</span></code> in order to ensure
+periodicity of the initial solution.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that <cite>MyProbParm</cite> inherits from a default <cite>ProbParmDefault</cite> struct, which already contains the
+thermodynamic pressure <cite>P_mean</cite> parameter, since this parameter is always needed in PeleLMeX.</p>
+</div>
+<p>The second struct, <cite>MyProblemSpecificFunctions</cite> here defines the two functions effectively filling the
+initial solution and boundary conditions: <cite>initdata</cite> and <cite>bcnormal</cite>. The arguments of the
+<cite>MyProblemSpecificFunctions::initdata</cite> function are as follows:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">i,</span> <span class="pre">int</span> <span class="pre">j,</span> <span class="pre">int</span> <span class="pre">k,</span></code> : indices of the current grid cell the function is called to fill</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">/*is_incompressible*/,</span></code> : flag indicating if <cite>PeleLMeX</cite> is running a pure incompressible case</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">amrex::Array4&lt;amrex::Real&gt;</span> <span class="pre">const&amp;</span> <span class="pre">state,</span></code> : a lightweight array structure enabling access to the grid state data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">amrex::Array4&lt;amrex::Real&gt;</span> <span class="pre">const&amp;</span> <span class="pre">/*aux*/,</span></code> : similar array structure but for the auxiliaries data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">amrex::GeometryData</span> <span class="pre">const&amp;</span> <span class="pre">geomdata,</span></code> : an AMReX object containing geometrical data of the current level</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MyProbParm</span> <span class="pre">const&amp;</span> <span class="pre">prob_parm,</span></code> : the <cite>ProbParm</cite> struct</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pele::physics::PMF::PmfData::DataContainer</span> <span class="pre">const</span> <span class="pre">*</span> <span class="pre">pmf_data</span></code> : the Cantera solution data struct</p></li>
+</ul>
+<p>The reader is encouraged to look into the body of the <cite>MyProblemSpecificFunctions::initdata</cite> function for more details, a skeletal
+version of the function reads:</p>
+<ul class="simple">
+<li><p>Compute the coordinate of the cell center using the cell indices and the <cite>geomdata</cite>.</p></li>
+<li><p>Compute the harmonic perturbation.</p></li>
+<li><p>Using <code class="docutils literal notranslate"><span class="pre">standoff</span></code> and the perturbation, use the <code class="docutils literal notranslate"><span class="pre">PMF</span></code> function to get cell-average temperature, mole fractions and
+velocity from the Cantera solution.</p></li>
+<li><p>Use the data from the <code class="docutils literal notranslate"><span class="pre">PMF</span></code> to set the state array: velocities, density, rhoYs, rhoH and temperature. Relying on
+EOS calls and using <cite>MyProbParm::P_mean</cite>.</p></li>
+</ul>
+<p>Some of the arguments of the <cite>bcnormal</cite> should now be familiar. The coordinates of the cell where the function
+is called are now directly passed into the function and the outgoing state vector is now <code class="docutils literal notranslate"><span class="pre">s_ext</span></code>. The <code class="docutils literal notranslate"><span class="pre">idir</span></code>
+and <code class="docutils literal notranslate"><span class="pre">sgn</span></code> <cite>ints</cite> can be used to easily determine on which domain face the function in called. Once again, the
+state vector is extracted from the <code class="docutils literal notranslate"><span class="pre">PMF</span></code> function to match the operating conditions of the Cantera flame. This
+function is only called in the direction/orientation where a Dirichlet boundary condition is imposed, i.e. the
+<span class="math notranslate nohighlight">\(y\)</span>-low domain face here since the transverse direction is periodic and the outflow is an homogeneous
+Neumann for the state components.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that <cite>MyProblemSpecificFunctions</cite> inherits from a default <cite>DefaultProblemSpecificFunctions</cite> struct, effectively overriding
+the default (empty) definition of the <cite>initdata</cite>, <cite>bcnormal</cite> and other functions. This allows,
+for example, to not have to provide a <cite>bcnormal</cite> function for a fully periodic case.</p>
+</div>
+<p>Looking now into <code class="docutils literal notranslate"><span class="pre">pelelmex_prob.cpp</span></code>, we can see how the developer can provide access to the <cite>ProbParm</cite> parameters
+to overwrite the default values using AMReX’s ParmParse:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>void PeleLM::readProbParm()
+{
+   amrex::ParmParse pp("prob");
+
+   std::string type;
+   pp.query("P_mean",   PeleLM::prob_parm-&gt;P_mean);
+   pp.query("standoff", PeleLM::prob_parm-&gt;standoff);
+   pp.query("pertmag",  PeleLM::prob_parm-&gt;pertmag);
+   pp.query("pertlength",  PeleLM::prob_parm-&gt;pertlength);
+
+   PeleLM::pmf_data.initialize();
+}
+</pre></div>
+</div>
+<p>The <cite>PeleLMeX</cite> has its own <cite>ProbParm</cite> instance, the values of which are set by the <code class="docutils literal notranslate"><span class="pre">query</span></code> function calls. Note that because a
+<code class="docutils literal notranslate"><span class="pre">query</span></code> function is employed, the solver will use the default values of the <code class="docutils literal notranslate"><span class="pre">ProbParm</span></code> parameters if they are not provided
+in the input file. Use a <code class="docutils literal notranslate"><span class="pre">pp.get</span></code> to throw an error if overwriting the default value is desirable (see AMReX’s ParmParse
+documentation for more information). Users can now add the corresponding keys to their input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>prob.P_mean = 101325.0
+prob.standoff = -.023
+prob.pertmag = 0.00045
+prob.pertlength = 0.016
+</pre></div>
+</div>
+<p>Additionally, the <cite>readProbParm()</cite> function initialize another data structure designed to handle the Cantera solution
+(not detailed here). When this function is called, users must provide the path to the Cantera solution stored as an
+ASCII file in the input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>pmf.datafile = "drm19_pmf.dat"
+</pre></div>
+</div>
+</section>
+<section id="numerical-parameters">
+<h3>Numerical parameters<a class="headerlink" href="#numerical-parameters" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">PeleLMeX</span> <span class="pre">CONTROL</span></code> block contains a few of the <cite>PeleLMeX</cite> algorithmic parameters. Many more
+unspecified parameters are relying on their default values which can be found in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.
+Of particular interest are the <code class="docutils literal notranslate"><span class="pre">peleLM.sdc_iterMax</span></code> parameter controlling the number of
+SDC iterations (see <a class="reference internal" href="Model.html"><span class="doc">The PeleLMeX Model</span></a> for more details on SDC in <cite>PeleLMeX</cite>) and the
+<code class="docutils literal notranslate"><span class="pre">peleLM.num_init_iter</span></code> one controlling the number of initial iteration the solver will do
+after initialization to obtain a consistent pressure and velocity field.</p>
+</section>
+</section>
+<section id="building-the-executable">
+<h2>Building the executable<a class="headerlink" href="#building-the-executable" title="Link to this heading"></a></h2>
+<p>Now that we have reviewed the basic ingredients required to setup the FlameSheet case, it is time to build the <cite>PeleLMeX</cite> executable.
+Although both GNUmake and CMake are available, it is advised to use GNUmake. The <code class="docutils literal notranslate"><span class="pre">GNUmakefile</span></code> file provides some compile-time options
+regarding the simulation we want to perform.
+The first few lines specify the paths towards the source codes of <cite>PeleLMeX</cite>, <cite>AMReX</cite>, <cite>AMReX-Hydro</cite> and <cite>PelePhysics</cite>, overwriting
+any environment variable if necessary, and might have been already updated in <a class="reference internal" href="#sec-tuto-fs-prepstep"><span class="std std-ref">Setting-up your environment</span></a> earlier.</p>
+<p>The next few lines specify AMReX compilation options and compiler selection:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span># AMREX
+DIM             = 2
+DEBUG           = FALSE
+PRECISION       = DOUBLE
+VERBOSE         = FALSE
+TINY_PROFILE    = FALSE
+
+# Compilation
+COMP            = gnu
+USE_MPI         = TRUE
+USE_OMP         = FALSE
+USE_CUDA        = FALSE
+USE_HIP         = FALSE
+USE_SYCL        = FALSE
+</pre></div>
+</div>
+<p>It allows users to specify the number of spatial dimensions (2D), trigger debug compilation and other AMReX options.
+The compiler (<code class="docutils literal notranslate"><span class="pre">gnu</span></code>) and the parallelism paradigm (in the present case only MPI is used) are then selected. If MPI is not available on your
+platform, please set <code class="docutils literal notranslate"><span class="pre">USE_MPI</span> <span class="pre">=</span> <span class="pre">FALSE</span></code>.
+Note that on OSX platform, one should update the compiler to <code class="docutils literal notranslate"><span class="pre">llvm</span></code>.</p>
+<p>In <cite>PeleLMeX</cite>, the chemistry model (set of species, their thermodynamic and transport properties as well as the description of their of chemical interactions) is specified at compile time. Chemistry models available in <cite>PelePhysics</cite> can used in <cite>PeleLMeX</cite> by specifying the name of the folder in <cite>PelePhysics/Mechanisms</cite> containing the relevant files, for example:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Chemistry_Model = drm19
+</pre></div>
+</div>
+<p>Here, the model <code class="docutils literal notranslate"><span class="pre">drm19</span></code>, contains 21 species and describe the chemical decomposition of methane. Advanced users may also specify
+<code class="docutils literal notranslate"><span class="pre">USE_CUSTOM_CHEMISTRY</span> <span class="pre">=</span> <span class="pre">TRUE</span></code>, in which case <code class="docutils literal notranslate"><span class="pre">Chemistry_Model</span></code> is interpreted as a path and can point to models not included in
+PelePhysics by default, though the new model directory must contain valid chemistry model files.
+The user is referred to the <a class="reference external" href="https://pelephysics.readthedocs.io/en/latest/">PelePhysics</a> documentation for a
+list of available mechanisms and more information regarding the EOS, chemistry and transport models specified:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>Eos_Model       := Fuego
+Transport_Model := Simple
+</pre></div>
+</div>
+<p>Note that the <code class="docutils literal notranslate"><span class="pre">Chemistry_Model</span></code> must be similar to the one used to generate the Cantera solution.</p>
+<p>Finally, <cite>PeleLMeX</cite> utilizes the chemical kinetic ODE integrator <a class="reference external" href="https://computing.llnl.gov/projects/sundials/cvode">CVODE</a>. This
+Third Party Library (TPL) is shipped as a submodule of the <cite>PeleLMeX</cite> distribution and can be readily installed through the makefile system
+of <cite>PeleLMeX</cite>. To do so, type in the following command:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4 TPL
+</pre></div>
+</div>
+<p>Note that the installation of <cite>CVODE</cite> requires CMake 3.23.1 or higher.</p>
+<p>You are now ready to build your first <cite>PeleLMeX</cite> executable !! Type in:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>make -j4
+</pre></div>
+</div>
+<p>The option here tells <cite>make</cite> to use up to 4 processors to create the executable (internally, <cite>make</cite> follows a dependency graph to ensure any required ordering in the build is satisfied). This step should generate the following file (providing that the build configuration you used matches the one above):</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>PeleLMeX2d.gnu.MPI.ex
+</pre></div>
+</div>
+<p>You’re good to go!</p>
+</section>
+<section id="checking-the-initial-conditions">
+<h2>Checking the initial conditions<a class="headerlink" href="#checking-the-initial-conditions" title="Link to this heading"></a></h2>
+<p>As a first step, we will run the simulation performing only the initialization and visualize the initial
+condition, while varying some of the problem parameters. To do so, we need to update the
+time stepping block to specify the number of time steps.</p>
+<p>Open the <code class="docutils literal notranslate"><span class="pre">input.2d-regt</span></code> with your favorite editor and update the following parameters</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Time Stepping CONTROL --------------------
+amr.max_step      = 0             # Maximum number of time steps
+amr.stop_time     = 0.025         # final physical time
+amr.max_wall_time = 0.1           # Maximum simulation run time
+amr.cfl           = 0.5           # cfl number for hyperbolic system
+amr.dt_shrink     = 0.0001        # scale back initial timestep
+amr.dt_change_max = 1.1           # Maximum dt increase btw successive steps
+</pre></div>
+</div>
+<p>We’ve specified three condition upon which <cite>PeleLMeX</cite> will end the simulation: a maximum number of time steps,
+a maximum physical simulation time and a maximum wallclock time. As soon as one of these condition is met, the
+code will exit. The time step size is based on a hydrodynamic CFL set here at 0.5, but this estimated value
+is multiplied by <code class="docutils literal notranslate"><span class="pre">amr.dt_shrink</span></code> upon initialization to more smoothly eliminate any numerical noise
+arising from the state vector initial solution. The step size then relax to the CFL-constrained dt at
+a rate controlled by <code class="docutils literal notranslate"><span class="pre">amr.dt_change_max</span></code>.</p>
+<p>We’ve set the maximum number of steps to 0 such the solver will exit after
+the initial solution is obtained. Let’s run the simulation with the default problem parameter
+listed in the input file. To do so, use:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>./PeleLMeX2d.gnu.MPI.ex input.2d-regt
+</pre></div>
+</div>
+<p>A number of information are printed to the screen:</p>
+<ol class="arabic simple">
+<li><p>AMReX/SUNDIALs initialization along with the git hashes of the various subrepositories</p></li>
+<li><p>A summary of the <cite>PeleLMeX</cite> state components</p></li>
+<li><p><cite>PeleLMeX</cite> structs initialization: transport, reactor, <code class="docutils literal notranslate"><span class="pre">PMF</span></code> Cantera structure, AMR hierarchy, …</p></li>
+<li><p>Initial projection and initial iterations.</p></li>
+<li><p>Saving the initial solution to <cite>plt00000</cite> file.</p></li>
+</ol>
+<p>Use Amrvis, Paraview or yt to visualize the plot file. Using Amrvis, the solution should look
+similar to <a class="reference internal" href="#fs-initsol"><span class="std std-numref">Fig. 12</span></a>.</p>
+<figure class="align-center" id="fs-initsol" style="width: 80%">
+<img alt="_images/FS_InitSolDefault.png" src="_images/FS_InitSolDefault.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 12 </span><span class="caption-text">: Contour plots of density, velocity components and velocity divergence constraint after initialization.</span><a class="headerlink" href="#fs-initsol" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>It is interesting to note that the initial solution has a transverse velocity component
+even though only the axial velocity was extracted from a 1D Cantera solution to initialize
+the solution in the <cite>MyProblemSpecificFunctions::initdata</cite> function. This is because <cite>PeleLMeX</cite> performs an
+initial projection (more than one actually). At this point, the <cite>divU</cite> constraint is
+mostly negative, which is counter-intuitive for a flame, but this is the consequence of
+the initialization process and the solution will rapidly relax to adapt to the <cite>PeleLMeX</cite> grid.</p>
+<p>Let’s now play with the problem parameters to see how the initial solution changes. For instance,
+decrease the amplitude of the perturbation, change the <code class="docutils literal notranslate"><span class="pre">standoff</span></code> parameter or deactivate the
+initial projection by adding <code class="docutils literal notranslate"><span class="pre">peleLM.do_init_proj=0</span></code> to the <code class="docutils literal notranslate"><span class="pre">PeleLMeX</span> <span class="pre">CONTROL</span></code> block. Examples
+of the initial solution varying these parameters are displayed in <a class="reference internal" href="#fs-inittweaks"><span class="std std-numref">Fig. 13</span></a>.</p>
+<figure class="align-center" id="fs-inittweaks" style="width: 80%">
+<img alt="_images/FS_InitSolTweaks.png" src="_images/FS_InitSolTweaks.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 13 </span><span class="caption-text">: Contour plots of velocity components without initial projection and temperature using tweaked problem parameter.</span><a class="headerlink" href="#fs-inittweaks" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="advance-the-solution">
+<h2>Advance the solution<a class="headerlink" href="#advance-the-solution" title="Link to this heading"></a></h2>
+<p>So far, we haven’t advanced the solution at all. Restore the problem parameters to their initial values,
+re-activate the initial projection and let’s now run the simulation for 50 steps and save a checkpoint
+file from which to restart from. To do so, ensure that:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.max_step = 50
+</pre></div>
+</div>
+<p>and uncomment the following line to require writing checkpoint files:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.check_int = 2000
+</pre></div>
+</div>
+<p>As soon as this last key is specified, <cite>PeleLMeX</cite> will write an initial and final checkpoint file.
+Note that checkpoint file and plotfile store different data. A checkpoint file will store all the necessary
+state data to enable a continuous restart of the simulation, i.e. the solution after 50 steps is exactly the
+same as the one obtained running 25 steps first, then restarting for another 25 steps. A plotfile will
+not necessarily contains the entire state and also includes a number of <cite>derived</cite> variables of interest
+to analyse the simulation. The content of a plotfile can be controlled by users using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.derive_plot_vars = avg_pressure mag_vort mass_fractions mixture_fraction progress_variable
+</pre></div>
+</div>
+<p>Here we require the cell-averaged pressure, the vorticity, species mass fraction (remember that
+<cite>PeleLMeX</cite> state contains rhoYs not Ys), mixture fraction and progress variable to be added to the
+plotfile. For a complete list of <cite>PeleLMeX</cite> available <cite>derived</cite>, see the adequate section in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.</p>
+<p>Additionally, increase <cite>PeleLMeX</cite> verbose in order to better see the various steps of the
+algorithm:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>peleLM.v = 3
+</pre></div>
+</div>
+<p>And start the simulation from the beginning again:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>./PeleLMeX2d.gnu.MPI.ex input.2d-regt
+</pre></div>
+</div>
+<p>Using a single processor, it takes about one minute to complete the 50 time steps.
+A typical <cite>PeleLMeX</cite> stdout for a time step now looks like:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>==============================================================================
+Est. time step - Conv: 1.794426504e-05, divu: 0.0002454786986
+STEP [10] - Time: 1.892958943e-09, dt 3.080703507e-10
+  SDC iter [1]
+  <span class="m">-</span> oneSDC()::MACProjection()   --&gt; Time: 0.017529
+  <span class="m">-</span> oneSDC()::ScalarAdvection() --&gt; Time: 0.027038
+  <span class="m">-</span> oneSDC()::ScalarDiffusion() --&gt; Time: 0.104103
+  <span class="m">-</span> oneSDC()::ScalarReaction()  --&gt; Time: 0.220751
+  SDC iter [2]
+  <span class="m">-</span> oneSDC()::Update t^{n+1,k}  --&gt; Time: 0.103966
+  <span class="m">-</span> oneSDC()::MACProjection()   --&gt; Time: 0.012029
+  <span class="m">-</span> oneSDC()::ScalarAdvection() --&gt; Time: 0.027831
+  <span class="m">-</span> oneSDC()::ScalarDiffusion() --&gt; Time: 0.082195
+  <span class="m">-</span> oneSDC()::ScalarReaction()  --&gt; Time: 0.236054
+  <span class="m">-</span> Advance()::VelocityAdvance  --&gt; Time: 0.04529
+&gt;&gt; PeleLM::Advance() --&gt; Time: 1.07867
+</pre></div>
+</div>
+<p>clearly showing the use of 2 SDC iterations and the time spent
+performing projection, computing scalar advection, diffusion and reaction,
+and finally performing the velocity advance. The reader is referred to
+<a class="reference internal" href="Model.html"><span class="doc">The PeleLMeX Model</span></a> for a detailed description of all of these steps.</p>
+<p>The first line at each step provide the time step constraint from the CFL
+condition (<code class="docutils literal notranslate"><span class="pre">Conv:</span></code>) and from the density change condition (<code class="docutils literal notranslate"><span class="pre">divu:</span></code>).
+Since an initial <code class="docutils literal notranslate"><span class="pre">dt_shrink</span></code> was applied upon initialization, the
+current step is much smaller than the CFL but progressively increases
+over the course of the 50 steps.</p>
+<p>Visualizing the <cite>plt00050</cite> file, we can see that the solution has not
+changed much from the initial solution at this point (only a fraction of
+a microsecond runtime has been reached). It is still interesting to
+look more closely at <cite>divU</cite>, <cite>FunctCall</cite>, the thermodynamic pressure and
+an intermediate species such as CH3 in <a class="reference internal" href="#fs-50steps"><span class="std std-numref">Fig. 14</span></a>.</p>
+<figure class="align-center" id="fs-50steps" style="width: 80%">
+<img alt="_images/FS_50steps.png" src="_images/FS_50steps.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 14 </span><span class="caption-text">: Contour plots of <cite>divU</cite>, <cite>FunctCall</cite>, thermodynamic pressure and CH3 mass fraction after 50 steps.</span><a class="headerlink" href="#fs-50steps" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The <cite>divU</cite> is now mostly positive, consistent with the thermal expansion occurring across a
+flame front. The <cite>FunctCall</cite> is the number of calls to the chemical right-hand-side function
+used in the chemical integrator CVODE. Higher values are indicative of locally stiffer
+chemical ODE system, concentrated in the reactive layer of the flame. The <cite>RhoRT</cite> variable
+is the thermodynamic pressure: within <cite>PeleLMeX</cite> low Mach number approach, this should be
+perfectly uniform in space. However to conserve mass and enthalpy, the <cite>PeleLMeX</cite> algorithm allows
+for small deviation from this constraint. In the current case, deviation do not extend 0.0001 Pa,
+but larger deviations (&gt; 100-1000 Pa) can be indicative that more SDC iterations are necessary or that the time step
+size is too large. Finally, we can see from looking at the CH3 mass fraction that the current
+spatial resolution is barely able to capture the internal flame structure.</p>
+<p>Let’s now continue the simulation, restarting from the <cite>chk00050</cite> file and adding another level
+of refinement. To do so, uncomment the following line:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.restart = chk00050
+</pre></div>
+</div>
+<p>Increase the <code class="docutils literal notranslate"><span class="pre">max_step</span></code> to 120 and increase the maximum level to 3:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amr.max_level       = 3
+</pre></div>
+</div>
+<p>And restart the simulation, now using more than one MPI ramk if possible:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>mpirun -n 2 ./PeleLMeX2d.gnu.MPI.ex input.2d-regt
+</pre></div>
+</div>
+<p>Because the step size keeps increasing, the physical simulation time after 120
+steps is now around 0.1 ms. Upon restarting the simulation, a third refinement level
+was added as requested:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>====================   NEW TIME STEP   ====================
+Regridding...
+Remaking level 1
+with 4096 cells, over 50% of the domain
+Remaking level 2
+with 8192 cells, over 25% of the domain
+Making new level 3 from coarse
+with 20480 cells, over 15.625% of the domain
+Resetting fine-covered cells mask
+Update chemistry typical values
+</pre></div>
+</div>
+<p>The finest level contains more cells than the sum of all the other levels
+while only occupying about 15% of the domain, showing how AMR is able to
+provide local refinement only around the location of interest. In the present case,
+refinement is triggered by a threshold value on the H species. This option
+is specified in the input file using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>#---------------------- Refinement CONTROL------------------------
+amr.refinement_indicators = yH
+amr.yH.max_level     = 3
+amr.yH.value_greater = 1.0e-6
+amr.yH.field_name    = Y(H)
+</pre></div>
+</div>
+<p>Users can freely add additional refinement indicator to trigger refinement
+is other part of the domain. Note also that if we were to add another level
+of refinement, the <code class="docutils literal notranslate"><span class="pre">amr.yH.max_level</span></code> should be increased in order to
+trigger refinement up to level 4 with this criteria.</p>
+<p><a class="reference internal" href="#fs-120steps"><span class="std std-numref">Fig. 15</span></a> shows the same variables as <a class="reference internal" href="#fs-50steps"><span class="std std-numref">Fig. 14</span></a>.
+<cite>divU</cite> is now almost entirely positive and shows lower values near the tip
+of the flame cusps as expected from a lean methane/air flame (the amount of
+hydrogen in the inlet stream is small). The scale of <cite>FunctCall</cite> increased
+from a maximum of 12 to 35, indicating that as the step size is increased,
+CVODE requires more RHS call to integrate the chemical system. Similarly,
+<cite>RhoRT</cite> is found to deviate more from the 1 Atm uniform value, up to 25 Pa. also
+as a consequence of the large time step size (about 10 <span class="math notranslate nohighlight">\(\mu s\)</span> by the end of the
+simulation). Finally, the CH3 mass fraction field show that the intermediate
+species is now resolved on more than a single cell (but more refienement would be
+necessary if this species was of special interest).</p>
+<figure class="align-center" id="fs-120steps" style="width: 80%">
+<img alt="_images/FS_120steps.png" src="_images/FS_120steps.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 15 </span><span class="caption-text">: Contour plots of <cite>divU</cite>, <cite>FunctCall</cite>, thermodynamic pressure and CH3 mass fraction after 120 steps.</span><a class="headerlink" href="#fs-120steps" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>This is the end of this short tutorial introducing the basics of reactive flow simulations
+with <cite>PeleLMeX</cite>. More advanced aspects of the code are described in other tutorials and
+readers can peruse the numerous case folders available in <cite>Exec</cite> to find example in order
+to set their own case.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Tutorials_HotBubble.html" class="btn btn-neutral float-left" title="Rising light bubble" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Tutorials_FlowPastCyl.html" class="btn btn-neutral float-right" title="Non-reacting flow past a cylinder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

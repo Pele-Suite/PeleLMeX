@@ -1,0 +1,316 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Source code &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PeleLMeX Verification &amp; Validations" href="Validation.html" />
+    <link rel="prev" title="The PeleLMeX Model" href="Model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Source code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview-of-source-code">Overview of source code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-structure-and-containers">Data structure and containers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#amrex-101">AMReX 101</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pelelmex-state-and-advance-containers"><em>PeleLMeX</em> state and advance containers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#parallelism">Parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#debugging">Debugging</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Validation.html">PeleLMeX Verification &amp; Validations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Source code</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Implementation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="source-code">
+<span id="sec-code"></span><h1>Source code<a class="headerlink" href="#source-code" title="Link to this heading"></a></h1>
+<p>The following provides an overview of <em>PeleLMeX</em> source code, basic information on the data structure and is
+useful for any user intending to use and/or do some development in the code.</p>
+<section id="overview-of-source-code">
+<h2>Overview of source code<a class="headerlink" href="#overview-of-source-code" title="Link to this heading"></a></h2>
+<p><em>PeleLMeX</em> is based upon AMReX’s <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/AmrCore.html">AmrCore</a> from which it inherits
+an AMR hierarchy data structure and basic regridding functionalities. The code is entirely written in C++, with low level
+compute-intensive kernels implemented as lambda functions to seamlessly run on CPU and various GPU backends through AMReX
+high performance portatbility abstraction.</p>
+<p>The core of the algorithm is implementation in the <code class="docutils literal notranslate"><span class="pre">advance()</span></code> function which acts on all the levels concurrently.
+Projection operators and advection scheme functions are imported the <a class="reference external" href="https://amrex-fluids.github.io/amrex-hydro/docs_html/index.html">AMReX-Hydro library</a>
+while the core of the thermo-chemistry functionalities comes from <a class="reference external" href="https://amrex-combustion.github.io/PelePhysics/">PelePhysics</a> .
+Users are responsible for providing initial and boundary conditions in the local subfolder implementing their case, i.e. it is
+not possible to compile and run <em>PeleLMeX</em> without actually writing a few lines of codes. However, numerous example are provided
+in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests</span></code> from which new users can pull for their new case.</p>
+<p>The source code contains a few dozen files, organized around the pieces of the algorithm and major functionalities:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Evolve</span></code>: top level time advance loop, with IO/exit controls</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Setup</span></code>: setting up the simulation parameters, parsing the input file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Init</span></code>: generating the initial solution from scratch or checkpoint file, performing initial projections/iteration(s)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Advance</span></code>: top level implementation of the time step algorithm</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Projection</span></code>: implement the various flavors of the nodal projection</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Umac</span></code>: implement the construction and projection of MAC-velocities</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Advection</span></code>: functions to compute the explicit advection terms</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Diffusion</span></code>: functions to compute the diffusion terms, using the operators defined in <code class="docutils literal notranslate"><span class="pre">PeleLMex_DiffusionOp</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Reaction</span></code>: function using <em>PelePhysics</em> reactors to integrate the chemistry and linearized advection/diffusion</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Plot</span></code>: implementation of plotfile and checkpoint file IOs</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_BC</span></code>: functions filling the ghost cells (at fine/fine, coarse/fine and domain boundaries)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Regrid</span></code>: creating new AMR level or remaking modified AMR level during adaptive refinement</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX_Tagging</span></code>: mark cells for refinement</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PeleLMeX__K.H</span></code>: low-level kernel functions</p></li>
+</ul>
+</section>
+<section id="data-structure-and-containers">
+<h2>Data structure and containers<a class="headerlink" href="#data-structure-and-containers" title="Link to this heading"></a></h2>
+<section id="amrex-101">
+<h3>AMReX 101<a class="headerlink" href="#amrex-101" title="Link to this heading"></a></h3>
+<p>The basic AMReX`s data structure is the <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#fabarray-multifab-and-imultifab">MultiFab</a>
+(historically, multi Fortran Array Box (FAB)).
+Within the block-structured AMR approach of AMReX, the domain is decomposed into non-overlapping rectangular <cite>boxes</cite>,
+which can be assembled into a <cite>boxArray</cite>. Each AMR level has a <cite>boxArray</cite> providing the list of <cite>boxes</cite> of that level.
+The <cite>boxes</cite> are distributed across the MPI ranks, the mapping of which is described by a <cite>DistributionMap</cite>. Given a
+<cite>boxArray</cite> and a <cite>DistributionMap</cite>, one can define an actual data container (<cite>boxes</cite> are only lightweight descriptor
+of the geometrical rectangular object, containing bounds and centering information only), where each rank will
+allocate a FAB for the boxes it owns in the <cite>boxArray</cite>, resulting in a collection of FABs or a MultiFab, distributed
+across the MPI ranks.</p>
+<p>To access the data in a MultiFab, one uses a <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#mfiter-and-tiling">MFIter</a>
+(or MultiFab iterator), which provides each MPI rank access to the FABs it owns within the MultiFab. Actual access to the data in
+memory is then provided by the lightweight <cite>Array4</cite> structure and it is strongly advised to rely on AMReX
+<a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html#parallelfor">ParallelFor</a> function template to loop through the logical <cite>i,j,k</cite> indexes.
+For example, to set the velocity data stored in a MultiFab called <cite>NewState</cite> with data from an <cite>OldState</cite> and an increment
+from a third MultiFab <cite>advTerm</cite>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>for (MFIter mfi(State,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    Box const&amp; bx = mfi.tilebox();
+    auto const&amp; velo_old = OldState.const_array(mfi,VELOCITY_INDEX);
+    auto const&amp; incr = advTerm.const_array(mfi);
+    auto const&amp; velo_new = NewState.array(mfi,VELOCITY_INDEX);
+    ParallelFor(bx,
+    [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        velo_new(i,j,k) = velo_old(i,j,k) + incr(i,j,k);
+    });
+}
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For the example above to function, all three MultiFabs must have the same <cite>boxArray</cite> and <cite>DistributionMap</cite></p>
+</div>
+<p>Users are strongly encouraged to review of the content of <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/Basics.html">AMReX documentation</a>
+to get more familiar with AMReX data structures and environment.</p>
+</section>
+<section id="pelelmex-state-and-advance-containers">
+<h3><em>PeleLMeX</em> state and advance containers<a class="headerlink" href="#pelelmex-state-and-advance-containers" title="Link to this heading"></a></h3>
+<p>The state vector of <em>PeleLMeX</em> contains the 2 or 3 components of velocity, the mixture density, species density (rhoYs),
+rhoH, temperature and the thermodynamic pressure. The state components are stored in a cell-centered MultiFab with
+<cite>NVAR</cite> components. Additionally, the perturbational pressure stored at the nodes is contained in a separate MultiFab.
+Together with the cell-centered pressure gradient, the cell-centered divergence constraint and cell-centered
+transport properties, these MultiFabs are assembled into a <cite>LevelData</cite> struct.</p>
+<p>Each level in the AMR hierarchy have two versions of the <cite>LevelData</cite> at any point during the simulation: one
+for the old state and one for the new state. The developer can get a pointer to the <cite>LevelData</cite> struct by
+calling :</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>auto ldata_p = getLevelDataPtr(lev,AmrOldTime);
+</pre></div>
+</div>
+<p>with either <cite>AmrOldTime</cite> or <cite>AmrNewTime</cite> on level <cite>lev</cite>. Additionally, calling this function with
+<cite>AmrHalfTime</cite> with return a <cite>LevelData</cite> struct whose <cite>state</cite> is a linearly interpolated between the old and new
+states (but the other MultiFab in <cite>LevelData</cite> are empty !).
+It is also often useful to have access to a vector of a state component across the entire AMR hierarchy. To do so, <em>PeleLMeX</em>
+provides a set of functions returning a vector of MultiFab <cite>std::unique_ptr</cite> aliased into the <cite>LevelData</cite>
+MultiFab on each level:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>getStateVect(time);         # Return the entire state (ncomp: NVAR)
+getVelocityVect(time);      # Return the velocity only (ncomp: AMREX_SPACEDIM)
+getDensityVect(time);       # Return the mixture density (ncomp: 1)
+getSpeciesVect(time);       # Return the species density (ncomp: NUM_SPECIES)
+getRhoHVect(time);          # Return rhoH (ncomp: 1)
+getTempVect(time);          # Return temperature (ncomp: 1)
+getDivUVect(time);          # Return divergence constraint (ncomp: 1)
+getDiffusivityVect(time);   # Return diffusivity (ncomp: NUM_SPECIES+2)
+getViscosityVect(time);     # Return viscosity (ncomp: 1)
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">time</span></code> can either be <cite>AmrOldTime</cite> or <cite>AmrNewTime</cite>.
+Also available at any point during the simulation is the <cite>LevelDataReact</cite> which contains the species
+chemical source terms. A single version of the container is available on each level and can be accessed
+using:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>auto ldataR_p = getLevelDataReactPtr(lev);
+</pre></div>
+</div>
+<p>Within the time-advance function, the <em>PeleLMeX</em> algorithm calls for the computation of the advection,
+diffusion and reaction source terms iteratively using SDC. At each step, the results of other steps
+can be used as part of the numerical scheme (e.g. the explicit advection with a Godunov scheme uses
+the diffusion term). These temporary variables, only useful in the scope of the advance function, are
+assembled into two structs: <code class="docutils literal notranslate"><span class="pre">AdvanceDiffData</span></code> and <code class="docutils literal notranslate"><span class="pre">AdvanceAdvData</span></code>. The former contains three
+MultiFabs for the separate diffusion term evaluations described in <a class="reference internal" href="Model.html#lmex-algo"><span class="std std-numref">Fig. 1</span></a>: <span class="math notranslate nohighlight">\(D^n\)</span>,
+<span class="math notranslate nohighlight">\(D^{n+1,k}\)</span> and <span class="math notranslate nohighlight">\(D^{n+1,k+1}\)</span>, as well as additional containers for the <span class="math notranslate nohighlight">\(\overline{W}\)</span>
+and Soret contributions. The later encapsulate the face-centered MAC velocities <span class="math notranslate nohighlight">\(U_{ADV}\)</span>, the
+advection term <span class="math notranslate nohighlight">\(A_{n+1/2,(k+1)}\)</span>, the pressure correction <span class="math notranslate nohighlight">\(\chi\)</span> and a forcing container
+used in the RHS of advection/diffusion/reaction solves. In contrast with the <cite>LevelData</cite>, these two containers
+are freed at the end of the advance function, and are passed around in the functions called in <cite>advance()</cite>.</p>
+</section>
+</section>
+<section id="parallelism">
+<h2>Parallelism<a class="headerlink" href="#parallelism" title="Link to this heading"></a></h2>
+<p><em>PeleLMeX</em> inherits the MPI+X approach from the AMReX library, where X can be any of OpenMP on many-cores machines,
+and CUDA, HIP or SYCL for heterogeneous architectures.
+The reader is referred to <a class="reference external" href="https://amrex-codes.github.io/amrex/docs_html/GPU.html">AMReX GPU documentation</a> for more details on
+the thread parallelism.</p>
+<p>As mentioned above, the top-level spatial decomposition arises from AMReX’s block-structured approach. On each level, non-overlapping
+<cite>boxes</cite> are assembled into <cite>boxArray</cite> and distributed across MPI rank with <cite>DistributionMap</cite> (or <cite>DMap</cite>).
+It is in our best interest to ensure that all the MultiFab in the code use the same <cite>boxArray</cite> and <cite>DMap</cite>,
+such that operation using <cite>MFIter</cite> can be performed and data copy across MPI ranks is minimized.
+However, it is also important to maintain a good load balancing, i.e. ensure that each MPI rank has the same amount
+of work, to avoid wasting computational resource. Reactive flow simulation are challenging, because the chemistry
+integration is very spatially heterogeneous, with stiff ODE integration required within the flame front and non-stiff
+integration of the linearized advection/diffusion required in the cold gases or burnt mixture. Additionally, because
+a non-subcycling approach is used in <em>PeleLMeX</em>, the chemistry doesn’t have to be integrated in fine-covered region.
+Two <cite>boxArray</cite> and associated <cite>DMap</cite> are thus available in <em>PeleLMeX</em>:</p>
+<ol class="arabic simple">
+<li><p>The first one is inherited from <cite>AmrCore</cite> and is available as <code class="docutils literal notranslate"><span class="pre">grid[lev]</span></code> (<cite>boxArray</cite>) and <code class="docutils literal notranslate"><span class="pre">dmap[lev]</span></code> (<cite>DMap</cite>) throughout the code. Most
+of <em>PeleLMeX</em> MultiFabs use these two, and the <cite>boxes</cite> sizes are dictated by the <cite>amr.max_grid_size</cite> and <cite>amr.blocking_factor</cite> from the input
+file. These are employed for all the operations in the code except the chemistry integration. The default load balancing approach is to use
+space curve filling (SCF) with each box weighted by the number of cells in each box. Advanced users can try alternate approach using the
+keys listed in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.</p></li>
+<li><p>A second one is created, masking fine-covered regions and updated during regrid operations. It is used to perform the chemistry integration,
+and because this is a purely local integration (in contrast with implicit diffusion solve for instance, which require communications
+to solve the linear problem using GMG), a Knapsack load balancing approach is used by default, where the weight of each box is based
+on the total number of chemistry RHS calls in the box. The size of the <cite>boxes</cite> in the chemistry <cite>boxArray</cite> (accessible with <code class="docutils literal notranslate"><span class="pre">m_baChem[lev]</span></code>)
+is controlled by the <cite>peleLM.max_grid_size_chem</cite> in the input file. Once again, advanced users can try alternate approaches to load
+balancing the chemistry <cite>DMap</cite> using the keys described in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>.</p></li>
+</ol>
+<p>After each regrid operation, even if the grids did not actually change, <em>PeleLMeX</em> will try to find a better load balancing for the
+<cite>AmrCore</cite> <cite>DMap</cite>. Because changing the load balancing requires copying data across MPI ranks, we only want to change the <cite>DMap</cite>
+only if a significantly better new <cite>DMap</cite> can be obtained, with the threshold for a better <cite>DMap</cite> defined based on the value of
+<cite>peleLM.load_balancing_efficiency_threshold</cite>.</p>
+</section>
+<section id="debugging">
+<h2>Debugging<a class="headerlink" href="#debugging" title="Link to this heading"></a></h2>
+<p>The first step to debug any addition or undefined behavior of <em>PeleLMeX</em> is to turn the <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code> flag <code class="docutils literal notranslate"><span class="pre">ON</span></code> in the
+GNUmakefile and activate AMReX`s floating point exception traps in the input file:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>amrex.fpe_trap_invalid = 1
+amrex.fpe_trap_zero = 1
+amrex.fpe_trap_overflow = 1
+</pre></div>
+</div>
+<p>This will slow down the code considerably, but will enable bound checks on all AMReX low-level data structure,
+catch floating point errors (using nans, dividing by zero, …) and any <code class="docutils literal notranslate"><span class="pre">AMREX_ASSERT</span></code> statement added to the
+code base. It is also often useful to visualize data in order to understand the erroneous results the solver can
+return. Developers can write to disk a single MultiFab using AMReX <cite>VisMF</cite>:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>VisMF::Write(myMF,"VisMyMF");
+</pre></div>
+</div>
+<p>and can be visualized with <cite>Amrvis</cite> using <cite>amrvis -mf</cite>. Alternatively, visualizing the entire AMR hierarchy is also
+useful. <em>PeleLMeX</em> provides a simple function to write a vector of MultiFab:</p>
+<div class="highlight-rst notranslate"><div class="highlight"><pre><span></span>WriteDebugPlotFile(GetVecOfConstPtrs(getTempVect()),"TempDebug");
+</pre></div>
+</div>
+<p>which can be opened with <cite>Amrvis</cite> or any other visualization software. This last function will function providing that
+the MultiFabs in the vector all have the same number of components.
+Finally, another way of checking individual pieces of the algorithm is to use <em>PeleLMeX</em> evaluate mode <code class="docutils literal notranslate"><span class="pre">peleLM.run_mode=evaluate</span></code>
+and specify a list of fields with <code class="docutils literal notranslate"><span class="pre">peleLM.evaluate_vars</span></code> as described in <a class="reference internal" href="LMeXControls.html"><span class="doc">PeleLMeX controls</span></a>. Note that not all of the
+algorithm is available in this mode yet.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Model.html" class="btn btn-neutral float-left" title="The PeleLMeX Model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Validation.html" class="btn btn-neutral float-right" title="PeleLMeX Verification &amp; Validations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
