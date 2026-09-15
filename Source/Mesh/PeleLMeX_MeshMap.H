@@ -1,6 +1,7 @@
 #ifndef PELELMEX_MESHMAP_H
 #define PELELMEX_MESHMAP_H
 
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -12,6 +13,7 @@
 #include <AMReX_Geometry.H>
 #include <AMReX_Gpu.H>
 #include <AMReX_MFParallelFor.H>
+#include <AMReX_Print.H>
 #include <AMReX_MultiFab.H>
 #include <AMReX_SPACE.H>
 #include <AMReX_Vector.H>
@@ -267,15 +269,39 @@ MeshMap::fill_metrics(int lev, const amrex::Geometry& geom, FacAt const& fac_at)
   AMREX_ASSERT(lev >= 0 && lev < num_levels());
 
   amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> plo{}, dxi{};
+  amrex::GpuArray<int, AMREX_SPACEDIM> dlo{}, ncell{}, per{};
   for (int d = 0; d < AMREX_SPACEDIM; ++d) {
     plo[d] = geom.ProbLo(d);
     dxi[d] = geom.CellSize(d);
+    dlo[d] = geom.Domain().smallEnd(d);
+    ncell[d] = geom.Domain().length(d);
+    per[d] = geom.isPeriodic(d) ? 1 : 0;
   }
 
   // fac on axis d at integer index n with in-cell offset off
   // (0 = lower node, 0.5 = cell centre, 1 = upper node).
+  //
+  // Across a periodic boundary the ghost cells are the periodic images of
+  // interior cells and must carry their metric, not the map continued past
+  // the domain end: consumers that read metric ghost cells directly (the
+  // scaling of the inflow ghost velocity for the nodal projection, the
+  // Godunov predictor and advective extrapolation) would otherwise see a
+  // different value on one side of the seam.  The wrap is done here, on
+  // the index, so that it also covers cells outside the domain in more
+  // than one direction (inflow-layer corners), which a FillBoundary of
+  // the metric MultiFabs cannot reach.  Indices inside the domain (and
+  // the upper node/face N) are untouched; non-periodic directions keep
+  // the analytic extension, which inflow faces rely on.
   auto at = [=] AMREX_GPU_HOST_DEVICE(
               int d, int n, amrex::Real off) noexcept -> amrex::Real {
+    if (per[d] != 0) {
+      const int nmax = (off > amrex::Real(0.25)) ? ncell[d] - 1 : ncell[d];
+      int k = n - dlo[d];
+      if (k < 0 || k > nmax) {
+        k -= ncell[d] * ((k < 0) ? -((-k - 1) / ncell[d] + 1) : k / ncell[d]);
+      }
+      n = k + dlo[d];
+    }
     return fac_at(d, plo[d] + (static_cast<amrex::Real>(n) + off) * dxi[d]);
   };
 
@@ -347,6 +373,26 @@ MeshMap::fill_metrics(int lev, const amrex::Geometry& geom, FacAt const& fac_at)
   }
 
   amrex::Gpu::streamSynchronize();
+
+  // A map used across a periodic direction must give the same cell size on
+  // both sides of the seam: fac at Xi_lo and at Xi_hi.  A two-sided
+  // (wall-clustering) map does; a one-sided one leaves a jump of
+  // fac_hi/fac_lo in cell size at the seam, which is consistent (the seam
+  // then looks like an abrupt coarsening) but first-order there.
+  for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    if (geom.isPeriodic(d)) {
+      const amrex::Real flo = fac_at(d, geom.ProbLo(d));
+      const amrex::Real fhi = fac_at(d, geom.ProbHi(d));
+      if (
+        std::abs(fhi - flo) >
+        amrex::Real(1.e-10) * amrex::max(std::abs(flo), std::abs(fhi))) {
+        amrex::Print() << " WARNING: mesh mapping: cell size jumps by a factor "
+                       << fhi / flo << " across the periodic seam in direction "
+                       << d << " (fac = " << flo << " at lo, " << fhi
+                       << " at hi)\n";
+      }
+    }
+  }
 }
 
 template <typename XPhysAt>
