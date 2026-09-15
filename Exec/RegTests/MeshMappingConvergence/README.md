@@ -11,7 +11,7 @@ Three sweeps are available:
 | `run_incompressible.sh`      | `PipeFlow`    | incompressible, inviscid | clean convergence check on the mechanical scaling (MAC proj, nodal proj, advection, CFL) |
 | `run_lowmach.sh`             | `HotBubble`   | low-Mach, inert, gravity ON | end-to-end low-Mach path, *including* buoyancy-feedback amplification |
 | `run_lowmach_nograv.sh`      | `HotBubble`   | low-Mach, inert, gravity OFF, conductivity + viscosity ON | low-Mach path WITHOUT buoyancy amplification: deviation plateaus instead of growing |
-| `run_stretch_sweep.sh`       | `PipeFlow`    | incompressible, inviscid | Sweep through mesh stretching factors (requires executable built with hypre) |
+| `run_stretch_sweep.sh`       | `PipeFlow`    | incompressible, inviscid | Sweep through mesh stretching factors (requires an executable built with `make USE_HYPRE=TRUE`) |
 
 ## Protocol (all three sweeps)
 
@@ -34,13 +34,17 @@ IC from physical coordinates (`x_phys = prob_lo + (i + 0.5) * dx *
 fac`), so the starting state agrees bit-for-bit across ref and mapped
 runs when the AMReX grid spans the same physical region.
 
-Multi-level AMR + mesh mapping is an inherited AmrWind limitation and
-is not exercised here; the driver scripts pin `amr.max_level = 0`.
+The driver scripts pin `amr.max_level = 0`: the sweeps compare
+discretisations on identical single-level grids.  Multi-level mesh
+mapping itself is exercised by the `TurbInflow` regression
+`input.3d_TanhStretch_rt_amr`.
 
 For the stretch sweep, 32 and 64 cell cases are tried with the mesh stretching
-beta = 0,1,2,3,4,5,6.  If AMReX GMG is used (when built with USE_HYPRE=FALSE)
-most of these cases will fail. The set of knobs currently included here
-will enable running with beta <=~ 4.
+beta = 0,1,2,3,4,5,6.  Its defaults use hypre for the MAC projection and the
+nodal bottom solver, so build PipeFlow with `make USE_HYPRE=TRUE` (the
+GNUmakefile default is `FALSE`, which is enough for the other sweeps).  With
+AMReX GMG alone most of these cases fail; the knobs in the script enable
+running with beta <=~ 4.
 
 ## Physical-space plotfile rendering
 
@@ -81,6 +85,12 @@ cd Exec/RegTests/MeshMappingConvergence
 
 python3 analyze.py results/   # reads plotfiles, prints tables
 ```
+
+`analyze.py` takes the *root* that holds the suite directories
+(`results/incompressible`, `results/lowmach`, `results/lowmach_nograv`),
+which is where the drivers write by default.  If a sweep was run with
+`RESULTS_DIR` pointing somewhere else, give `analyze.py` a root with the
+suite name under it, e.g. `mkdir -p root && ln -s ../my_run root/incompressible`.
 
 Requires a Python environment with `yt` and `numpy`.
 
