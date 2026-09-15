@@ -30,7 +30,7 @@ jobs:
     - name: LMeX Reference
       run: |
               mkdir buildRef
-              git clone --recursive --single-branch --shallow-submodules -b development https://github.com/AMReX-Combustion/PeleLMeX.git buildRef/PeleLMeX
+              git clone --recursive --single-branch --shallow-submodules -b development https://github.com/Pele-Suite/PeleLMeX.git buildRef/PeleLMeX
     - name: Build Reference PeleLMeX
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
