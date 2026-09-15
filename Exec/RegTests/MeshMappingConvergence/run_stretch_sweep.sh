@@ -62,6 +62,11 @@ INP="${PIPEFLOW_DIR}/input.3d-Poiseuille"
 : "${MAC_RTOL:=1e-8}"
 : "${NODAL_MAXITER:=5000}"
 : "${NODAL_RTOL:=1e-8}"
+# The defaults below need an executable built with hypre:
+#   cd ../PipeFlow && make -j8 USE_HYPRE=TRUE   (HYPRE_DIR must point at a hypre install)
+# PipeFlow's GNUmakefile defaults to USE_HYPRE=FALSE, which is enough for the
+# other sweeps; without hypre set USE_MLHYPRE=0 and NODAL_BOTTOM=bicgcg here,
+# expecting failures beyond beta ~ 2.
 : "${USE_MLHYPRE:=1}"             # 1: use BoomerAMG for MAC projection via
                                   # HypreMLABecLap (bypasses MLMG).  Requires
                                   # the executable to have been built with
