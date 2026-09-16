@@ -579,10 +579,12 @@ jobs:
           key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-${{github.sha}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-
+      # Debug (-O0): linting does not need optimisation, and clang 18's
+      # optimiser crashes (SIGSEGV) on amrex's AMReX_EB_STL_utils.cpp at -O3.
       - name: Configure
         run: |
           cmake -B${{runner.workspace}}/build-clang-tidy \
-          -DCMAKE_BUILD_TYPE:STRING=Release \
+          -DCMAKE_BUILD_TYPE:STRING=Debug \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
           -DCMAKE_CXX_COMPILER:STRING=clang++ \
           -DCMAKE_C_COMPILER:STRING=clang \
