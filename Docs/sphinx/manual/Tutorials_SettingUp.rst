@@ -6,7 +6,7 @@ Follow the steps listed below to get to this point:
 
 #. The first step is to get `PeleLMeX` and its dependencies. To do so, use a recursive *git clone*: ::
 
-    git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+    git clone --recursive --shallow-submodules --single-branch https://github.com/Pele-Suite/PeleLMeX.git
 
    The ``--shallow-submodules`` and ``--single-branch`` flags are recommended for most users as they
    substantially reduce the size of the download by skipping extraneous parts of the git history.

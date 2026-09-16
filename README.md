@@ -8,7 +8,7 @@
 [![Citing](https://joss.theoj.org/papers/10.21105/joss.05450/status.svg)](https://joss.theoj.org/papers/10.21105/joss.05450)
 [![Archive](https://zenodo.org/badge/DOI/10.5281/zenodo.10056232.svg)](https://doi.org/10.5281/zenodo.10056232)
 
-![CI](https://github.com/AMReX-Combustion/PeleLMeX/workflows/PeleLMeX-CI/badge.svg)
+![CI](https://github.com/Pele-Suite/PeleLMeX/workflows/PeleLMeX-CI/badge.svg)
 
 ## Overview
 
@@ -20,36 +20,36 @@ a flexible tool to address research questions on platforms ranging from small wo
 [hydrogen combustion](https://www.sciencedirect.com/science/article/pii/S001021802300192X) or [the effect of sustainable aviation fuel
 on gas turbine combustion](https://www.osti.gov/biblio/1995457).
 
-*PeleLMeX* is part of the [Pele combustion Suite](https://amrex-combustion.github.io/).
+*PeleLMeX* is part of the [Pele combustion Suite](https://pele-suite.github.io/).
 
 ## Documentation
 
-![Documentation](https://github.com/AMReX-Combustion/PeleLMeX/workflows/PeleLMeX-Docs/badge.svg)
+![Documentation](https://github.com/Pele-Suite/PeleLMeX/workflows/PeleLMeX-Docs/badge.svg)
 
 *PeleLMeX* is a non-subcycling version of [*PeleLM*](https://github.com/AMReX-Combustion/PeleLM) based on AMReX's
 [AmrCore](https://amrex-codes.github.io/amrex/docs_html/AmrCore.html) and borrowing from the incompressible
 solver [incflo](https://github.com/AMReX-Codes/incflo). It solves of the multispecies reactive Navier-Stokes equations
-in the low Mach number limit as described in the [documentation](https://amrex-combustion.github.io/PeleLMeX/manual/html/index.html).
+in the low Mach number limit as described in the [documentation](https://pele-suite.github.io/PeleLMeX/manual/html/index.html).
 It inherits most of *PeleLM* algorithmic features, but differs significantly in its implementation stemming from the non-subcycling approach.
 *PeleLM* is no longer under active development; *PeleLMeX* should be used for simulations of low Mach number reacting flows and
-[*PeleC*](https://github.com/AMReX-Combustion/PeleC) for simulations of flows with higher Mach numbers where compressibility effects are
+[*PeleC*](https://github.com/Pele-Suite/PeleC) for simulations of flows with higher Mach numbers where compressibility effects are
 significant.
 
-A overview of *PeleLMeX* controls is provided in the [documentation](https://amrex-combustion.github.io/PeleLMeX/manual/html/LMeXControls.html).
+A overview of *PeleLMeX* controls is provided in the [documentation](https://pele-suite.github.io/PeleLMeX/manual/html/LMeXControls.html).
 
 ### Core Algorithm
 
 The *PeleLMeX* governing equations and core algorithms are described in:
 
-https://amrex-combustion.github.io/PeleLMeX/manual/html/Model.html#mathematical-background
+https://pele-suite.github.io/PeleLMeX/manual/html/Model.html#mathematical-background
 
-https://amrex-combustion.github.io/PeleLMeX/manual/html/Model.html#pelelmex-algorithm
+https://pele-suite.github.io/PeleLMeX/manual/html/Model.html#pelelmex-algorithm
 
 ### Tutorials
 
 A set of self-contained tutorials describing more complex problems is also provided:
 
-https://amrex-combustion.github.io/PeleLMeX/manual/html/Tutorials.html
+https://pele-suite.github.io/PeleLMeX/manual/html/Tutorials.html
 
 ## Installation
 
@@ -58,7 +58,7 @@ https://amrex-combustion.github.io/PeleLMeX/manual/html/Tutorials.html
 Compiling *PeleLMeX* requires a C++20 compatible compiler as
 well as [CMake](https://cmake.org/download/) >= 3.23 for compiling the [SUNDIALS](https://github.com/LLNL/sundials) third party library.
 
-Most of the examples provided hereafter and in the [tutorials](https://amrex-combustion.github.io/PeleLMeX/manual/html/Tutorials.html)
+Most of the examples provided hereafter and in the [tutorials](https://pele-suite.github.io/PeleLMeX/manual/html/Tutorials.html)
 will use MPI to run in parallel. Although not mandatory, it is advised to build *PeleLMeX* with MPI support from the get go if
 more than a single core is available to you. Any of [mpich](https://www.mpich.org/downloads/) or
 [open-mpi](https://www.open-mpi.org/software/ompi/v4.1/) is a suitable option if MPI is not already available on your platform.
@@ -68,19 +68,19 @@ Finally, when building with GPU support, CUDA >= 12 is required with NVIDIA GPUs
 ### Download
 
 The preferred method consists of cloning *PeleLMeX* and its submodules
-([PelePhysics](https://github.com/AMReX-Combustion/PelePhysics),
+([PelePhysics](https://github.com/Pele-Suite/PelePhysics),
 [amrex](https://github.com/AMReX-Codes/amrex),
 [AMReX-Hydro](https://github.com/AMReX-Fluids/AMReX-Hydro), and
 [SUNDIALS](https://github.com/LLNL/sundials) using a recursive `git clone`:
 
 ```
-git clone --recursive --shallow-submodules --single-branch https://github.com/AMReX-Combustion/PeleLMeX.git
+git clone --recursive --shallow-submodules --single-branch https://github.com/Pele-Suite/PeleLMeX.git
 ```
 
 The `--shallow-submodules` and `--single-branch` flags are recommended for most users as they substantially reduce the size of the download by
 skipping extraneous parts of the git history. Developers may wish to omit these flags in order download the complete git history of PeleLMeX
 and its submodules, though standard `git` commands may also be used after a shallow clone to obtain the skipped portions if needed. By default,
-you will download the latest version of PeleLMeX. If you'd like to use a specific [released version](https://github.com/AMReX-Combustion/PeleLMeX/releases/)
+you will download the latest version of PeleLMeX. If you'd like to use a specific [released version](https://github.com/Pele-Suite/PeleLMeX/releases/)
 of PeleLMeX, you can add the option `--branch=<version>`, e.g. `--branch=v25.04`, to your clone command. See more on PeleLMeX version numbers
 in the [Versioning](#Versioning) section below.
 
@@ -111,14 +111,14 @@ cd PeleLMeX/Exec/RegTests/HotBubble
 
 If this is a clean install, you will need to make the third party libraries with: `make TPL` (note: if on macOS, you might need to specify `COMP=llvm` in the `make` statements).
 
-Finally, make with: `make -j`, or if on macOS: `make -j COMP=llvm`. To clean the installation, use either `make clean` or `make realclean`. If running into compile errors after changing compile time options in PeleLMeX (e.g., the chemical mechanism), the first thing to try is to clean your build by running `make TPLrealclean && make realclean`, then try to rebuild the third party libraries and PeleLMeX with `make TPL && make -j`. See the [Tutorial](https://amrex-combustion.github.io/PeleLMeX/manual/html/Tutorials_HotBubble.html) for this case for instructions on how to compile with different options (for example, to compile without MPI support or to compile for GPUs) and how to run the code once compiled.
+Finally, make with: `make -j`, or if on macOS: `make -j COMP=llvm`. To clean the installation, use either `make clean` or `make realclean`. If running into compile errors after changing compile time options in PeleLMeX (e.g., the chemical mechanism), the first thing to try is to clean your build by running `make TPLrealclean && make realclean`, then try to rebuild the third party libraries and PeleLMeX with `make TPL && make -j`. See the [Tutorial](https://pele-suite.github.io/PeleLMeX/manual/html/Tutorials_HotBubble.html) for this case for instructions on how to compile with different options (for example, to compile without MPI support or to compile for GPUs) and how to run the code once compiled.
 
 To compile and test using CMake, refer to the example `cmake.sh` script in the `Build` directory, or reference the GitHub Actions workflows in the `.github/workflows` directory.
 
 ## Getting help, contributing
 
-Do you have a question ? Found an issue ? Please use the [GitHub Discussions](https://github.com/AMReX-Combustion/PeleLMeX/discussions) to engage
-with the development team or open a new [GitHub issue](https://github.com/AMReX-Combustion/PeleLMeX/issues) to report a bug. The development team
+Do you have a question ? Found an issue ? Please use the [GitHub Discussions](https://github.com/Pele-Suite/PeleLMeX/discussions) to engage
+with the development team or open a new [GitHub issue](https://github.com/Pele-Suite/PeleLMeX/issues) to report a bug. The development team
 also encourages users to take an active role in respectfully answering each other's questions in these spaces. When reporting a bug, it is helpful
 to provide as much detail as possible, including a case description and the major compile and runtime options being used. Though not required,
 it is most effective to create a fork of this repository and share a branch of that fork with a case that minimally reproduces the error.
@@ -128,7 +128,7 @@ New contributions to *PeleLMeX* are welcome ! Contributing Guidelines are provid
 ## Versioning
 
 PeleLMeX now uses uses a type of semantic versioning to help users navigate different versions of the code,
-which are labeled with [GitHub tags](https://github.com/AMReX-Combustion/PeleLMeX/releases/). These tagged versions are not exhaustive, but they adhere to
+which are labeled with [GitHub tags](https://github.com/Pele-Suite/PeleLMeX/releases/). These tagged versions are not exhaustive, but they adhere to
 the following convention. Given a version number MAJOR.MINOR.PATCH:
 1. MAJOR version for changes to key aspects of the solver affecting input/source files for all cases, when a key model is changed to significantly affect results of simulations, when a major new capability is added
 2. MINOR version for when a significant feature is added (in a backward compatible manner), accumulation of smaller features, or changes to input file compatibility for less central aspects of the solver (e.g., post-processing) or aspects not affecting all cases
@@ -185,6 +185,6 @@ To cite PeleLMeX, please use [![Citing](https://joss.theoj.org/papers/10.21105/j
 
 A full list of publications documenting the development of the Pele suite and its
 application to various reacting flow and other simulations is available on the main
-[Pele suite page](https://amrex-combustion.github.io/pubs.html). After publication,
+[Pele suite page](https://pele-suite.github.io/pubs.html). After publication,
 if you'd like your work to be included on that list, you can request to have it added
-[here](https://github.com/AMReX-Combustion/AMReX-Combustion.github.io/discussions/3).
+[here](https://github.com/Pele-Suite/Pele-Suite.github.io/discussions/3).

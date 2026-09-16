@@ -35,7 +35,7 @@ fi
 set -x
 
 # Get LMeX and deps
-git clone --recursive https://github.com/AMReX-Combustion/PeleLMeX.git PeleLMeX
+git clone --recursive https://github.com/Pele-Suite/PeleLMeX.git PeleLMeX
 
 # Get P.Mullowney & S.Thomas Hypre
 git clone --branch AMD-ILU-2022-12-06 https://github.com/PaulMullowney/hypre.git
