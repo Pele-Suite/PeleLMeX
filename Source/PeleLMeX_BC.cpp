@@ -1255,10 +1255,12 @@ PeleLM::addTurbInflowToBox(
     amrex::Vector<amrex::Real> x_phys(a_bx.length(tdir1));
     amrex::Vector<amrex::Real> y_phys(a_bx.length(tdir2));
     for (int i = 0; i < static_cast<int>(x_phys.size()); ++i) {
-      x_phys[i] = m_map_eval.x_phys_cc(tdir1, a_bx.smallEnd(tdir1) + i, gd);
+      x_phys[i] =
+        x_phys_cc_periodic(m_map_eval, tdir1, a_bx.smallEnd(tdir1) + i, gd);
     }
     for (int j = 0; j < static_cast<int>(y_phys.size()); ++j) {
-      y_phys[j] = m_map_eval.x_phys_cc(tdir2, a_bx.smallEnd(tdir2) + j, gd);
+      y_phys[j] =
+        x_phys_cc_periodic(m_map_eval, tdir2, a_bx.smallEnd(tdir2) + j, gd);
     }
 
     turb_inflow.add_turb(

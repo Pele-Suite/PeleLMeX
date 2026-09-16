@@ -496,6 +496,13 @@ When a problem defines ``initdata_mapped`` it is selected automatically (via the
 states. Inflow values supplied through ``bcnormal`` likewise receive the physical coordinate. Worked examples appear in the
 ``LidDrivenCavity``, ``PipeFlow``, ``HotBubble`` and ``SingleDropEvap`` cases under the `RegTests` folder.
 
+**Mappings across periodic directions.** A map may be used along a periodic axis. The metric ghost cells across the periodic
+boundary are the periodic images of the interior metric (not the map continued past the domain end), so the seam is treated
+exactly like an interior location. What the seam looks like depends on the map: a two-sided map such as `TanhStretchMap`
+clusters cells symmetrically on both sides of it, as `InteriorStretchMap` does around its centre; a one-sided map such as
+`ExpStretchMap` leaves a jump in cell size at the seam of :math:`\mathrm{fac}_{hi}/\mathrm{fac}_{lo}` (:math:`e^\beta`), which is
+consistent but first-order accurate there, and `PeleLMeX` prints a warning with the factor at startup.
+
 .. warning::
 
    The cell-centered state, and the AMReX plotfiles written under mesh mapping, live on the *uniform* :math:`(\chi,\eta,\xi)` grid ---
