@@ -17,13 +17,6 @@ struct MyProbParm : public ProbParmDefault
   amrex::Real bubble_rad = 0.005;
   amrex::Real bubble_y0 = 0.01;
   int bubble_is_mix = 0;
-  // With use_mix_bubble: also give the bubble T_bubble (default: T_mean), and
-  // dope it with H2 mass fraction bubble_YH2 (needs a mechanism with H2;
-  // ignored otherwise).  A hot, H2-doped bubble in air exercises
-  // mixture-averaged diffusion, the Wbar correction and the Soret flux at
-  // once (Soret needs a light species and a temperature gradient).
-  int mix_bubble_hot = 0;
-  amrex::Real bubble_YH2 = 0.0;
   int is_sym = 0;
   // Mesh-mapping scaling factors (read from ConstantMap.scaling_factor).
   // When mesh mapping is active the AMReX grid is Xi-space and physical
@@ -85,15 +78,6 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
       if (rad <= prob_parm.bubble_rad) {
         massfrac[O2_ID] = 0.0;
         massfrac[N2_ID] = 1.0;
-#ifdef H2_ID
-        if (prob_parm.bubble_YH2 > 0.0) {
-          massfrac[H2_ID] = prob_parm.bubble_YH2;
-          massfrac[N2_ID] = 1.0 - prob_parm.bubble_YH2;
-        }
-#endif
-        if (prob_parm.mix_bubble_hot != 0) {
-          state(i, j, k, TEMP) = prob_parm.T_bubble;
-        }
       }
     } else {
       if (rad <= prob_parm.bubble_rad) {

@@ -12,7 +12,6 @@ Three sweeps are available:
 | `run_lowmach.sh`             | `HotBubble`   | low-Mach, inert, gravity ON | end-to-end low-Mach path, *including* buoyancy-feedback amplification |
 | `run_lowmach_nograv.sh`      | `HotBubble`   | low-Mach, inert, gravity OFF, conductivity + viscosity ON | low-Mach path WITHOUT buoyancy amplification: deviation plateaus instead of growing |
 | `run_stretch_sweep.sh`       | `PipeFlow`    | incompressible, inviscid | Sweep through mesh stretching factors (requires an executable built with `make USE_HYPRE=TRUE`) |
-| `run_lowmach_species.sh`     | `HotBubble`   | low-Mach, hot H2-doped N2 bubble in air, Simple transport | round-off equivalence of the species-diffusion operators (mixture-averaged `D`, Wbar, Soret) under mapping; scores itself with `compare_plotfiles.py` |
 
 ## Protocol (all three sweeps)
 
@@ -85,11 +84,6 @@ cd Exec/RegTests/MeshMappingConvergence
 ./run_stretch_sweep.sh        # PipeFlow sweep
 
 python3 analyze.py results/   # reads plotfiles, prints tables
-
-# Field-by-field round-off comparison of a mapped run with its reference
-# (undoes the known scalings, skips non-mapping-aware derived fields):
-python3 compare_plotfiles.py results/incompressible/ref_N32/plt_00020 \
-        results/incompressible/mapped_x_N32/plt_00020 --fac 2,1,1 --tol 1e-10
 ```
 
 `analyze.py` takes the *root* that holds the suite directories
@@ -157,18 +151,16 @@ the standard HotBubble case.  Run with `Transport_Model = Simple` it
 also covers temperature-dependent viscosity and conductivity in the
 mapped tensor and Fourier operators.
 
-The `lowmach_species` sweep covers the remaining operator family: a hot
-N2 bubble doped with H2 in air gives a composition gradient (so
-mixture-averaged `D` and the Wbar correction are non-zero) and a light
-species in a temperature gradient (so the Soret flux is non-zero).  It
-needs HotBubble built with a hydrogen mechanism and Simple transport
-(see the driver header) and reports PASS/FAIL itself: each mapped run
-must match the reference field by field to `TOL` (default 1e-10).
+Species diffusion with a composition gradient (mixture-averaged `D` and
+the Wbar correction) is covered by the CI gate below rather than by a
+sweep here: the `TurbInflow` ConstantMap pair carries an O2-rich inflow
+core and runs with `use_wbar = 1`.  The Soret flux is not yet covered by
+any mapped-vs-unmapped comparison (it needs a light species in a
+temperature gradient; a FlameSheet-based pair is the natural case).
 
-The same field-by-field check runs in CI on the `TurbInflow`
-ConstantMap pair (`compare_plotfiles.py` on their plotfiles, tol 1e-10),
-so a change that reintroduces a mapped-operator drift fails CI rather
-than showing up as a slow convergence-study surprise.
+The same field-by-field check (`compare_plotfiles.py`, tol 1e-10) runs in
+CI on that pair, so a change that reintroduces a mapped-operator drift
+fails CI rather than showing up as a slow convergence-study surprise.
 
 ## Historical caveat (resolved)
 

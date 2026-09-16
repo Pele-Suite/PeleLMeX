@@ -67,6 +67,7 @@ turbinflow.lowZ.verbose        = 1
 peleLM.v = 1
 peleLM.incompressible = 0
 peleLM.sdc_iterMax = 1
+peleLM.use_wbar = 1          # Wbar correction on: the O2-rich inflow core gives a composition gradient
 peleLM.floor_species = 0
 peleLM.num_divu_iter = 1
 peleLM.num_init_iter = 1
