@@ -152,6 +152,30 @@ function(add_test_r TEST_NAME TEST_EXE_DIR)
 endfunction(add_test_r)
 
 # Regression test with mass conservation verification
+# Mesh-mapping round-off equivalence: run TEST_NAME.inp (a ConstantMap run
+# with factors FAC, comma separated) and TEST_NAME_ref.inp (the unmapped run
+# of the same physical problem on the same index grid) and require their
+# final plotfiles to agree field by field
+# (Exec/RegTests/MeshMappingConvergence/compare_plotfiles.py, tol 1e-10).
+function(add_test_mapped_pair TEST_NAME TEST_EXE_DIR FAC)
+    setup_test()
+    file(COPY ${CURRENT_TEST_SOURCE_DIR}/${TEST_NAME}_ref.inp DESTINATION "${CURRENT_TEST_BINARY_DIR}/")
+    set(COMPARE_PLOTFILES ${CMAKE_SOURCE_DIR}/Exec/RegTests/MeshMappingConvergence/compare_plotfiles.py)
+    # The inputs fix max_step and plot_int; put them after RUNTIME_OPTIONS so
+    # they win over the harness defaults (ParmParse keeps the last value).
+    set(PAIR_OPTS "amr.max_step=5 amr.plot_int=5 amr.check_int=-1")
+    add_test(${TEST_NAME} bash -c "set -o pipefail \
+&& ${MPI_COMMANDS} ${CURRENT_TEST_EXE} ${MPIEXEC_POSTFLAGS} ${CURRENT_TEST_BINARY_DIR}/${TEST_NAME}_ref.inp ${RUNTIME_OPTIONS} ${PAIR_OPTS} amr.plot_file=pltref 2>&1 | tee ${TEST_NAME}.ref.log \
+&& ${MPI_COMMANDS} ${CURRENT_TEST_EXE} ${MPIEXEC_POSTFLAGS} ${CURRENT_TEST_BINARY_DIR}/${TEST_NAME}.inp ${RUNTIME_OPTIONS} ${PAIR_OPTS} amr.plot_file=pltmap 2>&1 | tee ${TEST_NAME}.log \
+&& python3 ${COMPARE_PLOTFILES} pltref00005 pltmap00005 --fac ${FAC} --tol 1e-10")
+    set_tests_properties(${TEST_NAME} PROPERTIES
+        TIMEOUT 18000
+        PROCESSORS ${PELE_NP}
+        WORKING_DIRECTORY "${CURRENT_TEST_BINARY_DIR}/"
+        LABELS "regression"
+        ATTACHED_FILES "${CURRENT_TEST_BINARY_DIR}/${TEST_NAME}.ref.log;${CURRENT_TEST_BINARY_DIR}/${TEST_NAME}.log")
+endfunction(add_test_mapped_pair)
+
 function(add_test_rv TEST_NAME TEST_EXE_DIR)
     setup_test()
     set(RUNTIME_OPTIONS "amr.max_step=10 peleLM.do_temporals=1 peleLM.do_mass_balance=1 peleLM.temporal_int=1 ${RUNTIME_OPTIONS}")
@@ -296,6 +320,7 @@ if(NOT PELE_ENABLE_EB)
   if(PELE_DIM EQUAL 2)
     add_test_r(tripleflame-${PELE_DIM}d TripleFlame)
     add_test_rt(isothermal-soret IsothermalSoretChannel)
+    add_test_mapped_pair(flamesheet-mapped-${PELE_DIM}d FlameSheet "2,1")
   endif()
   if(PELE_DIM EQUAL 3)
     add_test_r(hit-decay-${PELE_DIM}d HIT)

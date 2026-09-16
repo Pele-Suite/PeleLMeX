@@ -1,0 +1,61 @@
+# FlameSheet (drm19, Simple transport) on a ConstantMap mesh: round-off
+# equivalence with the unmapped run (flamesheet-mapped-2d.inp is the mapped run).
+#
+# The two inputs describe the same physical problem on index-identical grids:
+# 16 mm x 32 mm, 32 x 64 cells, x periodic, PMF flame along y with the
+# standard x perturbation, Wbar and Soret on, CVODE chemistry.  This is the
+# unmapped reference (identity ConstantMap, i.e. the same code path with
+# fac = 1); the mapped run must reproduce it field by field
+# (compare_plotfiles.py, tol 1e-10).  Fixed dt so the two runs take the
+# same steps.
+
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 1 0
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0 0.0
+geometry.prob_hi     = 0.016 0.032
+
+#--------------------------BC FLAGS-----------------------------
+peleLM.lo_bc = Interior Inflow
+peleLM.hi_bc = Interior Outflow
+
+#-------------------------AMR CONTROL---------------------------
+amr.n_cell          = 32 64
+amr.max_level       = 0
+amr.blocking_factor = 16
+amr.max_grid_size   = 32
+
+#--------------------------- Problem ---------------------------
+prob.P_mean = 101325.0
+prob.standoff = -.023
+prob.pertmag = 0.00045
+prob.pertlength = 0.016
+pmf.datafile = "drm19_pmf.dat"
+
+#-------------------------- Mesh mapping ------------------------
+geometry.mesh_mapping = ConstantMap
+ConstantMap.scaling_factor = 1.0 1.0
+
+#-------------------------PeleLM CONTROL----------------------
+peleLM.v = 1
+peleLM.use_wbar = 1
+transport.use_soret = 1
+peleLM.sdc_iterMax = 2
+peleLM.num_init_iter = 1
+peleLM.do_temporals = 0
+
+amr.max_step = 5
+amr.fixed_dt = 2.0e-6
+amr.plot_int = 5
+amr.check_int = -1
+amr.derive_plot_vars = avg_pressure mass_fractions
+
+peleLM.chem_integrator = "ReactorCvode"
+peleLM.use_typ_vals_chem = 1
+ode.rtol = 1.0e-6
+ode.atol = 1.0e-5
+cvode.solve_type = denseAJ_direct
+cvode.max_order  = 4
+
+mac_proj.verbose = 0
+nodal_proj.verbose = 0
