@@ -202,9 +202,13 @@ jobs:
         # not computational, transverse positions.  ConstantMap doubles x, so the
         # mapped run and its unmapped reference share one physical mesh and their
         # inflow-plane slices must agree (correlation ~1); the tanh case is a smoke test.
-        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_ConstantMap peleLM.num_init_iter=1 amrex.abort_on_unused_inputs=1
-        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_ConstantMap_ref peleLM.num_init_iter=1 amrex.abort_on_unused_inputs=1
+        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_ConstantMap peleLM.num_init_iter=1 amr.plot_int=2 amr.plot_file=pltCM_ amrex.abort_on_unused_inputs=1
+        mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_ConstantMap_ref peleLM.num_init_iter=1 amr.plot_int=2 amr.plot_file=pltCMref_ amrex.abort_on_unused_inputs=1
         python3 compare_inflow_plane.py planeCMref_000001 planeCM_000001 --map constant --beta 2 --require 0.99
+        # The same pair is a round-off equivalence test of every mapped operator: on
+        # index-identical grids of the same physical mesh, the ConstantMap run must
+        # reproduce the unmapped one field by field (gradp up to its known fac scaling).
+        python3 ../MeshMappingConvergence/compare_plotfiles.py pltCMref_00002 pltCM_00002 --fac 2,1,1 --tol 1e-10
         mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_TanhStretch peleLM.num_init_iter=1 amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
         # Same map with x periodic: the tanh clustering straddles the periodic seam and meets the inflow face.
         # Used to abort in the initial nodal projection (metric ghost cells at the inflow-layer corners were not periodic images).
