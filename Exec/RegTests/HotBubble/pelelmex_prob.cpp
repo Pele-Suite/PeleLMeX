@@ -13,6 +13,8 @@ PeleLM::readProbParm() // NOLINT(readability-make-member-function-const)
   pp.query("bubble_y0", prob_parm->bubble_y0);
   pp.query("use_symmetry", prob_parm->is_sym);
   pp.query("use_mix_bubble", prob_parm->bubble_is_mix);
+  pp.query("mix_bubble_hot", prob_parm->mix_bubble_hot);
+  pp.query("bubble_YH2", prob_parm->bubble_YH2);
 
   // If mesh mapping is active, pick up the ConstantMap scaling factors
   // so the IC can be evaluated in physical coordinates.  Falls back to
