@@ -1,5 +1,5 @@
 ## Single Droplet Evaporation Validation
-This case compares results from PeleLMeX against experimental literature data. Additional details and case descriptions are provided in the PelePhysics documentation at [https://amrex-combustion.github.io/PelePhysics/Spray.html#single-droplet-tests](https://amrex-combustion.github.io/PelePhysics/Spray.html#single-droplet-tests)
+This case compares results from PeleLMeX against experimental literature data. Additional details and case descriptions are provided in the PelePhysics documentation at [https://pele-suite.github.io/PelePhysics/Spray.html#single-droplet-tests](https://pele-suite.github.io/PelePhysics/Spray.html#single-droplet-tests)
 
 There are two general input files:
 * `single-drop-evap.inp`
@@ -14,7 +14,7 @@ Similarly, the case can be run with the group contribution method (GCM) liquid p
 mpirun -np 4 ./PeleLMeX2d.<comp>.MPI.liquid_fuels_nonreacting.2SprayFuel.SprayGCM.ex single-drop-evap.inp FILE=sprayPropsGCM_heptane-decane.inp
 ~~~
 
-All cases provided in the [PelePhysics documentation]((https://amrex-combustion.github.io/PelePhysics/Spray.html#single-droplet-tests)) can be run using the `Validate.py` script. Because many of the necessary options for each case must be set at compile time, the `Validate.py` script can be used to compile the code with the necessary options if a valid executable does not exist already.
+All cases provided in the [PelePhysics documentation]((https://pele-suite.github.io/PelePhysics/Spray.html#single-droplet-tests)) can be run using the `Validate.py` script. Because many of the necessary options for each case must be set at compile time, the `Validate.py` script can be used to compile the code with the necessary options if a valid executable does not exist already.
 The relevant compile time options are indicated in the executable name. The following options are available with the `Validate.py` script:
 
 | Option | Description | Choices/Defaults |

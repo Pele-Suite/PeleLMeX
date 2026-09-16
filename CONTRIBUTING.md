@@ -12,7 +12,7 @@ to fork *PeleLMeX* main repo on your GitHub account, and use a recursive `git cl
 
 Then step into the *PeleLMeX* folder and add the main *PeleLMeX* repository as the `upstream` remote in order to keep track of the main repo :
 
-       git add remote upstream https://github.com/AMReX-Combustion/PeleLMeX
+       git add remote upstream https://github.com/Pele-Suite/PeleLMeX
 
 At any point, you can update the `development` branch of your local repository with changes implemented in the main *PeleLMeX* repo by pulling from `upstream` :
 

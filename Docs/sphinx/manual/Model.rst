@@ -14,7 +14,7 @@ setup and control of `PeleLMeX` in later sections.
 Overview of `PeleLMeX`
 ----------------------
 
-`PeleLMeX` is the non-subcycling version of `PeleLM <https://amrex-combustion.github.io/PeleLM/>`_ a parallel,
+`PeleLMeX` is the non-subcycling version of `PeleLM <https://pele-suite.github.io/PeleLM/>`_ a parallel,
 adaptive mesh refinement (AMR) code that solves the reacting Navier-Stokes equations in the low Mach number regime.
 `PeleLM` is officially deprecated now with support that is not guaranteed to be current.
 
@@ -29,7 +29,7 @@ In a nutshell, `PeleLMeX` features include:
 * Physics & numerics :
    * Finite volume, block-structured AMR approach
    * 2D-Cartesian, 2D-Axisymmetric and 3D support
-   * Combustion (transport, kinetics, thermodynamics) models based on Cantera and EGLib through `PelePhysics <https://github.com/AMReX-Combustion/PelePhysics>`_
+   * Combustion (transport, kinetics, thermodynamics) models based on Cantera and EGLib through `PelePhysics <https://github.com/Pele-Suite/PelePhysics>`_
    * Complex geometries using Embedded Boundaries (EB)
    * Optional grid-aligned mesh mapping; several specific mappings provided
    * Second-order projection methodology for enforcing the low Mach number constraint
@@ -37,7 +37,7 @@ In a nutshell, `PeleLMeX` features include:
    * Several second-order Godunov integration schemes for advection
    * Temporally implicit viscosity, species mass diffusion, thermal conductivity, chemical kinetics
    * Closed chamber algorithm enables time-varying background pressure changes
-   * Lagrangian spray description and Hybrid Method of Moments Soot modeling using `PelePhysics <https://github.com/AMReX-Combustion/PelePhysics>`_ (formerly these were part of `PeleMP <https://github.com/AMReX-Combustion/PeleMP>`_).
+   * Lagrangian spray description and Hybrid Method of Moments Soot modeling using `PelePhysics <https://github.com/Pele-Suite/PelePhysics>`_ (formerly these were part of `PeleMP <https://github.com/AMReX-Combustion/PeleMP>`_).
 
 Mathematical background
 -----------------------
@@ -262,7 +262,7 @@ field at :math:`t^{n+1/2}` that discretely satisfies the constraint. This field 
 used for computing the time-explicit advective fluxes for :math:`U`, :math:`\rho h`, and :math:`\rho Y_m`.
 
 
-**Step 2**: (*Advance thermodynamic variables*) Integrate :math:`(\rho Y_m,\rho h)` over the full time step using a spectral deferred correction (SDC) approach, the details of which can be found in `PeleLM documentation <https://amrex-combustion.github.io/PeleLM/manual/html/Model.html#sdc-preliminaries>`_. An even more detailed version of the algorithm is available in Nonaka *et al.*, 2018.
+**Step 2**: (*Advance thermodynamic variables*) Integrate :math:`(\rho Y_m,\rho h)` over the full time step using a spectral deferred correction (SDC) approach, the details of which can be found in `PeleLM documentation <https://pele-suite.github.io/PeleLM/manual/html/Model.html#sdc-preliminaries>`_. An even more detailed version of the algorithm is available in Nonaka *et al.*, 2018.
 
 * We begin by computing the diffusion terms :math:`D^n` at :math:`t^n` that will be needed throughout the SDC iterations. Specifically, we evaluate the transport coefficients :math:`(\lambda,C_p,\mathcal D_m,h_m)^n` from :math:`(Y_m,T)^n` at cell centers and averaged to faces. The provisional diffusion fluxes, :math:`\widetilde{\boldsymbol{\cal F}}_m^n`, are computed with these averaged transport coefficients and state gradients computed with differences across each face.  These fluxes are conservatively corrected (i.e., adjusted to sum to zero by adding a mass-weighted "correction velocity") to obtain :math:`{\boldsymbol{\cal F}}_m^n` such that :math:`\sum {\boldsymbol{\cal F}}_m^n = 0`. Finally, we copy the transport coefficients, diffusion fluxes and the thermodynamic state from :math:`t^n` as starting values for :math:`t^{n+1,(k=0)}`, and initialize the reaction terms, :math:`I_R` from the values used in the previous step.
 
