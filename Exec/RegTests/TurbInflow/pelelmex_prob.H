@@ -16,6 +16,13 @@ struct MyProbParm : public ProbParmDefault
   amrex::Real meanFlowMag = 0.0;
   int meanFlowDir = 1;
   int bothSides = 0;
+  // Mesh mapping: geomdata's ProbLo/ProbHi are Xi-space extents while the
+  // coordinates handed to bcnormal are physical, so the physical domain
+  // length is the Xi length times the ConstantMap factor (1 for the other
+  // maps, which preserve the total length, and without mapping).
+  amrex::Real fac_x = 1.0;
+  amrex::Real fac_y = 1.0;
+  amrex::Real fac_z = 1.0;
 };
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
@@ -83,10 +90,11 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     const amrex::Real* prob_lo = geomdata.ProbLo();
     const amrex::Real* prob_hi = geomdata.ProbHi();
 
+    // Physical extents and centre (x[] is physical; see fac_* in MyProbParm)
     AMREX_D_TERM(
-      const amrex::Real Lx = prob_hi[0] - prob_lo[0];
-      , const amrex::Real Ly = prob_hi[1] - prob_lo[1];
-      , const amrex::Real Lz = prob_hi[2] - prob_lo[2]);
+      const amrex::Real Lx = (prob_hi[0] - prob_lo[0]) * prob_parm.fac_x;
+      , const amrex::Real Ly = (prob_hi[1] - prob_lo[1]) * prob_parm.fac_y;
+      , const amrex::Real Lz = (prob_hi[2] - prob_lo[2]) * prob_parm.fac_z);
 
     AMREX_D_TERM(
       const amrex::Real x_c = prob_lo[0] + 0.5 * Lx;

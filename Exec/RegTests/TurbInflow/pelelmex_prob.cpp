@@ -12,6 +12,21 @@ PeleLM::readProbParm() // NOLINT(readability-make-member-function-const)
   pp.query("flowMag", prob_parm->meanFlowMag);
   pp.query("bothSides", prob_parm->bothSides);
 
+  // Mesh mapping: the ConstantMap factors turn Xi extents into physical ones
+  // in bcnormal (defaults to 1 for the other maps and without mapping).
+  {
+    amrex::ParmParse ppcm("ConstantMap");
+    amrex::Vector<amrex::Real> fac(AMREX_SPACEDIM, 1.0);
+    ppcm.queryarr("scaling_factor", fac, 0, AMREX_SPACEDIM);
+    prob_parm->fac_x = fac[0];
+#if AMREX_SPACEDIM >= 2
+    prob_parm->fac_y = fac[1];
+#endif
+#if AMREX_SPACEDIM == 3
+    prob_parm->fac_z = fac[2];
+#endif
+  }
+
   /*
   if (!m_incompressible) {
      auto& trans_parm = PeleLM::trans_parms.host_parm();
