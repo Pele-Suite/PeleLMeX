@@ -22,7 +22,7 @@ cmd "module load PrgEnv-cray"
 cmd "module load cmake cray-python craype-x86-trento craype-accel-amd-gfx90a rocm/5.4.0"
 cmd "module load cray-libsci/22.12.1.1"
 
-cmd "git clone --recursive https://github.com/AMReX-Combustion/PeleLMeX.git || true"
+cmd "git clone --recursive https://github.com/Pele-Suite/PeleLMeX.git || true"
 cmd "cd ${MYPWD}/PeleLMeX/Exec/RegTests/FlameSheet"
 
 #Build SUNDIALS (requires internet connection because a clone happens)
