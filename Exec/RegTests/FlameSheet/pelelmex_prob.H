@@ -31,32 +31,27 @@ struct MyProbParm : public ProbParmDefault
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
 {
+  /**
+   * Initial state from the PMF profile at a *physical* position.  Shared by
+   * initdata() (uniform grid: physical == AMReX coordinates) and
+   * initdata_mapped() (mesh mapping: the AMReX grid is Xi space, so the
+   * position, the domain lengths used for the perturbation wavelengths and
+   * the cell half-width used to average the PMF over the cell are all taken
+   * in physical units from the map).
+   */
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
-  static void initdata(
+  static void initdata_at(
     int i,
     int j,
     int k,
-    int /*is_incompressible*/,
     amrex::Array4<amrex::Real> const& state,
-    amrex::Array4<amrex::Real> const& /*aux*/,
-    amrex::GeometryData const& geomdata,
+    AMREX_D_DECL(amrex::Real x, amrex::Real y, amrex::Real z),
+    AMREX_D_DECL(amrex::Real /*Lx_unused*/, amrex::Real Lx, amrex::Real Ly),
+    amrex::Real half_dn,
     MyProbParm const& prob_parm,
     pele::physics::PMF::PmfData::DataContainer const* pmf_data)
   {
-    const amrex::Real* prob_lo = geomdata.ProbLo();
-    const amrex::Real* prob_hi = geomdata.ProbHi();
-    const amrex::Real* dx = geomdata.CellSize();
-
-    AMREX_D_TERM(
-      const amrex::Real x = prob_lo[0] + (i + 0.5) * dx[0];
-      , const amrex::Real y = prob_lo[1] + (j + 0.5) * dx[1];
-      , const amrex::Real z = prob_lo[2] + (k + 0.5) * dx[2];);
-
-    AMREX_D_TERM(
-      , const amrex::Real Lx = prob_hi[0] - prob_lo[0];
-      , const amrex::Real Ly = prob_hi[1] - prob_lo[1]);
-
     constexpr amrex::Real Pi = 3.14159265358979323846264338327950288;
 
     auto eos = pele::physics::PhysicsType::eos(prob_parm.eosparm);
@@ -78,8 +73,8 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
               1.017 * std::sin(2 * Pi * 5 * (x - 0.0033) / lpert[0]) +
               0.982 * std::sin(2 * Pi * 5 * (x - 0.014234) / lpert[0]));
     }
-    amrex::Real y1 = (y - prob_parm.standoff - 0.5 * dx[1] + pert) * 100;
-    amrex::Real y2 = (y - prob_parm.standoff + 0.5 * dx[1] + pert) * 100;
+    amrex::Real y1 = (y - prob_parm.standoff - half_dn + pert) * 100;
+    amrex::Real y2 = (y - prob_parm.standoff + half_dn + pert) * 100;
 #elif (AMREX_SPACEDIM == 3)
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM - 1> lpert{Lx, Ly};
       if (prob_parm.pertlength > 0.0) {
@@ -98,8 +93,8 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
                 std::sin(2 * Pi * 6 * (y - 0.018) / lpert[1]) +
               0.982 * std::sin(2 * Pi * 5 * (x - 0.014234) / lpert[0]));
     }
-    amrex::Real y1 = (z - prob_parm.standoff - 0.5 * dx[2] + pert) * 100;
-    amrex::Real y2 = (z - prob_parm.standoff + 0.5 * dx[2] + pert) * 100;
+    amrex::Real y1 = (z - prob_parm.standoff - half_dn + pert) * 100;
+    amrex::Real y2 = (z - prob_parm.standoff + half_dn + pert) * 100;
 #endif
 
     pele::physics::PMF::pmf(pmf_data, y1, y2, pmf_vals);
@@ -145,6 +140,77 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
       state(i, j, k, FIRSTSPEC + n) = massfrac[n] * state(i, j, k, DENSITY);
     }
 #endif
+  }
+
+  AMREX_GPU_DEVICE
+  AMREX_FORCE_INLINE
+  static void initdata(
+    int i,
+    int j,
+    int k,
+    int /*is_incompressible*/,
+    amrex::Array4<amrex::Real> const& state,
+    amrex::Array4<amrex::Real> const& /*aux*/,
+    amrex::GeometryData const& geomdata,
+    MyProbParm const& prob_parm,
+    pele::physics::PMF::PmfData::DataContainer const* pmf_data)
+  {
+    const amrex::Real* prob_lo = geomdata.ProbLo();
+    const amrex::Real* prob_hi = geomdata.ProbHi();
+    const amrex::Real* dx = geomdata.CellSize();
+
+    AMREX_D_TERM(
+      const amrex::Real x = prob_lo[0] + (i + 0.5) * dx[0];
+      , const amrex::Real y = prob_lo[1] + (j + 0.5) * dx[1];
+      , const amrex::Real z = prob_lo[2] + (k + 0.5) * dx[2];);
+
+    AMREX_D_TERM(
+      , const amrex::Real Lx = prob_hi[0] - prob_lo[0];
+      , const amrex::Real Ly = prob_hi[1] - prob_lo[1]);
+
+    initdata_at(
+      i, j, k, state, AMREX_D_DECL(x, y, z), AMREX_D_DECL(0.0, Lx, Ly),
+      0.5 * dx[AMREX_SPACEDIM - 1], prob_parm, pmf_data);
+  }
+
+  // Mesh mapping: same IC at the physical position of the cell.  Selected
+  // automatically (has_initdata_mapped_v<>) when a mapping is active.
+  AMREX_GPU_DEVICE
+  AMREX_FORCE_INLINE
+  static void initdata_mapped(
+    int i,
+    int j,
+    int k,
+    int /*is_incompressible*/,
+    amrex::Array4<amrex::Real> const& state,
+    amrex::Array4<amrex::Real> const& /*aux*/,
+    amrex::GeometryData const& geomdata,
+    MeshMapEvaluator const& mmap,
+    MyProbParm const& prob_parm,
+    pele::physics::PMF::PmfData::DataContainer const* pmf_data)
+  {
+    AMREX_D_TERM(
+      const amrex::Real x = mmap.x_phys_cc(0, i, geomdata);
+      , const amrex::Real y = mmap.x_phys_cc(1, j, geomdata);
+      , const amrex::Real z = mmap.x_phys_cc(2, k, geomdata););
+
+    AMREX_D_TERM(
+      , const amrex::Real Lx = mmap.domain_size_phys(0, geomdata);
+      , const amrex::Real Ly = mmap.domain_size_phys(1, geomdata));
+
+    // Physical half-width of the cell in the flame-normal direction.  With
+    // the identity map use the grid spacing directly so that unmapped runs
+    // stay bit-identical to the legacy initdata() (dx_phys_cc differences
+    // two face positions, which is not exactly dx in floating point).
+    const int idx_n = AMREX_D_PICK(i, j, k);
+    const amrex::Real half_dn =
+      (mmap.m_kind == MeshMapEvaluator::Kind::Identity)
+        ? 0.5 * geomdata.CellSize()[AMREX_SPACEDIM - 1]
+        : 0.5 * mmap.dx_phys_cc(AMREX_SPACEDIM - 1, idx_n, geomdata);
+
+    initdata_at(
+      i, j, k, state, AMREX_D_DECL(x, y, z), AMREX_D_DECL(0.0, Lx, Ly),
+      half_dn, prob_parm, pmf_data);
   }
 
   AMREX_GPU_DEVICE
