@@ -6,8 +6,8 @@
 # standard x perturbation, Wbar and Soret on, CVODE chemistry.  This is the
 # unmapped reference (identity ConstantMap, i.e. the same code path with
 # fac = 1); the mapped run must reproduce it field by field
-# (compare_plotfiles.py, tol 1e-10).  Fixed dt so the two runs take the
-# same steps.
+# (compare_plotfiles.py, tol 1e-8 -- see the mapped input for why not
+# 1e-10).  Fixed dt so the two runs take the same steps.
 
 #----------------------DOMAIN DEFINITION------------------------
 geometry.is_periodic = 1 0
@@ -49,6 +49,7 @@ amr.fixed_dt = 2.0e-6
 amr.plot_int = 5
 amr.check_int = -1
 amr.derive_plot_vars = avg_pressure mass_fractions
+peleLM.plot_react = 0
 
 peleLM.chem_integrator = "ReactorCvode"
 peleLM.use_typ_vals_chem = 1

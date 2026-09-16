@@ -7,8 +7,12 @@
 # mapped by a factor 2 (Xi extent 8 mm), so every mapped operator -- tensor,
 # species/enthalpy diffusion with mixture-averaged D, Wbar and Soret,
 # advection, projections -- must reproduce the reference field by field
-# (compare_plotfiles.py, tol 1e-10).  Reactions are pointwise and add no
-# mapping dependence.  Fixed dt so the two runs take the same steps.
+# (compare_plotfiles.py).  Reactions are pointwise and add no mapping
+# dependence, but CVODE's adaptive stepping amplifies round-off differences
+# in the incoming state to ~1e-9 in the reaction increment, so the tolerance
+# is 1e-8 (a mapping error in a flux shows up at 1e-4 or worse) and the
+# instantaneous reaction rates I_R -- the increment over dt -- are not
+# plotted.  Fixed dt so the two runs take the same steps.
 
 #----------------------DOMAIN DEFINITION------------------------
 geometry.is_periodic = 1 0
@@ -50,6 +54,7 @@ amr.fixed_dt = 2.0e-6
 amr.plot_int = 5
 amr.check_int = -1
 amr.derive_plot_vars = avg_pressure mass_fractions
+peleLM.plot_react = 0
 
 peleLM.chem_integrator = "ReactorCvode"
 peleLM.use_typ_vals_chem = 1
