@@ -35,8 +35,8 @@ x_phys_cc_periodic(
   const int lo = gd.Domain().smallEnd(idir);
   const int n = gd.Domain().length(idir);
   if (
-    mmap.m_kind != MeshMapEvaluator::Kind::Identity && gd.isPeriodic(idir) &&
-    (idx < lo || idx >= lo + n)) {
+    mmap.m_kind != MeshMapEvaluator::Kind::Identity &&
+    gd.isPeriodic(idir) != 0 && (idx < lo || idx >= lo + n)) {
     // shift is the number of periods between idx and its image in the domain
     const int k = idx - lo;
     const int shift = (k >= 0) ? k / n : -((-k - 1) / n + 1);
