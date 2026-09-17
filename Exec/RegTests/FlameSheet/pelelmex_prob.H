@@ -209,8 +209,8 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
         : 0.5 * mmap.dx_phys_cc(AMREX_SPACEDIM - 1, idx_n, geomdata);
 
     initdata_at(
-      i, j, k, state, AMREX_D_DECL(x, y, z), AMREX_D_DECL(0.0, Lx, Ly),
-      half_dn, prob_parm, pmf_data);
+      i, j, k, state, AMREX_D_DECL(x, y, z), AMREX_D_DECL(0.0, Lx, Ly), half_dn,
+      prob_parm, pmf_data);
   }
 
   AMREX_GPU_DEVICE
