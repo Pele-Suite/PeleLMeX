@@ -112,6 +112,8 @@ def main():
             m = M[k][c] * scale_m
             if not (np.isfinite(r).all() and np.isfinite(m).all()):
                 sys.exit("non-finite values in field " + name)
+            maxref = max(maxref, float(np.abs(r).max()))
+            maxdiff = max(maxdiff, float(np.abs(m - r).max()))
         scale = max(maxref, a.floor)
         rel = maxdiff / scale
         flag = "" if rel <= a.tol else "  <-- FAIL"
