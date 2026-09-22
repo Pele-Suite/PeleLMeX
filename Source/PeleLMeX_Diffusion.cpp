@@ -135,8 +135,12 @@ PeleLM::computeDifferentialDiffusionTerms(
     addRhoYFluxes(GetArrOfConstPtrs(fluxes[0]), geom[0], flux_tracking_factor);
   }
   // Same for the energy balance: Fourier and differential diffusion
-  // enthalpy fluxes, components NUM_SPECIES and NUM_SPECIES+1
-  if ((flux_tracking_factor != 0.0) && (m_do_energyBalance != 0)) {
+  // enthalpy fluxes, components NUM_SPECIES and NUM_SPECIES+1. Skipped for
+  // the Manifold EOS, where enthalpy is not diffused: the corrector term is
+  // never added there so the predictor terms would bias the balance.
+  if (
+    (flux_tracking_factor != 0.0) && (m_do_energyBalance != 0) &&
+    (pele::physics::PhysicsType::eos_type::identifier() != "Manifold")) {
     addRhoHFluxes(
       GetArrOfConstPtrs(fluxes[0]), geom[0], flux_tracking_factor, 2);
 #ifdef AMREX_USE_EB
