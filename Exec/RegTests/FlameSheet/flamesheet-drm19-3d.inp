@@ -39,6 +39,7 @@ peleLM.divu_dt_method = 2
 
 peleLM.do_temporals = 1
 peleLM.do_mass_balance = 1
+peleLM.do_energy_balance = 1
 
 #amr.restart = chk00005
 #amr.check_int = 2000
