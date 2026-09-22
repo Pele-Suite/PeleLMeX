@@ -2405,6 +2405,7 @@ public:
   std::ofstream tmpStateFile;
   std::ofstream tmpExtremasFile;
   std::ofstream tmpMassFile;
+  std::ofstream tmpEnergyFile;
   std::ofstream tmpSpecFile;
   std::ofstream tmppatchmfrFile;
 

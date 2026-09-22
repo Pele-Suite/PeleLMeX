@@ -353,12 +353,13 @@ PeleLM::rhoHBalance()
     +m_domainRhoHFlux[2] + m_domainRhoHFlux[3],
     +m_domainRhoHFlux[4] + m_domainRhoHFlux[5]);
 
-  tmpMassFile << m_nstep << "," << m_cur_time // Time info
-              << "," << m_RhoHNew             // RhoH
-              << "," << dRhoHdt               // RhoH temporal derivative
-              << "," << rhoHFluxBalance       // domain boundaries RhoH fluxes
-              << "," << std::abs(dRhoHdt - rhoHFluxBalance) << "\n"; // balance
-  tmpMassFile.flush();
+  tmpEnergyFile << m_nstep << "," << m_cur_time // Time info
+                << "," << m_RhoHNew             // RhoH
+                << "," << dRhoHdt               // RhoH temporal derivative
+                << "," << rhoHFluxBalance       // domain boundaries RhoH fluxes
+                << "," << std::abs(dRhoHdt - rhoHFluxBalance)
+                << "\n"; // balance
+  tmpEnergyFile.flush();
 }
 
 void
@@ -700,6 +701,12 @@ PeleLM::writeTemporals()
   }
 
   //----------------------------------------------------------------
+  // Energy (rho*h) balance
+  if ((m_do_energyBalance != 0) && (m_incompressible == 0)) {
+    rhoHBalance();
+  }
+
+  //----------------------------------------------------------------
   // Species balance
   if ((m_do_speciesBalance != 0) && (m_incompressible == 0)) {
     speciesBalance();
@@ -803,6 +810,14 @@ PeleLM::openTempFile()
       tmpMassFile.precision(12);
       tmpMassFile << "iter,time,massNew,dmdt,netMassFlux,balance\n";
     }
+    if (m_do_energyBalance != 0) {
+      tempFileName = m_temporal_dir + "/tempEnergy";
+      tmpEnergyFile.open(
+        tempFileName.c_str(),
+        std::ios::out | std::ios::app | std::ios_base::binary);
+      tmpEnergyFile.precision(12);
+      tmpEnergyFile << "iter,time,rhoHNew,drhoHdt,netRhoHFlux,balance\n";
+    }
     if (m_do_speciesBalance != 0) {
       tempFileName = m_temporal_dir + "/tempSpecies";
       tmpSpecFile.open(
@@ -879,6 +894,10 @@ PeleLM::closeTempFile()
     if (m_do_massBalance != 0) {
       tmpMassFile.flush();
       tmpMassFile.close();
+    }
+    if (m_do_energyBalance != 0) {
+      tmpEnergyFile.flush();
+      tmpEnergyFile.close();
     }
     if (m_do_speciesBalance != 0) {
       tmpSpecFile.flush();
