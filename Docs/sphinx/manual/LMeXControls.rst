@@ -808,7 +808,7 @@ the reported integral is zero. Additionally, if the `do_temporal` flag is activa
 (stored in `temporals/tempExtremas` as min/max for each state entry), mass balance (stored in `temporals/tempMass`) computing the total mass, dMdt and advective mass fluxes across the domain boundaries as well as the error in
 the balance (dMdt - sum of fluxes), energy balance (stored in `temporals/tempEnergy`) computing the total enthalpy :math:`\int \rho h`,
 its time derivative, the net advective \& diffusive (Fourier and differential diffusion) enthalpy fluxes across the domain boundaries
-and the error in the balance (d(rho h)/dt - sum of fluxes), and species balance (stored in `temporals/tempSpec`) computing each species total mass, dM_Ydt,
+and isothermal EB surfaces, and the error in the balance (d(rho h)/dt - sum of fluxes), and species balance (stored in `temporals/tempSpec`) computing each species total mass, dM_Ydt,
 advective \& diffusive fluxes across the domain boundaries, consumption rate integral and the error (dMdt - sum of fluxes - reaction).
 Users can also monitor species advective fluxes through specific regions of the domain boundaries (called as boundary patches).
 Patches can be defined on the low or high sides of non-embedded boundaries through the use of pre-defined shapes such as `circle`,

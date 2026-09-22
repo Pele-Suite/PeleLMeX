@@ -47,6 +47,7 @@ PeleLM::initTemporals(const PeleLM::TimeStamp a_time)
       m_domainRhoHFlux[2 * idim] = 0.0;
       m_domainRhoHFlux[2 * idim + 1] = 0.0;
     }
+    m_domainRhoHFluxEB = 0.0;
   }
 
   if ((m_do_speciesBalance != 0) && (m_incompressible == 0)) {
@@ -352,6 +353,7 @@ PeleLM::rhoHBalance()
     m_domainRhoHFlux[0] + m_domainRhoHFlux[1],
     +m_domainRhoHFlux[2] + m_domainRhoHFlux[3],
     +m_domainRhoHFlux[4] + m_domainRhoHFlux[5]);
+  rhoHFluxBalance += m_domainRhoHFluxEB; // Isothermal EB conduction
 
   tmpEnergyFile << m_nstep << "," << m_cur_time // Time info
                 << "," << m_RhoHNew             // RhoH
@@ -469,6 +471,63 @@ PeleLM::addRhoHFluxes(
     }
   }
 }
+
+#ifdef AMREX_USE_EB
+void
+PeleLM::addRhoHFluxesEB(
+  const amrex::Vector<amrex::MultiFab*>& a_EBfluxes,
+  const amrex::Real& a_factor)
+{
+  // Accumulate the Fourier enthalpy flux through isothermal EB surfaces
+  // on all levels, excluding cells covered by a finer level, using the
+  // same sign convention as the domain boundary fluxes (outflow negative)
+
+  // Do when m_nstep is -1 since m_nstep is increased by one before
+  // the writeTemporals
+  if (!(m_nstep % m_temp_int == m_temp_int - 1)) {
+    return;
+  }
+
+  amrex::Real sumEB = 0.0;
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    auto const& ebfact = EBFactory(lev);
+    auto const& flags = ebfact.getMultiEBCellFlagFab();
+    auto const& bndryArea = ebfact.getBndryArea();
+    const amrex::Real* dx = geom[lev].CellSize();
+    const amrex::Real ebArea = AMREX_D_TERM(1.0, *dx[0], *dx[0]);
+    const int isFinest = (lev == finest_level) ? 1 : 0;
+
+    amrex::MultiFab ebFluxArea(grids[lev], dmap[lev], 1, 0);
+    ebFluxArea.setVal(0.0);
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
+#endif
+    for (amrex::MFIter mfi(ebFluxArea, amrex::TilingIfNotGPU()); mfi.isValid();
+         ++mfi) {
+      const amrex::Box& bx = mfi.tilebox();
+      if (flags[mfi].getType(bx) != amrex::FabType::singlevalued) {
+        continue;
+      }
+      auto const& ebflux = a_EBfluxes[lev]->const_array(mfi);
+      auto const& barea = bndryArea.const_array(mfi);
+      auto const& fa = ebFluxArea.array(mfi);
+      auto const& covered = (isFinest != 0)
+                              ? amrex::Array4<int const>{}
+                              : m_coveredMask[lev]->const_array(mfi);
+      amrex::ParallelFor(
+        bx, [ebflux, barea, fa, covered, ebArea,
+             isFinest] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+          const amrex::Real mask =
+            (isFinest != 0) ? 1.0 : static_cast<amrex::Real>(covered(i, j, k));
+          fa(i, j, k) = ebflux(i, j, k) * barea(i, j, k) * ebArea * mask;
+        });
+    }
+    sumEB += ebFluxArea.sum(0, true);
+  }
+  amrex::ParallelDescriptor::ReduceRealSum(sumEB);
+  m_domainRhoHFluxEB -= a_factor * sumEB; // Outflow, negate flux
+}
+#endif
 
 void
 PeleLM::addRhoYFluxes(

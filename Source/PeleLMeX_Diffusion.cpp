@@ -139,6 +139,11 @@ PeleLM::computeDifferentialDiffusionTerms(
   if ((flux_tracking_factor != 0.0) && (m_do_energyBalance != 0)) {
     addRhoHFluxes(
       GetArrOfConstPtrs(fluxes[0]), geom[0], flux_tracking_factor, 2);
+#ifdef AMREX_USE_EB
+    if (m_isothermalEB != 0) {
+      addRhoHFluxesEB(GetVecOfPtrs(EBfluxes), flux_tracking_factor);
+    }
+#endif
   }
 
   //----------------------------------------------------------------
@@ -1760,6 +1765,11 @@ PeleLM::differentialDiffusionUpdate(
     // we've averaged down the fluxes already
     if (m_sdcIter == m_nSDCmax && (m_do_energyBalance != 0)) {
       addRhoHFluxes(GetArrOfConstPtrs(fluxes[0]), geom[0], 1.0, 2);
+#ifdef AMREX_USE_EB
+      if (m_isothermalEB != 0) {
+        addRhoHFluxesEB(GetVecOfPtrs(EBfluxes));
+      }
+#endif
     }
   }
   //------------------------------------------------------------------------
