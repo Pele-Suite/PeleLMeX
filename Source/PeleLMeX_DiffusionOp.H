@@ -239,6 +239,11 @@ private:
   // Empty: keep the operator's default bottom solver
   std::string m_mg_bottom_solver;
 
+  // Solve with GMRES preconditioned by MLMG instead of MLMG alone
+  bool m_use_gmres = false;
+  int m_gmres_precond_iters = 1;
+  int m_gmres_restart = -1; // <= 0: GMRES default
+
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
   int m_mg_fail_maxiter_after_sdc_miniter = -1;

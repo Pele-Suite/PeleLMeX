@@ -2,6 +2,7 @@
 #include <PeleLMeX_DiffusionOp.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_VisMF.H>
+#include <AMReX_GMRES_MLMG.H>
 
 #ifdef AMREX_USE_EB
 #include <AMReX_EB_Redistribution.H>
@@ -1797,7 +1798,28 @@ DiffusionTensorOp::diffuse_velocity(
   mlmg.setPostSmooth(m_num_post_smooth);
 
   // Solve
-  if (!m_pelelm->m_mlmg_fail_plt_residuals) {
+  if (m_use_gmres) {
+    // GMRES preconditioned by MLMG: robust where plain MLMG converges too
+    // slowly, e.g. on strongly stretched meshes
+    amrex::GMRESMLMG gmsolver(mlmg);
+    gmsolver.setVerbose(m_mg_verbose);
+    gmsolver.setMaxIters(max_iter);
+    gmsolver.setPrecondNumIters(m_gmres_precond_iters);
+    if (m_gmres_restart > 0) {
+      gmsolver.getGMRES().setRestartLength(m_gmres_restart);
+    }
+    gmsolver.solve(a_vel, GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
+    if (m_mg_verbose > 0) {
+      amrex::Print() << "GMRES(MLMG): Velocity Diffusion: "
+                     << gmsolver.getNumIters() << " iterations, residual "
+                     << gmsolver.getResidualNorm() << "\n";
+    }
+    if (gmsolver.getGMRES().getStatus() != 0) {
+      amrex::Abort(
+        "GMRES(MLMG) for velocity diffusion failed to converge after " +
+        std::to_string(gmsolver.getNumIters()) + " iterations");
+    }
+  } else if (!m_pelelm->m_mlmg_fail_plt_residuals) {
     mlmg.solve(a_vel, GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
   } else {
     mlmg.setThrowException(true);
@@ -1839,6 +1861,9 @@ DiffusionTensorOp::readParameters()
     }
   }
   pp.query("mg_max_coarsening_level", m_mg_max_coarsening_level);
+  pp.query("use_gmres", m_use_gmres);
+  pp.query("gmres_precond_iters", m_gmres_precond_iters);
+  pp.query("gmres_restart", m_gmres_restart);
   pp.query("mg_max_fmg_iter", m_mg_max_fmg_iter);
   pp.query("num_pre_smooth", m_num_pre_smooth);
   pp.query("num_post_smooth", m_num_post_smooth);
