@@ -322,52 +322,47 @@ struct PeleLMCCFillExtDirSpec
     auto iv_3d = amrex::IntVectND<3>(0);
     AMREX_D_TERM(iv_3d[0] = iv[0];, iv_3d[1] = iv[1];, iv_3d[2] = iv[2];);
 
-    for (int n = 0; n < NUM_SPECIES; ++n) {
+    // bcnormal handles all the state components at once, so it is called
+    // once per face and its result is copied into every species with an
+    // ext_dir BC there. s_ext carries over between faces of a corner ghost
+    // cell, as bcnormal may use its input (e.g. as an initial guess).
+    amrex::Real s_ext[NVAR] = {0.0};
 
-      // Get the species component BC
-      const int* bc = bcr[n].data();
+    for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
+      for (int sgn = 1; sgn >= -1; sgn -= 2) {
+        const bool outside =
+          (sgn > 0) ? (iv[idir] < domlo[idir]) : (iv[idir] > domhi[idir]);
+        if (!outside) {
+          continue;
+        }
+        const int bcidx = (sgn > 0) ? idir : idir + AMREX_SPACEDIM;
 
-      // bcnormal handles all the state components at once
-      amrex::Real s_ext[NVAR] = {0.0};
+        bool any_ext_dir = false;
+        for (int n = 0; n < NUM_SPECIES; ++n) {
+          any_ext_dir =
+            any_ext_dir || (bcr[n].data()[bcidx] == amrex::BCType::ext_dir);
+        }
+        if (!any_ext_dir) {
+          continue;
+        }
 
-      for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
-        // Low
-        if ((bc[idir] == amrex::BCType::ext_dir) and (iv[idir] < domlo[idir])) {
+        amrex::Real x[AMREX_SPACEDIM];
+        pelelm_bc_face_x(iv, idir, sgn, geom, m_map_eval, x);
 
-          amrex::Real x[AMREX_SPACEDIM];
-          pelelm_bc_face_x(iv, idir, 1, geom, m_map_eval, x);
+        // Get the state on the first cell in the domain
+        auto iv_in = iv_3d;
+        iv_in[idir] = iv_in[idir] + sgn;
+        const auto s_in = rhoY.cellData(iv_in[0], iv_in[1], iv_in[2]);
 
-          // Get the state on the first cell in the domain
-          auto iv_in = iv_3d;
-          iv_in[idir] = iv_in[idir] + 1;
-          const auto s_in = rhoY.cellData(iv_in[0], iv_in[1], iv_in[2]);
+        // bcnormal() is defined in pelelmex_prob.H in problem directory in
+        // /Exec
+        T::bcnormal(
+          x, s_in, s_ext, idir, sgn, time, geom, *lprobparm, lpmfdata);
 
-          // bcnormal() is defined in pelelmex_prob.H in problem directory in
-          // /Exec
-          T::bcnormal(
-            x, s_in, s_ext, idir, 1, time, geom, *lprobparm, lpmfdata);
-
-          rhoY(iv, dcomp + n) = s_ext[FIRSTSPEC + n];
-
-          // High
-        } else if (
-          (bc[idir + AMREX_SPACEDIM] == amrex::BCType::ext_dir) and
-          (iv[idir] > domhi[idir])) {
-
-          amrex::Real x[AMREX_SPACEDIM];
-          pelelm_bc_face_x(iv, idir, -1, geom, m_map_eval, x);
-
-          // Get the state on the first cell in the domain
-          auto iv_in = iv_3d;
-          iv_in[idir] = iv_in[idir] - 1;
-          const auto s_in = rhoY.cellData(iv_in[0], iv_in[1], iv_in[2]);
-
-          // bcnormal() is defined in pelelmex_prob.H in problem directory in
-          // /Exec
-          T::bcnormal(
-            x, s_in, s_ext, idir, -1, time, geom, *lprobparm, lpmfdata);
-
-          rhoY(iv, dcomp + n) = s_ext[FIRSTSPEC + n];
+        for (int n = 0; n < NUM_SPECIES; ++n) {
+          if (bcr[n].data()[bcidx] == amrex::BCType::ext_dir) {
+            rhoY(iv, dcomp + n) = s_ext[FIRSTSPEC + n];
+          }
         }
       }
     }
