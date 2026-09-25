@@ -8,6 +8,67 @@
 #include <AMReX_EBFArrayBox.H>
 #endif
 
+namespace {
+// Map an input bottom_solver name onto MLMG's BottomSolver; aborts on an
+// unknown name so that typos are not silently ignored.
+amrex::MLMG::BottomSolver
+parseBottomSolver(const std::string& name, const std::string& prefix)
+{
+  using BS = amrex::MLMG::BottomSolver;
+  if (name == "smoother") {
+    return BS::smoother;
+  }
+  if (name == "bicgstab" || name == "bicg") {
+    return BS::bicgstab;
+  }
+  if (name == "cg") {
+    return BS::cg;
+  }
+  if (name == "bicgcg") {
+    return BS::bicgcg;
+  }
+  if (name == "cgbicg") {
+    return BS::cgbicg;
+  }
+  if (name == "hypre") {
+#ifdef AMREX_USE_HYPRE
+    return BS::hypre;
+#else
+    amrex::Abort(prefix + ".bottom_solver = hypre requires USE_HYPRE = TRUE");
+#endif
+  }
+  amrex::Abort(
+    prefix + ".bottom_solver: unknown value '" + name +
+    "' (smoother, bicgstab, cg, bicgcg, cgbicg, hypre)");
+  return BS::Default;
+}
+
+// Apply the user-selected bottom solver; an empty name keeps the default
+void
+setBottomSolver(
+  amrex::MLMG& mlmg,
+  const std::string& name,
+  const std::string& prefix,
+  const std::string& hypre_namespace,
+  const amrex::Real bottom_rtol)
+{
+  if (name.empty()) {
+    return;
+  }
+  mlmg.setBottomSolver(parseBottomSolver(name, prefix));
+#ifdef AMREX_USE_HYPRE
+  if (mlmg.getBottomSolver() == amrex::MLMG::BottomSolver::hypre) {
+    mlmg.setHypreOptionsNamespace(hypre_namespace);
+  }
+#else
+  amrex::ignore_unused(hypre_namespace);
+#endif
+  if (bottom_rtol > 0.0) {
+    mlmg.setBottomTolerance(bottom_rtol);
+  }
+}
+} // namespace
+
 //---------------------------------------------------------------------------------------
 // Diffusion Operator
 
@@ -16,6 +77,17 @@ DiffusionOp::DiffusionOp(PeleLM* a_pelelm, const int ncomp)
 {
   BL_PROFILE("DiffusionOp::DiffusionOp()");
   readParameters();
+
+  // hypre handles single-component systems only: solve the components of a
+  // multi-component operator (species) one at a time
+  m_ncomp_solve = m_ncomp;
+  if (!m_mg_bottom_solver.empty() && m_ncomp > 1) {
+    if (
+      parseBottomSolver(m_mg_bottom_solver, "diffusion") ==
+      amrex::MLMG::BottomSolver::hypre) {
+      m_ncomp_solve = 1;
+    }
+  }
 
   // Solve LPInfo
   amrex::LPInfo info_solve;
@@ -59,13 +131,13 @@ DiffusionOp::DiffusionOp(PeleLM* a_pelelm, const int ncomp)
     m_pelelm->Geom(0, m_pelelm->finestLevel()),
     m_pelelm->boxArray(0, m_pelelm->finestLevel()),
     m_pelelm->DistributionMap(0, m_pelelm->finestLevel()), info_solve,
-    ebfactVec, m_ncomp);
+    ebfactVec, m_ncomp_solve);
 #else
   m_scal_solve_op = std::make_unique<amrex::MLABecLaplacian>(
     m_pelelm->Geom(0, m_pelelm->finestLevel()),
     m_pelelm->boxArray(0, m_pelelm->finestLevel()),
     m_pelelm->DistributionMap(0, m_pelelm->finestLevel()), info_solve,
-    empty_factory, m_ncomp);
+    empty_factory, m_ncomp_solve);
 #endif
   m_scal_solve_op->setMaxOrder(m_mg_maxorder);
 
@@ -216,8 +288,8 @@ DiffusionOp::diffuse_scalar(
   }
 
   //----------------------------------------------------------------
-  // Solve and get fluxes on a m_ncomp component basis
-  for (int comp = 0; comp < ncomp; comp += m_ncomp) {
+  // Solve and get fluxes on a m_ncomp_solve component basis
+  for (int comp = 0; comp < ncomp; comp += m_ncomp_solve) {
 
     // Aliases
     amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> fluxes(
@@ -236,7 +308,7 @@ DiffusionOp::diffuse_scalar(
       if (have_fluxes != 0) {
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
           fluxes[lev][idim] = new amrex::MultiFab(
-            *a_flux[lev][idim], amrex::make_alias, flux_comp + comp, m_ncomp);
+            *a_flux[lev][idim], amrex::make_alias, flux_comp + comp, m_ncomp_solve);
         }
       }
 
@@ -244,10 +316,10 @@ DiffusionOp::diffuse_scalar(
         constexpr int doZeroVisc = 1;
         constexpr int addTurbContrib = 1;
         amrex::Vector<amrex::BCRec> subBCRec = {
-          a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp};
+          a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp_solve};
         amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> bcoeff_ec =
           m_pelelm->getDiffusivity(
-            lev, bcoeff_comp + comp, m_ncomp, doZeroVisc, subBCRec,
+            lev, bcoeff_comp + comp, m_ncomp_solve, doZeroVisc, subBCRec,
             *a_bcoeff[lev], addTurbContrib);
         if (mesh_mapping) {
           // bcoeff_i -> (J/fac_i^2) . bcoeff on face i
@@ -257,7 +329,7 @@ DiffusionOp::diffuse_scalar(
             const auto& b_ma = bcoeff_ec[idim].arrays();
             const int nc = idim;
             amrex::ParallelFor(
-              bcoeff_ec[idim], amrex::IntVect(0), m_ncomp,
+              bcoeff_ec[idim], amrex::IntVect(0), m_ncomp_solve,
               [=] AMREX_GPU_DEVICE(
                 int box_no, int i, int j, int k, int n) noexcept {
                 const amrex::Real f = fac_ma[box_no](i, j, k, nc);
@@ -278,27 +350,27 @@ DiffusionOp::diffuse_scalar(
         m_scal_solve_op->setBCoeffs(lev, 1.0);
       }
 
-      component.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp);
+      component.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp_solve);
       if (mesh_mapping) {
         // Scale rhs by detJ: rhs = a_rhs . J.  Use scratch to leave
         // the caller-owned a_rhs bit-exactly untouched.
         rhs.emplace_back(
-          a_rhs[lev]->boxArray(), a_rhs[lev]->DistributionMap(), m_ncomp, 0,
+          a_rhs[lev]->boxArray(), a_rhs[lev]->DistributionMap(), m_ncomp_solve, 0,
           amrex::MFInfo(), a_rhs[lev]->Factory());
         amrex::MultiFab::Copy(
-          rhs.back(), *a_rhs[lev], rhs_comp + comp, 0, m_ncomp, 0);
-        for (int n = 0; n < m_ncomp; ++n) {
+          rhs.back(), *a_rhs[lev], rhs_comp + comp, 0, m_ncomp_solve, 0);
+        for (int n = 0; n < m_ncomp_solve; ++n) {
           amrex::MultiFab::Multiply(rhs.back(), mm->detJ_cc(lev), 0, n, 1, 0);
         }
       } else {
         rhs.emplace_back(
-          *a_rhs[lev], amrex::make_alias, rhs_comp + comp, m_ncomp);
+          *a_rhs[lev], amrex::make_alias, rhs_comp + comp, m_ncomp_solve);
       }
       if (have_boundary != 0) {
         boundary.emplace_back(
-          *a_boundary[lev], amrex::make_alias, comp, m_ncomp);
+          *a_boundary[lev], amrex::make_alias, comp, m_ncomp_solve);
       } else {
-        boundary.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp);
+        boundary.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp_solve);
       }
       m_scal_solve_op->setLevelBC(lev, &boundary[lev]);
     }
@@ -365,6 +437,9 @@ DiffusionOp::diffuse_scalar(
     mlmg.setMaxIter(max_iter);
     mlmg.setMaxFmgIter(m_mg_max_fmg_iter);
     mlmg.setBottomMaxIter(m_mg_bottom_maxiter);
+    setBottomSolver(
+      mlmg, m_mg_bottom_solver, "diffusion", m_hypre_namespace,
+      m_mg_bottom_rtol);
 
     // Verbosity
     mlmg.setVerbose(m_mg_verbose);
@@ -547,8 +622,8 @@ DiffusionOp::diffuse_scalar(
   }
 
   //----------------------------------------------------------------
-  // Solve and get fluxes on a m_ncomp component basis
-  for (int comp = 0; comp < ncomp; comp += m_ncomp) {
+  // Solve and get fluxes on a m_ncomp_solve component basis
+  for (int comp = 0; comp < ncomp; comp += m_ncomp_solve) {
 
     // Aliases
     amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> fluxes(
@@ -567,17 +642,17 @@ DiffusionOp::diffuse_scalar(
       if (have_fluxes != 0) {
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
           fluxes[lev][idim] = new amrex::MultiFab(
-            *a_flux[lev][idim], amrex::make_alias, flux_comp + comp, m_ncomp);
+            *a_flux[lev][idim], amrex::make_alias, flux_comp + comp, m_ncomp_solve);
         }
       }
 
       if (have_bcoeff != 0) {
         constexpr int doZeroVisc = 1;
         amrex::Vector<amrex::BCRec> subBCRec = {
-          a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp};
+          a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp_solve};
         amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> bcoeff_ec =
           m_pelelm->getDiffusivity(
-            lev, bcoeff_comp + comp, m_ncomp, doZeroVisc, subBCRec,
+            lev, bcoeff_comp + comp, m_ncomp_solve, doZeroVisc, subBCRec,
             *a_bcoeff[lev]);
         m_scal_solve_op->setBCoeffs(
           lev, GetArrOfConstPtrs(bcoeff_ec),
@@ -586,14 +661,14 @@ DiffusionOp::diffuse_scalar(
         m_scal_solve_op->setBCoeffs(lev, 1.0);
       }
 
-      component.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp);
+      component.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp_solve);
       rhs.emplace_back(
-        *a_rhs[lev], amrex::make_alias, rhs_comp + comp, m_ncomp);
+        *a_rhs[lev], amrex::make_alias, rhs_comp + comp, m_ncomp_solve);
       if (have_boundary != 0) {
         boundary.emplace_back(
-          *a_boundary[lev], amrex::make_alias, comp, m_ncomp);
+          *a_boundary[lev], amrex::make_alias, comp, m_ncomp_solve);
       } else {
-        boundary.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp);
+        boundary.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp_solve);
       }
       m_scal_solve_op->setLevelBC(lev, &boundary[lev]);
       m_scal_solve_op->setEBDirichlet(lev, *a_phiEB[lev], *a_bcoeffEB[lev]);
@@ -661,6 +736,9 @@ DiffusionOp::diffuse_scalar(
     mlmg.setMaxIter(max_iter);
     mlmg.setMaxFmgIter(m_mg_max_fmg_iter);
     mlmg.setBottomMaxIter(m_mg_bottom_maxiter);
+    setBottomSolver(
+      mlmg, m_mg_bottom_solver, "diffusion", m_hypre_namespace,
+      m_mg_bottom_rtol);
 
     // Verbosity
     mlmg.setVerbose(m_mg_verbose);
@@ -1264,7 +1342,29 @@ DiffusionOp::readParameters()
   pp.query("rtol", m_mg_rtol);
   pp.query("max_iter", m_mg_max_iter);
   pp.query("bottom_solver", m_mg_bottom_solver);
+  pp.query("bottom_rtol", m_mg_bottom_rtol);
+  pp.query("bottom_verbose", m_mg_bottom_verbose);
+  pp.query("hypre_namespace", m_hypre_namespace);
+  pp.query("mg_max_coarsening_level", m_mg_max_coarsening_level);
   pp.query("max_order", m_mg_maxorder);
+  if (
+    !m_mg_bottom_solver.empty() && parseBottomSolver(m_mg_bottom_solver,
+                                                     "diffusion") ==
+                                     amrex::MLMG::BottomSolver::hypre) {
+    // MLMG lowers the solve operator's order for hypre (3, or 2 with EB);
+    // the apply operators must match or the deltaT iterations stall.
+#ifdef AMREX_USE_EB
+    constexpr int hypre_max_order = 2;
+#else
+    constexpr int hypre_max_order = 3;
+#endif
+    if (m_mg_maxorder > hypre_max_order) {
+      amrex::Print() << "diffusion: max_order lowered from " << m_mg_maxorder
+                     << " to " << hypre_max_order
+                     << " for the hypre bottom solver\n";
+      m_mg_maxorder = hypre_max_order;
+    }
+  }
   pp.query("mlmg_fail_sdc_miniter", m_mg_fail_sdc_miniter);
   pp.query("mlmg_fail_deltaT_miniter", m_mg_fail_deltaT_miniter);
   pp.query(
@@ -1687,6 +1787,7 @@ DiffusionTensorOp::diffuse_velocity(
   mlmg.setMaxIter(max_iter);
   mlmg.setMaxFmgIter(m_mg_max_fmg_iter);
   mlmg.setBottomMaxIter(m_mg_bottom_maxiter);
+  setBottomSolver(mlmg, m_mg_bottom_solver, "tensor_diffusion", "", -1.0);
 
   // Verbosity for MultiGrid / ConjugateGradients
   mlmg.setVerbose(m_mg_verbose);
@@ -1729,6 +1830,14 @@ DiffusionTensorOp::readParameters()
   pp.query("rtol", m_mg_rtol);
   pp.query("max_iter", m_mg_max_iter);
   pp.query("bottom_solver", m_mg_bottom_solver);
+  if (!m_mg_bottom_solver.empty()) {
+    if (
+      parseBottomSolver(m_mg_bottom_solver, "tensor_diffusion") ==
+      amrex::MLMG::BottomSolver::hypre) {
+      amrex::Abort("tensor_diffusion.bottom_solver = hypre is not supported: "
+                   "MLTensorOp has no hypre matrix assembly");
+    }
+  }
   pp.query("mg_max_coarsening_level", m_mg_max_coarsening_level);
   pp.query("mg_max_fmg_iter", m_mg_max_fmg_iter);
   pp.query("num_pre_smooth", m_num_pre_smooth);

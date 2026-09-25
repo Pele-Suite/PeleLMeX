@@ -149,6 +149,10 @@ public:
 
   int m_ncomp = 1;
 
+  // Components per linear solve: m_ncomp, or 1 when the bottom solver
+  // (hypre) only handles single-component systems
+  int m_ncomp_solve = 1;
+
   // Options to control MLMG behavior
   int m_mg_verbose = 0;
   int m_mg_bottom_verbose = 0;
@@ -164,7 +168,10 @@ public:
   amrex::Real m_mg_rtol = 1.0e-11;
   amrex::Real m_mg_atol = 1.0e-14;
 
-  std::string m_mg_bottom_solver = "bicgstab";
+  // Empty: keep the operator's default bottom solver
+  std::string m_mg_bottom_solver;
+  amrex::Real m_mg_bottom_rtol = -1.0;
+  std::string m_hypre_namespace = "diffusion_hypre";
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
@@ -229,7 +236,8 @@ private:
   amrex::Real m_mg_rtol = 1.0e-11;
   amrex::Real m_mg_atol = 1.0e-14;
 
-  std::string m_mg_bottom_solver = "bicgstab";
+  // Empty: keep the operator's default bottom solver
+  std::string m_mg_bottom_solver;
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
