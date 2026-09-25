@@ -191,8 +191,7 @@ struct PeleLMCCFillExtDirState
 
     for (int n = 0; n < ncomp; ++n) {
       if (
-        (bcr[n].data()[bcidx] == amrex::BCType::ext_dir) &&
-        !keep_recycled[n]) {
+        (bcr[n].data()[bcidx] == amrex::BCType::ext_dir) && !keep_recycled[n]) {
         state(iv, n) = s_ext[n];
       }
     }
