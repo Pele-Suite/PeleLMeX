@@ -112,107 +112,88 @@ struct PeleLMCCFillExtDirState
     auto iv_3d = amrex::IntVectND<3>(0);
     AMREX_D_TERM(iv_3d[0] = iv[0];, iv_3d[1] = iv[1];, iv_3d[2] = iv[2];);
 
+    const int ncomp = amrex::min<int>(numcomp, NVAR);
     for (int idir = 0; idir < AMREX_SPACEDIM; ++idir) {
-
       // Low
-      for (int n = 0; n < amrex::min<int>(numcomp, NVAR); ++n) {
+      if (iv[idir] < domlo[idir]) {
+        fillFace(iv, iv_3d, state, ncomp, geom, time, bcr, idir, 1);
+      }
+      // High
+      if (iv[idir] > domhi[idir]) {
+        fillFace(iv, iv_3d, state, ncomp, geom, time, bcr, idir, -1);
+      }
+    }
+  }
 
-        // bcnormal handles all the state components at once
-        amrex::Real s_ext[NVAR] = {0.0};
-        // Get current state component BC
-        const int* bc = bcr[n].data();
+  // Fill the ext_dir components of ghost cell iv beyond the (idir, sgn)
+  // face. sgn = +1 is the low side, -1 the high side. bcnormal returns
+  // every state component at once, so it is called once per face and its
+  // result is copied into each component that has an ext_dir BC there.
+  AMREX_GPU_DEVICE
+  void fillFace(
+    const amrex::IntVect& iv,
+    const amrex::IntVectND<3>& iv_3d,
+    amrex::Array4<amrex::Real> const& state,
+    const int ncomp,
+    amrex::GeometryData const& geom,
+    const amrex::Real time,
+    const amrex::BCRec* bcr,
+    const int idir,
+    const int sgn) const
+  {
+    const int bcidx = (sgn > 0) ? idir : idir + AMREX_SPACEDIM;
 
-        if ((bc[idir] == amrex::BCType::ext_dir) and (iv[idir] < domlo[idir])) {
+    bool any_ext_dir = false;
+    for (int n = 0; n < ncomp; ++n) {
+      any_ext_dir =
+        any_ext_dir || (bcr[n].data()[bcidx] == amrex::BCType::ext_dir);
+    }
+    if (!any_ext_dir) {
+      return;
+    }
 
-          amrex::Real x[AMREX_SPACEDIM];
-          pelelm_bc_face_x(iv, idir, 1, geom, m_map_eval, x);
+    amrex::Real s_ext[NVAR] = {0.0};
 
-          // Get the state in the first cell in the domain
-          auto iv_in = iv_3d;
-          iv_in[idir] = iv_in[idir] + 1;
-          const auto s_in = state.cellData(iv_in[0], iv_in[1], iv_in[2]);
-
-          // If using TurbInflow or inlet_from_plane, pass in the sampled data.
-          // User can overwrite or increment, as needed. In full recycling
-          // mode the pre-loaded value is the complete inflow velocity and is
-          // kept regardless of what bcnormal does to it.
-          bool keep_recycled = false;
-          if (n >= VELX && n < DENSITY) {
-            if (
-              m_do_turbInflow != 0 || ((m_do_inlet_from_plane != 0) &&
-                                       (idir == m_inlet_from_plane_dir))) {
-              if (!isnan(
-                    state(iv, VELX + n))) { // During fillcoarsepatch, get here
-                                            // with nan. TODO: find a better fix
-                s_ext[VELX + n] = state(iv, VELX + n);
-                keep_recycled = (m_recycling_full != 0) &&
-                                (m_do_inlet_from_plane != 0) &&
-                                (idir == m_inlet_from_plane_dir);
-              } else {
-                s_ext[VELX + n] = 0;
-              }
-            }
-          }
-          // bcnormal() is defined in pelelmex_prob.H in problem directory in
-          // /Exec
-          T::bcnormal(
-            x, s_in, s_ext, idir, 1, time, geom, *lprobparm, lpmfdata);
-          if (!keep_recycled) {
-            state(iv, n) = s_ext[n];
-          }
+    // If using TurbInflow or inlet_from_plane, pass in the sampled data.
+    // User can overwrite or increment, as needed. In full recycling
+    // mode the pre-loaded value is the complete inflow velocity and is
+    // kept regardless of what bcnormal does to it.
+    bool keep_recycled[NVAR] = {false};
+    if (
+      m_do_turbInflow != 0 ||
+      ((m_do_inlet_from_plane != 0) && (idir == m_inlet_from_plane_dir))) {
+      for (int n = VELX; n < amrex::min<int>(ncomp, DENSITY); ++n) {
+        if (bcr[n].data()[bcidx] != amrex::BCType::ext_dir) {
+          continue;
+        }
+        if (!isnan(state(iv, VELX + n))) { // During fillcoarsepatch, get here
+                                           // with nan. TODO: find a better fix
+          s_ext[VELX + n] = state(iv, VELX + n);
+          keep_recycled[n] = (m_recycling_full != 0) &&
+                             (m_do_inlet_from_plane != 0) &&
+                             (idir == m_inlet_from_plane_dir);
+        } else {
+          s_ext[VELX + n] = 0;
         }
       }
+    }
 
-      // High
-      for (int n = 0; n < amrex::min<int>(numcomp, NVAR); ++n) {
+    amrex::Real x[AMREX_SPACEDIM];
+    pelelm_bc_face_x(iv, idir, sgn, geom, m_map_eval, x);
 
-        // bcnormal handles all the state components at once
-        amrex::Real s_ext[NVAR] = {0.0};
+    // Get the state in the first cell in the domain
+    auto iv_in = iv_3d;
+    iv_in[idir] = iv_in[idir] + sgn;
+    const auto s_in = state.cellData(iv_in[0], iv_in[1], iv_in[2]);
 
-        // Get current state component BC
-        const int* bc = bcr[n].data();
+    // bcnormal() is defined in pelelmex_prob.H in problem directory in /Exec
+    T::bcnormal(x, s_in, s_ext, idir, sgn, time, geom, *lprobparm, lpmfdata);
 
-        if (
-          (bc[idir + AMREX_SPACEDIM] == amrex::BCType::ext_dir) and
-          (iv[idir] > domhi[idir])) {
-
-          amrex::Real x[AMREX_SPACEDIM];
-          pelelm_bc_face_x(iv, idir, -1, geom, m_map_eval, x);
-
-          // Get the state in the first cell in the domain
-          auto iv_in = iv_3d;
-          iv_in[idir] = iv_in[idir] - 1;
-          const auto s_in = state.cellData(iv_in[0], iv_in[1], iv_in[2]);
-
-          // If using TurbInflow or inlet_from_plane, pass in the sampled data.
-          // User can overwrite or increment, as needed. In full recycling
-          // mode the pre-loaded value is the complete inflow velocity and is
-          // kept regardless of what bcnormal does to it.
-          bool keep_recycled = false;
-          if (n >= VELX && n < DENSITY) {
-            if (
-              m_do_turbInflow != 0 || ((m_do_inlet_from_plane != 0) &&
-                                       (idir == m_inlet_from_plane_dir))) {
-              if (!isnan(
-                    state(iv, VELX + n))) { // During fillcoarsepatch, get here
-                                            // with nan. TODO: find a better fix
-                s_ext[VELX + n] = state(iv, VELX + n);
-                keep_recycled = (m_recycling_full != 0) &&
-                                (m_do_inlet_from_plane != 0) &&
-                                (idir == m_inlet_from_plane_dir);
-              } else {
-                s_ext[VELX + n] = 0;
-              }
-            }
-          }
-          // bcnormal() is defined in pelelmex_prob.H in problem directory in
-          // /Exec
-          T::bcnormal(
-            x, s_in, s_ext, idir, -1, time, geom, *lprobparm, lpmfdata);
-          if (!keep_recycled) {
-            state(iv, n) = s_ext[n];
-          }
-        }
+    for (int n = 0; n < ncomp; ++n) {
+      if (
+        (bcr[n].data()[bcidx] == amrex::BCType::ext_dir) &&
+        !keep_recycled[n]) {
+        state(iv, n) = s_ext[n];
       }
     }
   }
