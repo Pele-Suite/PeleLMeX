@@ -39,6 +39,7 @@ peleLM.do_temporals = 1                   # Turn temporals ON/OFF
 peleLM.temporal_int = 10                  # Frequency of temporals
 peleLM.do_extremas = 1                    # Compute state extremas
 peleLM.do_mass_balance = 1                # Compute mass balance
+peleLM.do_energy_balance = 1              # Compute energy (rho*h) balance
 peleLM.do_species_balance = 1             # Compute species balance
 
 #---------------------- Time Stepping CONTROL --------------------

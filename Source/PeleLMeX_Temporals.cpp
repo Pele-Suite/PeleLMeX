@@ -47,6 +47,7 @@ PeleLM::initTemporals(const PeleLM::TimeStamp a_time)
       m_domainRhoHFlux[2 * idim] = 0.0;
       m_domainRhoHFlux[2 * idim + 1] = 0.0;
     }
+    m_domainRhoHFluxEB = 0.0;
   }
 
   if ((m_do_speciesBalance != 0) && (m_incompressible == 0)) {
@@ -352,20 +353,27 @@ PeleLM::rhoHBalance()
     m_domainRhoHFlux[0] + m_domainRhoHFlux[1],
     +m_domainRhoHFlux[2] + m_domainRhoHFlux[3],
     +m_domainRhoHFlux[4] + m_domainRhoHFlux[5]);
+  rhoHFluxBalance += m_domainRhoHFluxEB; // Isothermal EB conduction
 
-  tmpMassFile << m_nstep << "," << m_cur_time // Time info
-              << "," << m_RhoHNew             // RhoH
-              << "," << dRhoHdt               // RhoH temporal derivative
-              << "," << rhoHFluxBalance       // domain boundaries RhoH fluxes
-              << "," << std::abs(dRhoHdt - rhoHFluxBalance) << "\n"; // balance
-  tmpMassFile.flush();
+  tmpEnergyFile << m_nstep << "," << m_cur_time // Time info
+                << "," << m_RhoHNew             // RhoH
+                << "," << dRhoHdt               // RhoH temporal derivative
+                << "," << rhoHFluxBalance       // domain boundaries RhoH fluxes
+                << "," << std::abs(dRhoHdt - rhoHFluxBalance)
+                << "\n"; // balance
+  tmpEnergyFile.flush();
 }
 
 void
 PeleLM::addRhoHFluxes(
   const amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>& a_fluxes,
-  const amrex::Geometry& a_geom)
+  const amrex::Geometry& a_geom,
+  const amrex::Real& a_factor,
+  const int a_nComp)
 {
+  // Accumulate the rho*h flux components [NUM_SPECIES, NUM_SPECIES+a_nComp)
+  // of a_fluxes: a single advective rho*h flux, or the Fourier and
+  // differential diffusion enthalpy fluxes from the diffusion solve.
 
   // Do when m_nstep is -1 since m_nstep is increased by one before
   // the writeTemporals
@@ -387,79 +395,139 @@ PeleLM::addRhoHFluxes(
   area[2] = dx[0] * dx[1];
 #endif
 
-  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-    auto faceDomain =
-      amrex::convert(a_geom.Domain(), amrex::IntVect::TheDimensionVector(idim));
+  for (int n = NUM_SPECIES; n < NUM_SPECIES + a_nComp; ++n) {
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+      auto faceDomain = amrex::convert(
+        a_geom.Domain(), amrex::IntVect::TheDimensionVector(idim));
 
-    auto const& fma = a_fluxes[idim]->const_arrays();
+      auto const& fma = a_fluxes[idim]->const_arrays();
 
-    amrex::Real sumLo = 0.0;
-    amrex::Real sumHi = 0.0;
+      amrex::Real sumLo = 0.0;
+      amrex::Real sumHi = 0.0;
 
 #if (AMREX_SPACEDIM == 2)
-    if (geom[0].IsRZ()) {
-      amrex::MultiFab mf_a;
-      geom[0].GetFaceArea(mf_a, grids[0], dmap[0], idim, 0);
-      auto const& ama = mf_a.const_arrays();
-      auto r = amrex::ParReduce(
-        amrex::TypeList<amrex::ReduceOpSum, amrex::ReduceOpSum>{},
-        amrex::TypeList<amrex::Real, amrex::Real>{}, *a_fluxes[idim],
-        amrex::IntVect(0),
-        [fma, ama, idim, faceDomain] AMREX_GPU_DEVICE(
-          int box_no, int i, int j,
-          int k) noexcept -> amrex::GpuTuple<amrex::Real, amrex::Real> {
-          amrex::Array4<const amrex::Real> const& flux = fma[box_no];
-          amrex::Array4<const amrex::Real> const& area_ar = ama[box_no];
+      if (geom[0].IsRZ()) {
+        amrex::MultiFab mf_a;
+        geom[0].GetFaceArea(mf_a, grids[0], dmap[0], idim, 0);
+        auto const& ama = mf_a.const_arrays();
+        auto r = amrex::ParReduce(
+          amrex::TypeList<amrex::ReduceOpSum, amrex::ReduceOpSum>{},
+          amrex::TypeList<amrex::Real, amrex::Real>{}, *a_fluxes[idim],
+          amrex::IntVect(0),
+          [fma, ama, idim, faceDomain, n] AMREX_GPU_DEVICE(
+            int box_no, int i, int j,
+            int k) noexcept -> amrex::GpuTuple<amrex::Real, amrex::Real> {
+            amrex::Array4<const amrex::Real> const& flux = fma[box_no];
+            amrex::Array4<const amrex::Real> const& area_ar = ama[box_no];
 
-          int idx = (idim == 0) ? i : ((idim == 1) ? j : k);
-          // low
-          amrex::Real low = 0.0;
-          if (idx == faceDomain.smallEnd(idim)) {
-            low += flux(i, j, k, NUM_SPECIES) * area_ar(i, j, k);
-          }
-          // high
-          amrex::Real high = 0.0;
-          if (idx == faceDomain.bigEnd(idim)) {
-            high += flux(i, j, k, NUM_SPECIES) * area_ar(i, j, k);
-          }
-          return {low, high};
-        });
-      sumLo = amrex::get<0>(r);
-      sumHi = amrex::get<1>(r);
-    } else
+            int idx = (idim == 0) ? i : ((idim == 1) ? j : k);
+            // low
+            amrex::Real low = 0.0;
+            if (idx == faceDomain.smallEnd(idim)) {
+              low += flux(i, j, k, n) * area_ar(i, j, k);
+            }
+            // high
+            amrex::Real high = 0.0;
+            if (idx == faceDomain.bigEnd(idim)) {
+              high += flux(i, j, k, n) * area_ar(i, j, k);
+            }
+            return {low, high};
+          });
+        sumLo = amrex::get<0>(r);
+        sumHi = amrex::get<1>(r);
+      } else
 #endif
-    {
-      auto r = amrex::ParReduce(
-        amrex::TypeList<amrex::ReduceOpSum, amrex::ReduceOpSum>{},
-        amrex::TypeList<amrex::Real, amrex::Real>{}, *a_fluxes[idim],
-        amrex::IntVect(0),
-        [fma, idim, faceDomain, area] AMREX_GPU_DEVICE(
-          int box_no, int i, int j,
-          int k) noexcept -> amrex::GpuTuple<amrex::Real, amrex::Real> {
-          amrex::Array4<const amrex::Real> const& flux = fma[box_no];
+      {
+        auto r = amrex::ParReduce(
+          amrex::TypeList<amrex::ReduceOpSum, amrex::ReduceOpSum>{},
+          amrex::TypeList<amrex::Real, amrex::Real>{}, *a_fluxes[idim],
+          amrex::IntVect(0),
+          [fma, idim, faceDomain, area, n] AMREX_GPU_DEVICE(
+            int box_no, int i, int j,
+            int k) noexcept -> amrex::GpuTuple<amrex::Real, amrex::Real> {
+            amrex::Array4<const amrex::Real> const& flux = fma[box_no];
 
-          int idx = (idim == 0) ? i : ((idim == 1) ? j : k);
-          // low
-          amrex::Real low = 0.0;
-          if (idx == faceDomain.smallEnd(idim)) {
-            low += flux(i, j, k, NUM_SPECIES) * area[idim];
-          }
-          // high
-          amrex::Real high = 0.0;
-          if (idx == faceDomain.bigEnd(idim)) {
-            high += flux(i, j, k, NUM_SPECIES) * area[idim];
-          }
-          return {low, high};
-        });
-      sumLo = amrex::get<0>(r);
-      sumHi = amrex::get<1>(r);
+            int idx = (idim == 0) ? i : ((idim == 1) ? j : k);
+            // low
+            amrex::Real low = 0.0;
+            if (idx == faceDomain.smallEnd(idim)) {
+              low += flux(i, j, k, n) * area[idim];
+            }
+            // high
+            amrex::Real high = 0.0;
+            if (idx == faceDomain.bigEnd(idim)) {
+              high += flux(i, j, k, n) * area[idim];
+            }
+            return {low, high};
+          });
+        sumLo = amrex::get<0>(r);
+        sumHi = amrex::get<1>(r);
+      }
+      amrex::ParallelAllReduce::Sum<amrex::Real>(
+        {sumLo, sumHi}, amrex::ParallelContext::CommunicatorSub());
+      m_domainRhoHFlux[2 * idim] += a_factor * sumLo;
+      m_domainRhoHFlux[2 * idim + 1] -=
+        a_factor * sumHi; // Outflow, negate flux
     }
-    amrex::ParallelAllReduce::Sum<amrex::Real>(
-      {sumLo, sumHi}, amrex::ParallelContext::CommunicatorSub());
-    m_domainRhoHFlux[2 * idim] += sumLo;
-    m_domainRhoHFlux[2 * idim + 1] -= sumHi; // Outflow, negate flux
   }
 }
+
+#ifdef AMREX_USE_EB
+void
+PeleLM::addRhoHFluxesEB(
+  const amrex::Vector<amrex::MultiFab*>& a_EBfluxes,
+  const amrex::Real& a_factor)
+{
+  // Accumulate the Fourier enthalpy flux through isothermal EB surfaces
+  // on all levels, excluding cells covered by a finer level, using the
+  // same sign convention as the domain boundary fluxes (outflow negative)
+
+  // Do when m_nstep is -1 since m_nstep is increased by one before
+  // the writeTemporals
+  if (!(m_nstep % m_temp_int == m_temp_int - 1)) {
+    return;
+  }
+
+  amrex::Real sumEB = 0.0;
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    auto const& ebfact = EBFactory(lev);
+    auto const& flags = ebfact.getMultiEBCellFlagFab();
+    auto const& bndryArea = ebfact.getBndryArea();
+    const amrex::Real* dx = geom[lev].CellSize();
+    const amrex::Real ebArea = AMREX_D_TERM(1.0, *dx[0], *dx[0]);
+    const int isFinest = (lev == finest_level) ? 1 : 0;
+
+    amrex::MultiFab ebFluxArea(grids[lev], dmap[lev], 1, 0);
+    ebFluxArea.setVal(0.0);
+#ifdef AMREX_USE_OMP
+#pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
+#endif
+    for (amrex::MFIter mfi(ebFluxArea, amrex::TilingIfNotGPU()); mfi.isValid();
+         ++mfi) {
+      const amrex::Box& bx = mfi.tilebox();
+      if (flags[mfi].getType(bx) != amrex::FabType::singlevalued) {
+        continue;
+      }
+      auto const& ebflux = a_EBfluxes[lev]->const_array(mfi);
+      auto const& barea = bndryArea.const_array(mfi);
+      auto const& fa = ebFluxArea.array(mfi);
+      auto const& covered = (isFinest != 0)
+                              ? amrex::Array4<int const>{}
+                              : m_coveredMask[lev]->const_array(mfi);
+      amrex::ParallelFor(
+        bx, [ebflux, barea, fa, covered, ebArea,
+             isFinest] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+          const amrex::Real mask =
+            (isFinest != 0) ? 1.0 : static_cast<amrex::Real>(covered(i, j, k));
+          fa(i, j, k) = ebflux(i, j, k) * barea(i, j, k) * ebArea * mask;
+        });
+    }
+    sumEB += ebFluxArea.sum(0, true);
+  }
+  amrex::ParallelDescriptor::ReduceRealSum(sumEB);
+  m_domainRhoHFluxEB -= a_factor * sumEB; // Outflow, negate flux
+}
+#endif
 
 void
 PeleLM::addRhoYFluxes(
@@ -700,6 +768,12 @@ PeleLM::writeTemporals()
   }
 
   //----------------------------------------------------------------
+  // Energy (rho*h) balance
+  if ((m_do_energyBalance != 0) && (m_incompressible == 0)) {
+    rhoHBalance();
+  }
+
+  //----------------------------------------------------------------
   // Species balance
   if ((m_do_speciesBalance != 0) && (m_incompressible == 0)) {
     speciesBalance();
@@ -803,6 +877,14 @@ PeleLM::openTempFile()
       tmpMassFile.precision(12);
       tmpMassFile << "iter,time,massNew,dmdt,netMassFlux,balance\n";
     }
+    if (m_do_energyBalance != 0) {
+      tempFileName = m_temporal_dir + "/tempEnergy";
+      tmpEnergyFile.open(
+        tempFileName.c_str(),
+        std::ios::out | std::ios::app | std::ios_base::binary);
+      tmpEnergyFile.precision(12);
+      tmpEnergyFile << "iter,time,rhoHNew,drhoHdt,netRhoHFlux,balance\n";
+    }
     if (m_do_speciesBalance != 0) {
       tempFileName = m_temporal_dir + "/tempSpecies";
       tmpSpecFile.open(
@@ -879,6 +961,10 @@ PeleLM::closeTempFile()
     if (m_do_massBalance != 0) {
       tmpMassFile.flush();
       tmpMassFile.close();
+    }
+    if (m_do_energyBalance != 0) {
+      tmpEnergyFile.flush();
+      tmpEnergyFile.close();
     }
     if (m_do_speciesBalance != 0) {
       tmpSpecFile.flush();

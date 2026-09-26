@@ -3,6 +3,9 @@
 #include <AMReX_VisMF.H>
 #include <AMReX_AsyncOut.H>
 #include <AMReX_buildInfo.H>
+#ifdef PELE_USE_CMAKE
+#include <PeleGitHashes.H>
+#endif
 #include "PelePhysics.H"
 #include <PltFileManager.H>
 #include <AMReX_ParmParse.H>
@@ -10,6 +13,19 @@
 #include <AMReX_FillPatchUtil.H>
 #include <memory>
 #include <fstream>
+#include <sundials/sundials_version.h>
+#ifdef AMREX_USE_HIP
+#include <hip/hip_version.h>
+#endif
+#ifdef AMREX_USE_HYPRE
+#include <HYPRE_config.h>
+#endif
+#ifdef PELE_USE_KLU
+#include <klu.h>
+#endif
+#ifdef PELE_USE_MAGMA
+#include <magma_v2.h>
+#endif
 #ifdef AMREX_USE_EB
 #include <AMReX_EBInterpolater.H>
 #endif
@@ -1808,6 +1824,12 @@ PeleLM::WriteJobInfo(const std::string& path) const
 #ifdef AMREX_USE_OMP
     jobInfoFile << "number of threads:       " << omp_get_max_threads() << "\n";
 #endif
+#ifdef AMREX_USE_GPU
+    jobInfoFile << "number of GPUs:          "
+                << amrex::Gpu::Device::numDevicesUsed() << "\n";
+    jobInfoFile << "GPU model:               "
+                << amrex::Gpu::Device::deviceName() << "\n";
+#endif
 
     jobInfoFile << "\n\n";
 
@@ -1830,12 +1852,125 @@ PeleLM::WriteJobInfo(const std::string& path) const
     jobInfoFile << "C++ compiler:  " << amrex::buildInfoGetCXXName() << "\n";
     jobInfoFile << "C++ flags:     " << amrex::buildInfoGetCXXFlags() << "\n";
 
+    // Compiler and library versions, from the headers this file was compiled
+    // against. Version macros missing in a library's headers give "unknown".
+    jobInfoFile << "Compiled with: ";
+#if defined(__VERSION__)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER)
+    jobInfoFile << "GCC " << __VERSION__;
+#else
+    jobInfoFile << __VERSION__;
+#endif
+#else
+    jobInfoFile << "unknown";
+#endif
     jobInfoFile << "\n";
 
+#ifdef AMREX_USE_CUDA
+    jobInfoFile << "CUDA:          ";
+#if defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && \
+  defined(__CUDACC_VER_BUILD__)
+    jobInfoFile << __CUDACC_VER_MAJOR__ << "." << __CUDACC_VER_MINOR__ << "."
+                << __CUDACC_VER_BUILD__;
+#elif defined(CUDART_VERSION)
+    jobInfoFile << CUDART_VERSION;
+#else
+    jobInfoFile << "unknown";
+#endif
+    jobInfoFile << "\n";
+#endif
+#ifdef AMREX_USE_HIP
+    jobInfoFile << "HIP:           ";
+#if defined(HIP_VERSION_MAJOR) && defined(HIP_VERSION_MINOR) && \
+  defined(HIP_VERSION_PATCH)
+    jobInfoFile << HIP_VERSION_MAJOR << "." << HIP_VERSION_MINOR << "."
+                << HIP_VERSION_PATCH;
+#else
+    jobInfoFile << "unknown";
+#endif
+    jobInfoFile << "\n";
+#endif
+
+#ifdef AMREX_USE_MPI
+    // Version of the MPI library actually loaded, first line only
+    char mpi_version[MPI_MAX_LIBRARY_VERSION_STRING];
+    int mpi_version_len = 0;
+    MPI_Get_library_version(mpi_version, &mpi_version_len);
+    const std::string mpi(mpi_version);
+    jobInfoFile << "MPI library:   "
+                << amrex::trim(mpi.substr(0, mpi.find('\n'))) << "\n";
+#endif
+
+    // SUNDIALS_GIT_VERSION is the commit the installed library was built from
+    char sundials_lib[64];
+    SUNDIALSGetVersion(sundials_lib, sizeof(sundials_lib));
+    jobInfoFile << "SUNDIALS:      " << SUNDIALS_VERSION;
+#ifdef SUNDIALS_GIT_VERSION
+    if (strlen(SUNDIALS_GIT_VERSION) > 0) {
+      jobInfoFile << " (git " << SUNDIALS_GIT_VERSION << ")";
+    }
+#endif
+    jobInfoFile << ", loaded library " << sundials_lib << "\n";
+
+#ifdef PELE_USE_KLU
+    jobInfoFile << "SuiteSparse:   ";
+#if defined(SUITESPARSE_MAIN_VERSION) && defined(SUITESPARSE_SUB_VERSION) && \
+  defined(SUITESPARSE_SUBSUB_VERSION)
+    jobInfoFile << SUITESPARSE_MAIN_VERSION << "." << SUITESPARSE_SUB_VERSION
+                << "." << SUITESPARSE_SUBSUB_VERSION;
+#else
+    jobInfoFile << "unknown";
+#endif
+#if defined(KLU_MAIN_VERSION) && defined(KLU_SUB_VERSION) && \
+  defined(KLU_SUBSUB_VERSION)
+    jobInfoFile << " (KLU " << KLU_MAIN_VERSION << "." << KLU_SUB_VERSION << "."
+                << KLU_SUBSUB_VERSION << ")";
+#endif
+    jobInfoFile << "\n";
+#endif
+#ifdef PELE_USE_MAGMA
+    jobInfoFile << "MAGMA:         ";
+#if defined(MAGMA_VERSION_MAJOR) && defined(MAGMA_VERSION_MINOR) && \
+  defined(MAGMA_VERSION_MICRO)
+    jobInfoFile << MAGMA_VERSION_MAJOR << "." << MAGMA_VERSION_MINOR << "."
+                << MAGMA_VERSION_MICRO;
+#else
+    jobInfoFile << "unknown";
+#endif
+    jobInfoFile << "\n";
+#endif
+#ifdef AMREX_USE_HYPRE
+    jobInfoFile << "HYPRE:         ";
+#if defined(HYPRE_RELEASE_VERSION)
+    jobInfoFile << HYPRE_RELEASE_VERSION;
+#else
+    jobInfoFile << "unknown";
+#endif
+#ifdef HYPRE_DEVELOP_STRING
+    jobInfoFile << " (" << HYPRE_DEVELOP_STRING << ")";
+#endif
+    jobInfoFile << "\n";
+#endif
+
+    jobInfoFile << "\n";
+
+#ifdef PELE_USE_CMAKE
+    // Same hashes as the start-up banner, from PeleGitHashes.H
+    const char* githash1 = PeleBuildInfo::PeleLMeX_git_hash.c_str();
+    const char* githash2 = PeleBuildInfo::AMReX_git_hash.c_str();
+    const char* githash3 = PeleBuildInfo::PelePhysics_git_hash.c_str();
+    const char* githash4 = PeleBuildInfo::AMReXHydro_git_hash.c_str();
+    const char* githash6 = "";
+#else
     const char* githash1 = amrex::buildInfoGetGitHash(1);
     const char* githash2 = amrex::buildInfoGetGitHash(2);
     const char* githash3 = amrex::buildInfoGetGitHash(3);
     const char* githash4 = amrex::buildInfoGetGitHash(4);
+    // Entry 5 is the SUNDIALS source (start-up banner); SUNDIALS is reported
+    // above with the version of the installed library
+    const char* githash6 = amrex::buildInfoGetGitHash(6);
+#endif
+    const char* buildgithash = amrex::buildInfoGetBuildGitHash();
 
     if (strlen(githash1) > 0) {
       jobInfoFile << "PeleLMeX     git describe: " << githash1 << "\n";
@@ -1847,7 +1982,27 @@ PeleLM::WriteJobInfo(const std::string& path) const
       jobInfoFile << "PelePhysics  git describe: " << githash3 << "\n";
     }
     if (strlen(githash4) > 0) {
-      jobInfoFile << "AMREX-Hydro  git describe: " << githash3 << "\n";
+      jobInfoFile << "AMREX-Hydro  git describe: " << githash4 << "\n";
+    }
+    if (strlen(githash6) > 0) {
+      jobInfoFile << "Mechanism    git describe: " << githash6 << "\n";
+    }
+    if (strlen(buildgithash) > 0) {
+      jobInfoFile << "Case         git describe: " << buildgithash << "\n";
+    }
+
+    jobInfoFile << "\n";
+
+    jobInfoFile << "EOS model:       "
+                << pele::physics::PhysicsType::eos_type::identifier() << "\n";
+    jobInfoFile << "Transport model: "
+                << pele::physics::PhysicsType::transport_type::identifier()
+                << "\n";
+
+    // build modules (GNU make only)
+    for (int i = 1; i <= amrex::buildInfoGetNumModules(); ++i) {
+      jobInfoFile << amrex::buildInfoGetModuleName(i) << ": "
+                  << amrex::buildInfoGetModuleVal(i) << "\n";
     }
 
     jobInfoFile << "\n\n";

@@ -134,6 +134,21 @@ PeleLM::computeDifferentialDiffusionTerms(
   if ((flux_tracking_factor != 0.0) && (m_do_speciesBalance != 0)) {
     addRhoYFluxes(GetArrOfConstPtrs(fluxes[0]), geom[0], flux_tracking_factor);
   }
+  // Same for the energy balance: Fourier and differential diffusion
+  // enthalpy fluxes, components NUM_SPECIES and NUM_SPECIES+1. Skipped for
+  // the Manifold EOS, where enthalpy is not diffused: the corrector term is
+  // never added there so the predictor terms would bias the balance.
+  if (
+    (flux_tracking_factor != 0.0) && (m_do_energyBalance != 0) &&
+    (pele::physics::PhysicsType::eos_type::identifier() != "Manifold")) {
+    addRhoHFluxes(
+      GetArrOfConstPtrs(fluxes[0]), geom[0], flux_tracking_factor, 2);
+#ifdef AMREX_USE_EB
+    if (m_isothermalEB != 0) {
+      addRhoHFluxesEB(GetVecOfPtrs(EBfluxes), flux_tracking_factor);
+    }
+#endif
+  }
 
   //----------------------------------------------------------------
   // Compute divergence/fill a_viscTerm
@@ -1746,6 +1761,19 @@ PeleLM::differentialDiffusionUpdate(
           amrex::Print() << "deltaT_iters not converged !\n";
         }
       }
+    }
+
+    // If doing energy balance, compute face domain integrals of the
+    // converged Fourier and differential diffusion enthalpy fluxes
+    // (components NUM_SPECIES and NUM_SPECIES+1) using level 0 since
+    // we've averaged down the fluxes already
+    if (m_sdcIter == m_nSDCmax && (m_do_energyBalance != 0)) {
+      addRhoHFluxes(GetArrOfConstPtrs(fluxes[0]), geom[0], 1.0, 2);
+#ifdef AMREX_USE_EB
+      if (m_isothermalEB != 0) {
+        addRhoHFluxesEB(GetVecOfPtrs(EBfluxes));
+      }
+#endif
     }
   }
   //------------------------------------------------------------------------
