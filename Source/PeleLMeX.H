@@ -1099,7 +1099,14 @@ public:
     const amrex::Geometry& a_geom);
   void addRhoHFluxes(
     const amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>& a_fluxes,
-    const amrex::Geometry& a_geom);
+    const amrex::Geometry& a_geom,
+    const amrex::Real& a_factor = 1.0,
+    const int a_nComp = 1);
+#ifdef AMREX_USE_EB
+  void addRhoHFluxesEB(
+    const amrex::Vector<amrex::MultiFab*>& a_EBfluxes,
+    const amrex::Real& a_factor = 1.0);
+#endif
   void addRhoYFluxes(
     const amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>& a_fluxes,
     const amrex::Geometry& a_geom,
@@ -2399,12 +2406,14 @@ public:
   amrex::Array<amrex::Real, NUM_SPECIES> m_RhoYNew;
   amrex::Array<amrex::Real, 2 * AMREX_SPACEDIM> m_domainMassFlux;
   amrex::Array<amrex::Real, 2 * AMREX_SPACEDIM> m_domainRhoHFlux;
+  amrex::Real m_domainRhoHFluxEB = 0.0;
   amrex::Array<amrex::Real, 2 * AMREX_SPACEDIM * NUM_SPECIES> m_domainRhoYFlux;
   amrex::Array<amrex::Real, 2 * AMREX_SPACEDIM> m_domainUmacFlux;
 
   std::ofstream tmpStateFile;
   std::ofstream tmpExtremasFile;
   std::ofstream tmpMassFile;
+  std::ofstream tmpEnergyFile;
   std::ofstream tmpSpecFile;
   std::ofstream tmppatchmfrFile;
 
