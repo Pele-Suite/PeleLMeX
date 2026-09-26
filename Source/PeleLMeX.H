@@ -2109,10 +2109,6 @@ public:
   ProbParm* prob_parm = nullptr;
   ProbParm* prob_parm_d = nullptr;
 
-  // Patch parameters
-  BPatch* boundary_patches = nullptr;
-  BPatch* boundary_patches_d = nullptr;
-
 #ifdef PELE_USE_SOOT
   // Soot parameters
   SootModel* soot_model = nullptr;
