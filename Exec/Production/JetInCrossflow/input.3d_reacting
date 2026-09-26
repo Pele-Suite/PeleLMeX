@@ -11,14 +11,14 @@ peleLM.lo_bc = Inflow NoSlipWallAdiab Inflow
 peleLM.hi_bc = NoSlipWallAdiab NoSlipWallAdiab Outflow
 
 #-------------------------AMR CONTROL----------------------------
-amr.n_cell          = 80 48 160        # Level 0 number of cells in each direction
+amr.n_cell          = 40 24 80         # Level 0 number of cells in each direction
 amr.v               = 2                # AMR verbose
-amr.max_level       = 4                # maximum level number allowed
+amr.max_level       = 5                # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2          # refinement ratio
 amr.regrid_int      = 6                # how often to regrid
 amr.n_error_buf     = 2 2 2 2          # number of buffer cells in error est
-amr.grid_eff        = 0.85              # what constitutes an efficient grid
-amr.blocking_factor = 16               # block factor in grid generation (min box size)
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 8               # block factor in grid generation (min box size)
 amr.max_grid_size   = 64               # max box size
 
 
@@ -39,7 +39,6 @@ prob.jet_dir = 0
 prob.jet_rad = 0.0015875
 prob.jet_bl_thickness = -1.0
 prob.jet_init_time = 1.0e-6
-prob.jet_start_time = 0.0
 prob.double_jet = 0
 
 #-------------------------PeleLM CONTROL----------------------------
@@ -51,6 +50,7 @@ peleLM.use_wbar = 1
 peleLM.sdc_iterMax = 1
 peleLM.advection_scheme = "Godunov_BDS"
 peleLM.deltaT_crashIfFailing = 0
+peleLM.base_output_prefix = output_reacting/
 
 amr.plot_int = 50
 amr.check_int = 200
@@ -66,18 +66,18 @@ amr.cfl = 0.7
 amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
 
 # --------------- INPUTS TO CHEMISTRY REACTOR ---------------
-peleLM.chem_integrator = "ReactorNull"
+peleLM.chem_integrator = "ReactorCvode"
 peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
-ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
-ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
+ode.rtol = 1.0e-8                     # Relative tolerance of the chemical solve
+ode.atol = 1.0e-7                     # Absolute tolerance factor applied on typical values
 cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
 cvode.max_order  = 4                  # CVODE max BDF order.
 
 #--------------------REFINEMENT CONTROL------------------------
-amr.refinement_indicators = overYH2 diffYH2 diffRho diffT bottom_box
+amr.refinement_indicators = overYH2 diffYH2 diffRho diffT inlet_box
 
 amr.overYH2.max_level = 4
-amr.overYH2.value_greater = 0.1
+amr.overYH2.value_greater = 0.15
 amr.overYH2.field_name = Y(H2)
 
 amr.diffYH2.max_level = 5
@@ -92,43 +92,19 @@ amr.diffT.max_level = 5
 amr.diffT.adjacent_difference_greater = 50
 amr.diffT.field_name = temp
 
-amr.bottom_box.max_level = 2
-amr.bottom_box.in_box_lo = 0.000 -0.04 -0.1
-amr.bottom_box.in_box_hi = 0.004 0.04 0.16
+amr.inlet_box.max_level = 5
+amr.inlet_box.in_box_lo = 0.000 -0.002 -0.002
+amr.inlet_box.in_box_hi = 0.004 0.002 0.0002
 
 #amrex.fpe_trap_invalid = 1
 #amrex.fpe_trap_zero = 1
 #amrex.fpe_trap_overflow = 1
-amrex.the_arena_is_managed = 0
 
 #-------------------DIAGNOSTIC CONTROL-----------------------
-peleLM.diagnostics = ynormalplt znormalplt
-peleLM.ynormalplt.type = DiagFramePlane
-peleLM.ynormalplt.normal = 1
-peleLM.ynormalplt.center = 0.0
-peleLM.ynormalplt.int    = 25
-peleLM.ynormalplt.interpolation = Linear
-peleLM.ynormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
-
-peleLM.znormalplt.type = DiagFramePlane
-peleLM.znormalplt.normal = 2
-peleLM.znormalplt.center = 0.008
-peleLM.znormalplt.int    = 25
-peleLM.znormalplt.interpolation = Linear
-peleLM.znormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
-
-peleLM.xnormalplt.type = DiagFramePlane
-peleLM.xnormalplt.normal = 0
-peleLM.xnormalplt.center = 0.008
-peleLM.xnormalplt.int    = 25
-peleLM.xnormalplt.interpolation = Linear
-peleLM.xnormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
-
-peleLM.do_temporals = 1                     # [OPT, DEF=0] Activate temporal diagnostics
-peleLM.temporal_dir = temporals             # [OPT, DEF="temporals"] Directory to store temporal diagnostics
-peleLM.temporal_int = 10                    # [OPT, DEF=5] Temporal freq.
-peleLM.do_extremas = 1                      # [OPT, DEF=0] Trigger extremas, if temporals activated
-peleLM.do_mass_balance = 1                  # [OPT, DEF=0] Compute mass balance, if temporals activated
-peleLM.do_species_balance = 1               # [OPT, DEF=0] Compute species mass balance, if temporals activated
-
-peleLM.base_output_prefix = output_nonreacting/
+peleLM.diagnostics = ynormal
+peleLM.ynormal.type = DiagFramePlane
+peleLM.ynormal.normal = 0
+peleLM.ynormal.center = 0.008
+peleLM.ynormal.int    = 5
+peleLM.ynormal.interpolation = Linear
+peleLM.ynormal.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
