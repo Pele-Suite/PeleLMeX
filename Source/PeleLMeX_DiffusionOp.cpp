@@ -450,7 +450,25 @@ DiffusionOp::diffuse_scalar(
     mlmg.setPostSmooth(m_num_post_smooth);
 
     // Solve
-    if (!m_pelelm->m_mlmg_fail_plt_residuals) {
+    if (m_use_gmres) {
+      // GMRES preconditioned by MLMG, e.g. for stretched meshes with AMR
+      amrex::GMRESMLMG gmsolver(mlmg);
+      gmsolver.setVerbose(m_mg_verbose);
+      gmsolver.setMaxIters(max_iter);
+      gmsolver.setPrecondNumIters(m_gmres_precond_iters);
+      gmsolver.solve(
+        GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
+      if (m_mg_verbose > 0) {
+        amrex::Print() << "GMRES(MLMG): " << mg_variable << " diffusion: "
+                       << gmsolver.getNumIters() << " iterations, residual "
+                       << gmsolver.getResidualNorm() << "\n";
+      }
+      if (gmsolver.getGMRES().getStatus() != 0) {
+        amrex::Abort(
+          "GMRES(MLMG) for " + mg_variable + " diffusion failed to converge");
+      }
+      mlmg.prepareForFluxes(GetVecOfConstPtrs(component));
+    } else if (!m_pelelm->m_mlmg_fail_plt_residuals) {
       mlmg.solve(
         GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
     } else {
@@ -481,9 +499,19 @@ DiffusionOp::diffuse_scalar(
     // Need to get the fluxes
     if (have_fluxes != 0) {
 #ifdef AMREX_USE_EB
-      mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
+      if (m_use_gmres) {
+        mlmg.getFluxes(
+          fluxes, GetVecOfPtrs(component), amrex::MLMG::Location::FaceCentroid);
+      } else {
+        mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
+      }
 #else
-      mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCenter);
+      if (m_use_gmres) {
+        mlmg.getFluxes(
+          fluxes, GetVecOfPtrs(component), amrex::MLMG::Location::FaceCenter);
+      } else {
+        mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCenter);
+      }
 #endif
 
       for (int lev = 0; lev <= finest_level; ++lev) {
@@ -749,7 +777,25 @@ DiffusionOp::diffuse_scalar(
     mlmg.setPostSmooth(m_num_post_smooth);
 
     // Solve
-    if (!m_pelelm->m_mlmg_fail_plt_residuals) {
+    if (m_use_gmres) {
+      // GMRES preconditioned by MLMG, e.g. for stretched meshes with AMR
+      amrex::GMRESMLMG gmsolver(mlmg);
+      gmsolver.setVerbose(m_mg_verbose);
+      gmsolver.setMaxIters(max_iter);
+      gmsolver.setPrecondNumIters(m_gmres_precond_iters);
+      gmsolver.solve(
+        GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
+      if (m_mg_verbose > 0) {
+        amrex::Print() << "GMRES(MLMG): " << mg_variable << " diffusion: "
+                       << gmsolver.getNumIters() << " iterations, residual "
+                       << gmsolver.getResidualNorm() << "\n";
+      }
+      if (gmsolver.getGMRES().getStatus() != 0) {
+        amrex::Abort(
+          "GMRES(MLMG) for " + mg_variable + " diffusion failed to converge");
+      }
+      mlmg.prepareForFluxes(GetVecOfConstPtrs(component));
+    } else if (!m_pelelm->m_mlmg_fail_plt_residuals) {
       mlmg.solve(
         GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_mg_rtol, m_mg_atol);
     } else {
@@ -779,7 +825,12 @@ DiffusionOp::diffuse_scalar(
 
     // Need to get the fluxes
     if (have_fluxes != 0) {
-      mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
+      if (m_use_gmres) {
+        mlmg.getFluxes(
+          fluxes, GetVecOfPtrs(component), amrex::MLMG::Location::FaceCentroid);
+      } else {
+        mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
+      }
 
       for (int lev = 0; lev <= finest_level; ++lev) {
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -1348,6 +1399,8 @@ DiffusionOp::readParameters()
   pp.query("hypre_namespace", m_hypre_namespace);
   pp.query("mg_max_coarsening_level", m_mg_max_coarsening_level);
   pp.query("max_order", m_mg_maxorder);
+  pp.query("use_gmres", m_use_gmres);
+  pp.query("gmres_precond_iters", m_gmres_precond_iters);
   if (
     !m_mg_bottom_solver.empty() && parseBottomSolver(m_mg_bottom_solver,
                                                      "diffusion") ==

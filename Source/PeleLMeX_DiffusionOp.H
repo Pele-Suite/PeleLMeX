@@ -173,6 +173,10 @@ public:
   amrex::Real m_mg_bottom_rtol = -1.0;
   std::string m_hypre_namespace = "diffusion_hypre";
 
+  // Solve with GMRES preconditioned by MLMG instead of MLMG alone
+  bool m_use_gmres = false;
+  int m_gmres_precond_iters = 1;
+
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
   int m_mg_fail_deltaT_miniter = -1;
