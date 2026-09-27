@@ -495,18 +495,31 @@ DiffusionOp::diffuse_scalar(
           rhs[lev].boxArray(), rhs[lev].DistributionMap(), 1, 0);
         amrex::MultiFab::Copy(rhs0.back(), rhs[lev], 0, 0, 1, 0);
       }
-      amrex::HypreMLABecLap hmlabeclap(
-        m_pelelm->Geom(0, finest_level), m_pelelm->boxArray(0, finest_level),
-        m_pelelm->DistributionMap(0, finest_level),
-        amrex::HypreSolverID::BoomerAMG, m_mlhypre_prefix);
-      hmlabeclap.setVerbose(m_mg_verbose);
-      hmlabeclap.setMaxIter(max_iter);
-      hmlabeclap.setup(
+      // The hypre object only depends on the grids: keep it across calls
+      auto grids = m_pelelm->boxArray(0, finest_level);
+      auto dmaps = m_pelelm->DistributionMap(0, finest_level);
+      if (!m_hmlabeclap || grids != m_hmlabeclap_grids ||
+          dmaps != m_hmlabeclap_dmaps) {
+        m_hmlabeclap = std::make_unique<amrex::HypreMLABecLap>(
+          m_pelelm->Geom(0, finest_level), grids, dmaps,
+          amrex::HypreSolverID::BoomerAMG, m_mlhypre_prefix);
+        m_hmlabeclap->setVerbose(m_mg_verbose);
+        m_hmlabeclap_grids = grids;
+        m_hmlabeclap_dmaps = dmaps;
+      }
+      m_hmlabeclap->setMaxIter(max_iter);
+      // Update the matrix values in place and keep the solver setup of the
+      // first component; redo the setup once per call
+      m_hmlabeclap->setReuseSolverSetup(m_mlhypre_reuse_setup);
+      if (comp == 0) {
+        m_hmlabeclap->resetSolverSetup();
+      }
+      m_hmlabeclap->setup(
         alpha, beta, acoefs, bcoefs,
         m_pelelm->getDiffusionLinOpBC(amrex::Orientation::low, a_bcrec[comp]),
         m_pelelm->getDiffusionLinOpBC(amrex::Orientation::high, a_bcrec[comp]),
         GetVecOfConstPtrs(boundary));
-      hmlabeclap.solve(
+      m_hmlabeclap->solve(
         GetVecOfPtrs(component), GetVecOfConstPtrs(rhs0), m_mg_rtol, 0.0);
       mlmg.prepareForFluxes(GetVecOfConstPtrs(component));
     } else
@@ -1463,6 +1476,7 @@ DiffusionOp::readParameters()
   pp.query("use_gmres", m_use_gmres);
   pp.query("use_mlhypre", m_use_mlhypre);
   pp.query("mlhypre_prefix", m_mlhypre_prefix);
+  pp.query("mlhypre_reuse_setup", m_mlhypre_reuse_setup);
 #ifndef AMREX_USE_HYPRE
   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
     !m_use_mlhypre, "diffusion.use_mlhypre requires hypre");

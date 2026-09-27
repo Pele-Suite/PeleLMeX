@@ -2,6 +2,9 @@
 #define DIFFUSION_OP_H
 
 #include <AMReX_MLMG.H>
+#ifdef AMREX_USE_HYPRE
+#include <AMReX_HypreMLABecLap.H>
+#endif
 #include <AMReX_BC_TYPES.H>
 
 #ifdef AMREX_USE_EB
@@ -181,6 +184,14 @@ public:
   // component at a time; options under m_mlhypre_prefix
   bool m_use_mlhypre = false;
   std::string m_mlhypre_prefix = "diffusion_mlhypre";
+  // Reuse the hypre solver setup across the components of a solve call
+  bool m_mlhypre_reuse_setup = true;
+#ifdef AMREX_USE_HYPRE
+  // Kept across calls; rebuilt when the grids change
+  std::unique_ptr<amrex::HypreMLABecLap> m_hmlabeclap;
+  amrex::Vector<amrex::BoxArray> m_hmlabeclap_grids;
+  amrex::Vector<amrex::DistributionMapping> m_hmlabeclap_dmaps;
+#endif
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
