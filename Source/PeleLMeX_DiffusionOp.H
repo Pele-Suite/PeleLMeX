@@ -177,6 +177,11 @@ public:
   bool m_use_gmres = false;
   int m_gmres_precond_iters = 1;
 
+  // Composite (all AMR levels) solve with hypre (HypreMLABecLap), one
+  // component at a time; options under m_mlhypre_prefix
+  bool m_use_mlhypre = false;
+  std::string m_mlhypre_prefix = "diffusion_mlhypre";
+
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
   int m_mg_fail_deltaT_miniter = -1;

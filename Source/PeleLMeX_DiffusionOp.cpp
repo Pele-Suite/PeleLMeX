@@ -3,6 +3,9 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_VisMF.H>
 #include <AMReX_GMRES_MLMG.H>
+#ifdef AMREX_USE_HYPRE
+#include <AMReX_HypreMLABecLap.H>
+#endif
 
 #ifdef AMREX_USE_EB
 #include <AMReX_EB_Redistribution.H>
@@ -82,6 +85,9 @@ DiffusionOp::DiffusionOp(PeleLM* a_pelelm, const int ncomp)
   // hypre handles single-component systems only: solve the components of a
   // multi-component operator (species) one at a time
   m_ncomp_solve = m_ncomp;
+  if (m_use_mlhypre) {
+    m_ncomp_solve = 1;
+  }
   if (!m_mg_bottom_solver.empty() && m_ncomp > 1) {
     if (
       parseBottomSolver(m_mg_bottom_solver, "diffusion") ==
@@ -298,6 +304,9 @@ DiffusionOp::diffuse_scalar(
     amrex::Vector<amrex::MultiFab> component;
     amrex::Vector<amrex::MultiFab> rhs;
     amrex::Vector<amrex::MultiFab> boundary;
+    // Face diffusivities of all levels (the composite hypre solve needs them)
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> bcoeff_lev(
+      finest_level + 1);
 
     // Allow for component specific LinOp BC
     m_scal_solve_op->setDomainBC(
@@ -318,10 +327,10 @@ DiffusionOp::diffuse_scalar(
         constexpr int addTurbContrib = 1;
         amrex::Vector<amrex::BCRec> subBCRec = {
           a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp_solve};
-        amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> bcoeff_ec =
-          m_pelelm->getDiffusivity(
-            lev, bcoeff_comp + comp, m_ncomp_solve, doZeroVisc, subBCRec,
-            *a_bcoeff[lev], addTurbContrib);
+        bcoeff_lev[lev] = m_pelelm->getDiffusivity(
+          lev, bcoeff_comp + comp, m_ncomp_solve, doZeroVisc, subBCRec,
+          *a_bcoeff[lev], addTurbContrib);
+        auto& bcoeff_ec = bcoeff_lev[lev];
         if (mesh_mapping) {
           // bcoeff_i -> (J/fac_i^2) . bcoeff on face i
           for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -450,6 +459,58 @@ DiffusionOp::diffuse_scalar(
     mlmg.setPostSmooth(m_num_post_smooth);
 
     // Solve
+#ifdef AMREX_USE_HYPRE
+    if (m_use_mlhypre) {
+      // Composite (all AMR levels) solve with hypre, one component at a time
+      amrex::Vector<amrex::MultiFab> ones;
+      amrex::Vector<amrex::MultiFab const*> acoefs(finest_level + 1);
+      amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> bcoefs(
+        finest_level + 1);
+      amrex::Vector<amrex::MultiFab> rhs0; // rhs without ghost cells
+      if (!mesh_mapping && have_acoeff == 0) {
+        ones.resize(finest_level + 1);
+      }
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        if (mesh_mapping) {
+          acoefs[lev] = &acoeff_scaled[lev];
+        } else if (have_acoeff != 0) {
+          acoefs[lev] = a_acoeff[lev];
+        } else {
+          ones[lev].define(
+            phi[lev].boxArray(), phi[lev].DistributionMap(), 1, 0);
+          ones[lev].setVal(1.0);
+          acoefs[lev] = &ones[lev];
+        }
+        if (have_bcoeff == 0) {
+          for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+            bcoeff_lev[lev][idim].define(
+              amrex::convert(
+                phi[lev].boxArray(), amrex::IntVect::TheDimensionVector(idim)),
+              phi[lev].DistributionMap(), 1, 0);
+            bcoeff_lev[lev][idim].setVal(1.0);
+          }
+        }
+        bcoefs[lev] = GetArrOfConstPtrs(bcoeff_lev[lev]);
+        rhs0.emplace_back(
+          rhs[lev].boxArray(), rhs[lev].DistributionMap(), 1, 0);
+        amrex::MultiFab::Copy(rhs0.back(), rhs[lev], 0, 0, 1, 0);
+      }
+      amrex::HypreMLABecLap hmlabeclap(
+        m_pelelm->Geom(0, finest_level), m_pelelm->boxArray(0, finest_level),
+        m_pelelm->DistributionMap(0, finest_level),
+        amrex::HypreSolverID::BoomerAMG, m_mlhypre_prefix);
+      hmlabeclap.setVerbose(m_mg_verbose);
+      hmlabeclap.setMaxIter(max_iter);
+      hmlabeclap.setup(
+        alpha, beta, acoefs, bcoefs,
+        m_pelelm->getDiffusionLinOpBC(amrex::Orientation::low, a_bcrec[comp]),
+        m_pelelm->getDiffusionLinOpBC(amrex::Orientation::high, a_bcrec[comp]),
+        GetVecOfConstPtrs(boundary));
+      hmlabeclap.solve(
+        GetVecOfPtrs(component), GetVecOfConstPtrs(rhs0), m_mg_rtol, 0.0);
+      mlmg.prepareForFluxes(GetVecOfConstPtrs(component));
+    } else
+#endif
     if (m_use_gmres) {
       // GMRES preconditioned by MLMG, e.g. for stretched meshes with AMR
       amrex::GMRESMLMG gmsolver(mlmg);
@@ -506,7 +567,7 @@ DiffusionOp::diffuse_scalar(
         mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
       }
 #else
-      if (m_use_gmres) {
+      if (m_use_gmres || m_use_mlhypre) {
         mlmg.getFluxes(
           fluxes, GetVecOfPtrs(component), amrex::MLMG::Location::FaceCenter);
       } else {
@@ -1400,6 +1461,26 @@ DiffusionOp::readParameters()
   pp.query("mg_max_coarsening_level", m_mg_max_coarsening_level);
   pp.query("max_order", m_mg_maxorder);
   pp.query("use_gmres", m_use_gmres);
+  pp.query("use_mlhypre", m_use_mlhypre);
+  pp.query("mlhypre_prefix", m_mlhypre_prefix);
+#ifndef AMREX_USE_HYPRE
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    !m_use_mlhypre, "diffusion.use_mlhypre requires hypre");
+#endif
+#ifdef AMREX_USE_EB
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    !m_use_mlhypre, "diffusion.use_mlhypre is not supported with EB");
+#endif
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    !(m_use_mlhypre && m_use_gmres),
+    "diffusion.use_mlhypre and diffusion.use_gmres are exclusive");
+  if (m_use_mlhypre && m_mg_maxorder > 3) {
+    // HypreMLABecLap uses order-3 boundary stencils; the MLMG operators
+    // used for the fluxes and the deltaT residuals must match
+    amrex::Print() << "diffusion: max_order lowered from " << m_mg_maxorder
+                   << " to 3 for diffusion.use_mlhypre\n";
+    m_mg_maxorder = 3;
+  }
   pp.query("gmres_precond_iters", m_gmres_precond_iters);
   if (
     !m_mg_bottom_solver.empty() && parseBottomSolver(m_mg_bottom_solver,
