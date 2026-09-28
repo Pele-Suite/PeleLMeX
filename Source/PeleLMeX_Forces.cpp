@@ -1,5 +1,8 @@
 #include <PeleLMeX.H>
 #include <PeleLMeX_K.H>
+#include <PelePhysics.H>
+
+namespace c2m = pele::physics::utilities::cgs2mks;
 
 // Return velocity forces scaled by rhoInv
 // including grapP term if add_gradP = 1
@@ -212,15 +215,15 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
             +(j - spark_idx[1]) * (j - spark_idx[1]) * dx[1] * dx[1],
             +(k - spark_idx[2]) * (k - spark_idx[2]) * dx[2] * dx[2]));
           if (dist_to_center < spark_radius) {
-            amrex::Real rhoh_src_loc = 0;
             const amrex::Real rho = statema[box_no](i, j, k, DENSITY);
             amrex::Real Y[NUM_SPECIES];
             for (int ns = 0; ns < NUM_SPECIES; ++ns) {
               Y[ns] = statema[box_no](i, j, k, FIRSTSPEC + ns) / rho;
             }
-            eos.TY2H(spark_temp, Y, rhoh_src_loc);
-            rhoh_src_loc *= rho * 1e-4 / spark_duration;
-            extma[box_no](i, j, k, RHOH) = rhoh_src_loc;
+            amrex::Real h_cgs = 0.0;
+            eos.TY2H(spark_temp, Y, h_cgs);
+            extma[box_no](i, j, k, RHOH) +=
+              rho * c2m::H(h_cgs) / spark_duration;
           }
         });
     }
