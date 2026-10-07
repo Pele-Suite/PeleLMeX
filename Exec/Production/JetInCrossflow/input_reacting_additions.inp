@@ -1,0 +1,4 @@
+peleLM.chem_integrator = "ReactorCvode"
+ode.rtol = 1.0e-8
+ode.atol = 1.0e-7
+peleLM.base_output_prefix = output_reacting/
