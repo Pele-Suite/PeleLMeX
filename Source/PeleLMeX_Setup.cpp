@@ -867,6 +867,13 @@ PeleLM::readParameters()
   ppmacproj.query("atol", m_mac_mg_atol);
   ppmacproj.query("rtol", m_mac_mg_rtol);
   ppmacproj.query("hypre_namespace", m_hypre_namespace_mac);
+  // Hydro's composite hypre solve (mac_proj.use_mlhypre) uses order-3
+  // boundary stencils; the MLMG fluxes must match
+  int mac_use_mlhypre = 0;
+  ppmacproj.query("use_mlhypre", mac_use_mlhypre);
+  if (mac_use_mlhypre != 0) {
+    m_mac_max_order = amrex::min(m_mac_max_order, 3);
+  }
   ppmacproj.query("mlmg_fail_sdc_miniter", m_mac_mg_fail_sdc_miniter);
   ppmacproj.query(
     "mlmg_fail_maxiter_after_sdc_miniter",

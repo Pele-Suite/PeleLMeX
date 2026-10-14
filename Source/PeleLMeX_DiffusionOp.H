@@ -126,6 +126,8 @@ public:
     const int ncomp) const;
 
   void readParameters();
+  // hypre, PETSc or AlgMG solves (bottom, level 0 or composite)
+  [[nodiscard]] bool useMatrixSolver() const;
 
   // Data and parameters
   PeleLM* m_pelelm;
@@ -152,8 +154,8 @@ public:
 
   int m_ncomp = 1;
 
-  // Components per linear solve: m_ncomp, or 1 when the bottom solver
-  // (hypre) only handles single-component systems
+  // Components per linear solve: m_ncomp, or 1 for the matrix-based solvers
+  // (see useMatrixSolver), which handle single-component systems only
   int m_ncomp_solve = 1;
 
   // Options to control MLMG behavior
@@ -173,6 +175,7 @@ public:
 
   // Empty: keep the operator's default bottom solver
   std::string m_mg_bottom_solver;
+  amrex::MultigridType m_mg_type = amrex::MultigridType::geometric;
   amrex::Real m_mg_bottom_rtol = -1.0;
   std::string m_hypre_namespace = "diffusion_hypre";
 
