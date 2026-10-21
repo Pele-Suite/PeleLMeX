@@ -187,8 +187,10 @@ public:
   // component at a time; options under m_mlhypre_prefix
   bool m_use_mlhypre = false;
   std::string m_mlhypre_prefix = "diffusion_mlhypre";
-  // Reuse the hypre solver setup across the components of a solve call
-  bool m_mlhypre_reuse_setup = true;
+  // Reuse of the hypre solver setup. 0: no reuse, 1: within a solve call, 2:
+  // across calls (AMReX redoes the setup when a solve with the reused setup
+  // does not converge)
+  int m_mlhypre_reuse_setup = 1;
 #ifdef AMREX_USE_HYPRE
   // Kept across calls; rebuilt when the grids change
   std::unique_ptr<amrex::HypreMLABecLap> m_hmlabeclap;

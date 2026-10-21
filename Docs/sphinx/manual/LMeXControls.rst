@@ -676,7 +676,7 @@ Linear solvers are a key component of PeleLMeX algorithm, separate controls are 
     diffusion.gmres_precond_iters = 1         # [OPT, DEF=1] MLMG cycles per GMRES iteration
     diffusion.use_mlhypre = 0                 # [OPT, DEF=0] Composite (all AMR levels) solve with AMReX's HypreMLABecLap
     diffusion.mlhypre_prefix = diff_mlhypre   # [OPT, DEF=diffusion_mlhypre] ParmParse prefix of the HypreMLABecLap options
-    diffusion.mlhypre_reuse_setup = 1         # [OPT, DEF=1] Reuse the solver setup across the components of a solve
+    diffusion.mlhypre_reuse_setup = 1         # [OPT, DEF=1] Reuse the solver setup: 0 never, 1 across the components of a solve, 2 also across solves
 
     tensor_diffusion.verbose = 1              # [OPT, DEF=0] Verbose of the velocity tensor diffusion solve
     tensor_diffusion.rtol = 1.0e-11           # [OPT, DEF=1e-11] Relative tolerance of the velocity tensor diffusion solve

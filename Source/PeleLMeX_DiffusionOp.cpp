@@ -519,10 +519,10 @@ DiffusionOp::diffuse_scalar(
         m_hmlabeclap_dmaps = dmaps;
       }
       m_hmlabeclap->setMaxIter(max_iter);
-      // Update the matrix values in place and keep the solver setup of the
-      // first component; redo the setup once per call
-      m_hmlabeclap->setReuseSolverSetup(m_mlhypre_reuse_setup);
-      if (comp == 0) {
+      // Update the matrix values in place and keep the solver setup, which
+      // is redone for the first component of each call (reuse level 1)
+      m_hmlabeclap->setReuseSolverSetup(m_mlhypre_reuse_setup > 0);
+      if (comp == 0 && m_mlhypre_reuse_setup < 2) {
         m_hmlabeclap->resetSolverSetup();
       }
       m_hmlabeclap->setup(
