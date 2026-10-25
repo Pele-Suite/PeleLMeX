@@ -1,0 +1,5 @@
+FILE = input.3d
+FILE = input_turbinflow_additions.inp
+FILE = input_reacting_additions.inp
+FILE = input_les_additions.inp
+peleLM.base_output_prefix = output_all/
