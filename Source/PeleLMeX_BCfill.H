@@ -129,8 +129,7 @@ struct PeleLMCCFillExtDirState
   // face. sgn = +1 is the low side, -1 the high side. bcnormal returns
   // every state component at once, so it is called once per face and its
   // result is copied into each component that has an ext_dir BC there.
-  AMREX_GPU_DEVICE
-  void fillFace(
+  AMREX_GPU_DEVICE AMREX_FORCE_INLINE void fillFace(
     const amrex::IntVect& iv,
     const amrex::IntVectND<3>& iv_3d,
     amrex::Array4<amrex::Real> const& state,
