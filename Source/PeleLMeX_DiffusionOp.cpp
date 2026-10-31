@@ -472,9 +472,15 @@ DiffusionOp::diffuse_scalar(
     mlmg.setPreSmooth(m_num_pre_smooth);
     mlmg.setPostSmooth(m_num_post_smooth);
 
+    // The composite solve is for the diffusion (Helmholtz) solves; Poisson
+    // solves (alpha = 0, e.g. the plasma electric field, which can be
+    // singular and have beta < 0) stay with MLMG
+    const bool use_composite = m_use_mlhypre && (isPoissonSolve == 0);
+    amrex::ignore_unused(use_composite); // EB builds without hypre
+
     // Solve
 #ifdef AMREX_USE_HYPRE
-    if (m_use_mlhypre) {
+    if (use_composite) {
       // Composite (all AMR levels) solve with hypre, one component at a time
       amrex::Vector<amrex::MultiFab> ones;
       amrex::Vector<amrex::MultiFab const*> acoefs(finest_level + 1);
@@ -611,7 +617,7 @@ DiffusionOp::diffuse_scalar(
         mlmg.getFluxes(fluxes, amrex::MLMG::Location::FaceCentroid);
       }
 #else
-      if (m_use_gmres || m_use_mlhypre) {
+      if (m_use_gmres || use_composite) {
         mlmg.getFluxes(
           fluxes, GetVecOfPtrs(component), amrex::MLMG::Location::FaceCenter);
       } else {
