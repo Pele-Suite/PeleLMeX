@@ -745,7 +745,8 @@ The composite solvers solve all AMR levels as one system:
   AMReX's ``HypreMLABecLap`` (not with EB).  It requires the IJ mode, selected
   with a ``hypre_solver`` key (e.g. ``FlexGMRES`` with ``BoomerAMG``) or
   ``backend = algmg`` under ``diffusion.mlhypre_prefix``.  It uses order-3
-  boundary stencils, so ``diffusion.max_order`` is lowered to 3.
+  boundary stencils, so ``diffusion.max_order`` is lowered to 3, and it
+  converges to ``diffusion.rtol`` only (``diffusion.atol`` is not used).
 * ``mac_proj.use_mlhypre = 1`` and ``nodal_proj.use_mlhypre = 1`` do the same
   for the projections (see the AMReX-Hydro documentation); the MAC
   projection then uses order-3 boundary stencils.

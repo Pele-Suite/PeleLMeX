@@ -38,14 +38,18 @@ parseBottomSolver(const std::string& name, const std::string& prefix)
 #ifdef AMREX_USE_HYPRE
     return BS::hypre;
 #else
-    amrex::Abort(prefix + ".bottom_solver = hypre requires USE_HYPRE = TRUE");
+    amrex::Abort(
+      prefix + ".bottom_solver = hypre requires PeleLMeX built with hypre "
+               "(GNU make USE_HYPRE = TRUE, CMake PELE_ENABLE_HYPRE = ON)");
 #endif
   }
   if (name == "petsc") {
 #ifdef AMREX_USE_PETSC
     return BS::petsc;
 #else
-    amrex::Abort(prefix + ".bottom_solver = petsc requires USE_PETSC = TRUE");
+    amrex::Abort(
+      prefix + ".bottom_solver = petsc requires PeleLMeX built with PETSc "
+               "(GNU make USE_PETSC = TRUE)");
 #endif
   }
   if (name == "algmg") {
@@ -54,7 +58,7 @@ parseBottomSolver(const std::string& name, const std::string& prefix)
   amrex::Abort(
     prefix + ".bottom_solver: unknown value '" + name +
     "' (smoother, bicgstab, cg, bicgcg, cgbicg, hypre, petsc, algmg)");
-  return BS::Default;
+  return BS::Default; // not reached; amrex::Abort is not [[noreturn]]
 }
 
 // Bottom solvers that assemble a matrix: single-component systems only
@@ -532,6 +536,8 @@ DiffusionOp::diffuse_scalar(
         GetVecOfConstPtrs(boundary));
       m_hmlabeclap->setThrowException(true);
       try {
+        // HypreMLABecLap takes a relative tolerance only (its absolute
+        // tolerance must be 0), so diffusion.atol does not apply here
         m_hmlabeclap->solve(
           GetVecOfPtrs(component), GetVecOfConstPtrs(rhs0), m_mg_rtol, 0.0);
       } catch (const std::exception& e) {
