@@ -2,6 +2,9 @@
 #define DIFFUSION_OP_H
 
 #include <AMReX_MLMG.H>
+#ifdef AMREX_USE_HYPRE
+#include <AMReX_HypreMLABecLap.H>
+#endif
 #include <AMReX_BC_TYPES.H>
 
 #ifdef AMREX_USE_EB
@@ -123,6 +126,8 @@ public:
     const int ncomp) const;
 
   void readParameters();
+  // hypre, PETSc or AlgMG solves (bottom, level 0 or composite)
+  [[nodiscard]] bool useMatrixSolver() const;
 
   // Data and parameters
   PeleLM* m_pelelm;
@@ -149,6 +154,10 @@ public:
 
   int m_ncomp = 1;
 
+  // Components per linear solve: m_ncomp, or 1 for the matrix-based solvers
+  // (see useMatrixSolver), which handle single-component systems only
+  int m_ncomp_solve = 1;
+
   // Options to control MLMG behavior
   int m_mg_verbose = 0;
   int m_mg_bottom_verbose = 0;
@@ -164,7 +173,30 @@ public:
   amrex::Real m_mg_rtol = 1.0e-11;
   amrex::Real m_mg_atol = 1.0e-14;
 
-  std::string m_mg_bottom_solver = "bicgstab";
+  // Empty: keep the operator's default bottom solver
+  std::string m_mg_bottom_solver;
+  amrex::MultigridType m_mg_type = amrex::MultigridType::geometric;
+  amrex::Real m_mg_bottom_rtol = -1.0;
+  std::string m_hypre_namespace = "diffusion_hypre";
+
+  // Solve with GMRES preconditioned by MLMG instead of MLMG alone
+  bool m_use_gmres = false;
+  int m_gmres_precond_iters = 1;
+
+  // Composite (all AMR levels) solve with hypre (HypreMLABecLap), one
+  // component at a time; options under m_mlhypre_prefix
+  bool m_use_mlhypre = false;
+  std::string m_mlhypre_prefix = "diffusion_mlhypre";
+  // Reuse of the hypre solver setup. 0: no reuse, 1: within a solve call, 2:
+  // across calls (AMReX redoes the setup when a solve with the reused setup
+  // does not converge)
+  int m_mlhypre_reuse_setup = 1;
+#ifdef AMREX_USE_HYPRE
+  // Kept across calls; rebuilt when the grids change
+  std::unique_ptr<amrex::HypreMLABecLap> m_hmlabeclap;
+  amrex::Vector<amrex::BoxArray> m_hmlabeclap_grids;
+  amrex::Vector<amrex::DistributionMapping> m_hmlabeclap_dmaps;
+#endif
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;
@@ -229,7 +261,13 @@ private:
   amrex::Real m_mg_rtol = 1.0e-11;
   amrex::Real m_mg_atol = 1.0e-14;
 
-  std::string m_mg_bottom_solver = "bicgstab";
+  // Empty: keep the operator's default bottom solver
+  std::string m_mg_bottom_solver;
+
+  // Solve with GMRES preconditioned by MLMG instead of MLMG alone
+  bool m_use_gmres = false;
+  int m_gmres_precond_iters = 1;
+  int m_gmres_restart = -1; // <= 0: GMRES default
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;

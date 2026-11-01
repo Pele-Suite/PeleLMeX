@@ -427,7 +427,7 @@ PeleLM::macProject(
   if (!m_mlmg_fail_plt_residuals) {
     macproj->project(m_mac_mg_rtol, m_mac_mg_atol);
   } else {
-    macproj->getMLMG().setThrowException(true);
+    macproj->setThrowException(true);
     macproj->getMLMG().setConvergenceNormType(amrex::MLMGNormType::bnorm);
 
     // Maximum MLMG iterations may change for debugging purposes

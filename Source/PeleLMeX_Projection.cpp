@@ -830,7 +830,7 @@ PeleLM::doNodalProject(
   if (!m_mlmg_fail_plt_residuals) {
     nodal_projector->project(m_nodal_mg_rtol, m_nodal_mg_atol);
   } else {
-    nodal_projector->getMLMG().setThrowException(true);
+    nodal_projector->setThrowException(true);
     nodal_projector->getMLMG().setConvergenceNormType(
       amrex::MLMGNormType::bnorm);
     try {
