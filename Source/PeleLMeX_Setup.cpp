@@ -798,10 +798,17 @@ PeleLM::readParameters()
   parseUserKey(pp, "load_balancing_cost_estimate", lbcost, m_loadBalanceCost);
   pp.query(
     "load_balancing_efficiency_threshold", m_loadBalanceEffRatioThreshold);
-  parseUserKey(
-    pp, "chem_load_balancing_method", lbmethod, m_loadBalanceMethodChem);
-  parseUserKey(
-    pp, "chem_load_balancing_cost_estimate", lbcost, m_loadBalanceCostChem);
+  // The chemistry keys share the flow keys' tables, whose "default" entries
+  // are the flow defaults (sfc, ncell). Parse them only when given, so that
+  // the chemistry defaults set in PeleLMeX.H apply otherwise.
+  if (pp.contains("chem_load_balancing_method")) {
+    parseUserKey(
+      pp, "chem_load_balancing_method", lbmethod, m_loadBalanceMethodChem);
+  }
+  if (pp.contains("chem_load_balancing_cost_estimate")) {
+    parseUserKey(
+      pp, "chem_load_balancing_cost_estimate", lbcost, m_loadBalanceCostChem);
+  }
 
   // Deactivate load balancing for serial runs
 #ifdef AMREX_USE_MPI
