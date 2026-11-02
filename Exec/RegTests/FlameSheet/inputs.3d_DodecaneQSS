@@ -60,6 +60,10 @@ cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton dire
 # with PELE_CVODE_FORCE_YCORDER=TRUE and use cvode.solve_type = sparse_direct;
 # ode.atol = 1.0e-4 there cuts the step cost by a fifth.
 cvode.max_order  = 4                  # CVODE max BDF order. 
+# Chemistry box size (default: the flow boxes). CPU with many MPI ranks: 8
+# spreads the flame chemistry over more ranks (63 ranks with flow boxes of 16:
+# -2% per step). On GPU with sparse_direct, 32 made no difference.
+#peleLM.max_grid_size_chem = 8     # CPU
 
 #--------------------REFINEMENT CONTROL------------------------
 #amr.refinement_indicators = temp
