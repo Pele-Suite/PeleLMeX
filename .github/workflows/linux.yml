@@ -15,7 +15,7 @@ jobs:
   # Build and Run the EB_FlowPastCylinder RegTest with GNU9.3 and MPI support
   #FPC2D:
   #  name: GNU@9.3 MPI Run [FPC2DDBG]
-  #  runs-on: ubuntu-latest
+  #  runs-on: ubuntu-24.04
   #  env:
   #    {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
   #  steps:
@@ -58,7 +58,7 @@ jobs:
   # Build and Run the EB_PipeFlow RegTest with GNU9.3 and MPI support
   EBPF3D:
     name: GNU@9.3 MPI Run [EBPF3D]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -80,7 +80,7 @@ jobs:
   # Build and Run the SootRadTest RegTest with GNU9.3 and MPI support
   SOOTRAD:
     name: GNU@9.3 MPI Run [SootRadTest]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -112,7 +112,7 @@ jobs:
   # Build and Run the EB_BackwardStepFlame RegTest with GNU9.3 and MPI support
   EBBFS:
     name: GNU@9.3 MPI Run [EBBFS]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -134,7 +134,7 @@ jobs:
   # Build and Run the Plasma flamesheet with GNU9.3 and MPI support
   PLASMA:
     name: GNU@9.3 MPI Run [PLASMA]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -156,7 +156,7 @@ jobs:
   # Build and Run the TurbInflow RegTest in DEBUG with GNU9.3 and MPI support
   TI3D:
     name: GNU@9.3 MPI Run [TI3DDBG]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -256,7 +256,7 @@ jobs:
   # Build and Run the SprayTest RegTest with GNU9.3 and MPI support
   SPRAY:
     name: GNU@9.3 MPI Run [SPRAY]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"
       CMLM_VERSION: 0.0.1
