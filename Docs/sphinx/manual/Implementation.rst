@@ -162,6 +162,10 @@ Two `boxArray` and associated `DMap` are thus available in *PeleLMeX*:
    on the total number of chemistry RHS calls in the box. The size of the `boxes` in the chemistry `boxArray` (accessible with ``m_baChem[lev]``)
    is controlled by the `peleLM.max_grid_size_chem` in the input file. Once again, advanced users can try alternate approaches to load
    balancing the chemistry `DMap` using the keys described in :doc:`LMeXControls`.
+   On the finest level, where nothing is covered, the chemistry uses the `AmrCore` `boxArray` and `DMap` unless
+   `peleLM.max_grid_size_chem` is set, and only then is its `DMap` load balanced separately. On CPUs with many MPI ranks,
+   chemistry boxes smaller than the flow boxes help the balancing: for a 3D n-dodecane flame sheet on 63 ranks with 16^3 flow
+   boxes, `peleLM.max_grid_size_chem = 8` with `peleLM.do_load_balancing = 1` reduced the time step cost by 15%.
 
 After each regrid operation, even if the grids did not actually change, *PeleLMeX* will try to find a better load balancing for the
 `AmrCore` `DMap`. Because changing the load balancing requires copying data across MPI ranks, we only want to change the `DMap`
