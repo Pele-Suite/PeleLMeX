@@ -13,7 +13,7 @@ jobs:
   # Build the RegTests/UnitTest testing any updates in the Submodules
   UT_FS:
     name: UnitTest_FS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
       with:
