@@ -892,6 +892,38 @@ PeleLM::fillpatch_forces(
   }
 }
 
+// Ghost cells of a divergence-like field held outside leveldata (the
+// closed-chamber adjusted mac_divu): fillBoundary, C/F interpolation and
+// the divu domain BCs, all from the valid cells of a_divu itself.
+void
+PeleLM::fillpatch_divu_ghosts(
+  amrex::Vector<amrex::MultiFab*> const& a_divu, const int nGhost)
+{
+  const amrex::Real dummy_time = 0.0;
+  int lev = 0;
+  {
+    amrex::PhysBCFunct<amrex::GpuBndryFuncFab<PeleLMCCFillExtDirDummy>>
+      bndry_func(geom[lev], {m_bcrec_divu}, PeleLMCCFillExtDirDummy{m_nAux});
+    FillPatchSingleLevel(
+      *a_divu[lev], amrex::IntVect(nGhost), dummy_time, {a_divu[lev]},
+      {dummy_time}, 0, 0, 1, geom[lev], bndry_func, 0);
+  }
+  for (lev = 1; lev <= finest_level; ++lev) {
+    auto* mapper = getInterpolator();
+    amrex::PhysBCFunct<amrex::GpuBndryFuncFab<PeleLMCCFillExtDirDummy>>
+      crse_bndry_func(
+        geom[lev - 1], {m_bcrec_divu}, PeleLMCCFillExtDirDummy{m_nAux});
+    amrex::PhysBCFunct<amrex::GpuBndryFuncFab<PeleLMCCFillExtDirDummy>>
+      fine_bndry_func(
+        geom[lev], {m_bcrec_divu}, PeleLMCCFillExtDirDummy{m_nAux});
+    FillPatchTwoLevels(
+      *a_divu[lev], amrex::IntVect(nGhost), dummy_time, {a_divu[lev - 1]},
+      {dummy_time}, {a_divu[lev]}, {dummy_time}, 0, 0, 1, geom[lev - 1],
+      geom[lev], crse_bndry_func, 0, fine_bndry_func, 0, refRatio(lev - 1),
+      mapper, {m_bcrec_divu}, 0);
+  }
+}
+
 // Fill the gradp
 void
 PeleLM::fillpatch_gradp(

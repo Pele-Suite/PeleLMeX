@@ -310,10 +310,10 @@ PeleLM::macProject(
     }
   }
 
-  // For closed chamber, compute change in chamber pressure
-  amrex::Real Sbar = 0.0;
+  // For closed chamber, compute change in chamber pressure and turn
+  // a_divu (= advData->mac_divu) into S - theta dp0/dt, which it keeps.
   if ((m_closed_chamber != 0) && (m_incompressible == 0)) {
-    Sbar = adjustPandDivU(advData);
+    adjustPandDivU(advData);
   }
 
   //-------------------------------------------------------------------
@@ -459,13 +459,6 @@ PeleLM::macProject(
       WriteMLMGResidual(mlmg, phi_ptrs, rhs_ptrs, "mac_projection", m_nstep);
 
       amrex::Abort("MLMG solve for mac_projection failed");
-    }
-  }
-
-  // Restore mac_divu
-  if ((m_closed_chamber != 0) && (m_incompressible == 0)) {
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      a_divu[lev]->plus(Sbar, 0, 1);
     }
   }
 

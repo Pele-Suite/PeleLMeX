@@ -279,7 +279,7 @@ PeleLM::calc_dPdt(
   amrex::Gpu::streamSynchronize();
 }
 
-amrex::Real
+void
 PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
 {
   BL_PROFILE("PeleLMeX::adjustPandDivU()");
@@ -395,6 +395,9 @@ PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
                    << ", mass new: " << m_massNew << "\n";
   }
 
-  // Return Sbar so that we'll add it back to mac_divu after the MAC projection
-  return Sbar;
+  // mac_divu now holds S - theta dp0/dt in the valid cells, and stays that
+  // way: the MAC projection enforces it and the Godunov prediction of the
+  // scalars reads it (including its first ghost layer), so the two must
+  // agree.  Refill the ghost cells from the adjusted valid cells.
+  fillpatch_divu_ghosts(GetVecOfPtrs(advData->mac_divu), m_nGrowAdv);
 }

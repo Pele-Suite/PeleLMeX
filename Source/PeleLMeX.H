@@ -1043,11 +1043,12 @@ public:
 
   /**
    * \brief For the closed chamber algorithm, compute averaged
-   * mac_divU and theta, update divU and the spatially averaged
-   * thermodynamic pressure. Return the mean divU.
+   * mac_divU and theta, advance the spatially averaged thermodynamic
+   * pressure, and turn mac_divu into S - theta dp0/dt (ghost cells too),
+   * which the MAC projection and the scalar prediction then both use.
    * \param advData container including mac_divu
    */
-  amrex::Real adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData);
+  void adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData);
   //-----------------------------------------------------------------------------
 
   //-----------------------------------------------------------------------------
@@ -1202,6 +1203,10 @@ public:
     const amrex::Real a_time,
     amrex::Vector<amrex::MultiFab*> const& a_force,
     const int nGrowForce);
+  //! Ghost cells only of a divergence-like vector of MultiFabs: periodic
+  //! and coarse/fine fill from the vector itself, divu BCs at domain faces.
+  void fillpatch_divu_ghosts(
+    amrex::Vector<amrex::MultiFab*> const& a_divu, const int nGhost);
   void fillpatch_chemFunctCall(
     const int lev,
     const amrex::Real a_time,
