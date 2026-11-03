@@ -69,11 +69,14 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
     // Get divU
     amrex::MultiFab divu(
       grids[lev], dmap[lev], 1, m_nGrowdivu, amrex::MFInfo(), Factory(lev));
+    // The face velocity satisfies div(umac) = mac_divu (S at t^{n+1/2},
+    // less theta dp0/dt in a closed chamber), so the prediction's divu is
+    // taken from it rather than from the old-time S, which differs by the
+    // time centering and, in a closed chamber, by theta dp0/dt.
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
 
     // Under mesh mapping the extrapolation is done in Xi with the
@@ -83,7 +86,7 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
     const auto umacE = getExtrapUmac(lev, advData, umac_xi);
     if (m_debug_divu_mismatch != 0) {
       checkMACDivuMismatch(
-        lev, "velocity prediction, old-time S, umac as given", divu, umacE);
+        lev, "velocity prediction, mac_divu vs umac", divu, umacE);
     }
 
     //----------------------------------------------------------------
@@ -166,11 +169,12 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
 
     amrex::MultiFab divu(
       grids[lev], dmap[lev], 1, m_nGrowdivu, amrex::MFInfo(), Factory(lev));
+    // Convective form: u.grad(u) = div(umac u) - u div(umac).  The identity
+    // needs the divergence umac actually satisfies, which is mac_divu.
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
     if (m_mesh_mapping) {
       amrex::MultiFab::Multiply(
