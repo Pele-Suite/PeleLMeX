@@ -244,6 +244,82 @@ jobs:
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference
         run : |
           ctest ${{matrix.ctest_args}} -VV --output-on-failure
+  CPU-CMake-Hypre:
+    # AMReX's composite (all AMR levels) hypre/AlgMG solvers: PeleLMeX built
+    # with hypre, running the regression tests that need it
+    needs: Formatting
+    runs-on: ubuntu-24.04
+    env:
+      HYPRE_VERSION: 2.32.0
+    steps:
+      - name: Clone
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Setup
+        run: |
+          echo "NPROCS=$(nproc)" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
+          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
+          echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
+          echo "HYPRE_INSTALL=${{runner.workspace}}/hypre-install-${HYPRE_VERSION}" >> $GITHUB_ENV
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenmpi-dev openmpi-bin
+      - name: Install Ccache
+        run: |
+          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
+          tar xvf ccache-4.8-linux-x86_64.tar.xz
+          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
+      - name: Set Up Ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          restore-keys: |
+               ccache-${{github.workflow}}-${{github.job}}-git-
+      - name: Cache Hypre
+        id: cache-hypre
+        uses: actions/cache@v5
+        with:
+          path: ${{env.HYPRE_INSTALL}}
+          key: hypre-${{env.HYPRE_VERSION}}-${{runner.os}}-openmpi
+      - name: Build Hypre
+        if: steps.cache-hypre.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/hypre-space/hypre/archive/refs/tags/v${HYPRE_VERSION}.tar.gz
+          tar xfz v${HYPRE_VERSION}.tar.gz
+          cd hypre-${HYPRE_VERSION}/src
+          # hypre's C sources typedef bool: keep C17 for compilers defaulting to C23
+          ./configure --prefix=${HYPRE_INSTALL} --with-cxxstandard=17 CFLAGS="-O2 -std=gnu17"
+          make -j ${{env.NPROCS}}
+          make install
+      - name: Configure
+        run: |
+          cmake -B${{runner.workspace}}/build-hypre \
+          -DCMAKE_BUILD_TYPE:STRING=Release \
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+          -DPELE_DIM:STRING=2 \
+          -DPELE_ENABLE_MPI:BOOL=ON \
+          -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
+          -DPELE_ENABLE_HYPRE:BOOL=ON \
+          -DHYPRE_ROOT:PATH=${HYPRE_INSTALL} \
+          -DCMAKE_PREFIX_PATH:PATH=${HYPRE_INSTALL} \
+          -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
+          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
+          ${{github.workspace}}
+      - name: Build
+        run: |
+          ccache -z
+          cmake --build ${{runner.workspace}}/build-hypre --target PeleLMeX-FlameSheet \
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+          ccache -s
+      - name: Test
+        run: |
+          cd ${{runner.workspace}}/build-hypre
+          ctest -R flamesheet-composite -VV --output-on-failure
   CPU-CMake-SINGLE:
     needs: Formatting
     runs-on: ubuntu-24.04

@@ -1,0 +1,84 @@
+# FlameSheet (drm19) with AMR on a mesh stretched in y (TanhStretchMap,
+# beta = 2.5), where MLMG fails for the projections and scalar diffusion.
+# All three use AMReX's composite (all AMR levels) solvers instead: the MAC
+# projection and scalar diffusion HypreMLABecLap with hypre (FlexGMRES +
+# BoomerAMG), the nodal projection HypreMLNodeLap with AMReX's AlgMG.
+# Requires PeleLMeX built with hypre (PELE_ENABLE_HYPRE / USE_HYPRE).
+#---------------------- DOMAIN DEFINITION ------------------------
+geometry.is_periodic = 1 0                # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 0.0            # x_lo y_lo
+geometry.prob_hi     = 0.008 0.032        # x_hi y_hi
+#---------------------- BC FLAGS ---------------------------------
+peleLM.lo_bc = Interior Inflow            # bc in x_lo y_lo
+peleLM.hi_bc = Interior Outflow           # bc in x_hi y_hi
+#---------------------- AMR CONTROL ------------------------------
+amr.n_cell          = 16 64               # Level 0 number of cells in each direction
+amr.max_level       = 1                   # maximum level number allowed
+amr.ref_ratio       = 2                   # refinement ratio
+amr.regrid_int      = 5                   # how often to regrid
+amr.n_error_buf     = 1                   # number of buffer cells in error est
+amr.grid_eff        = 0.7                 # what constitutes an efficient grid
+amr.blocking_factor = 8                   # block factor in grid generation (min box size)
+amr.max_grid_size   = 256                 # max box size
+#---------------------- Mesh mapping -----------------------------
+geometry.mesh_mapping = TanhStretchMap
+TanhStretchMap.beta   = 0.0 2.5           # clustered at the ends of y
+#---------------------- Problem ----------------------------------
+prob.P_mean = 101325.0
+prob.standoff = -.023
+prob.pertmag = 0.00045
+prob.pertlength = 0.008
+pmf.datafile = "drm19_pmf.dat"
+#---------------------- PeleLMeX CONTROL -------------------------
+peleLM.v = 1                              # PeleLMeX verbose
+peleLM.use_wbar = 1                       # Include Wbar term in species diffusion fluxes
+peleLM.sdc_iterMax = 2                    # Number of SDC iterations
+peleLM.num_init_iter = 3                  # Number of initial iterations
+peleLM.do_temporals = 0                   # Turn temporals ON/OFF
+#---------------------- Time Stepping CONTROL --------------------
+amr.max_step = 20                         # Maximum number of time steps
+amr.cfl = 0.5                             # CFL number for hyperbolic system
+amr.dt_shrink = 0.001                     # Scale back initial timestep
+amr.dt_change_max = 1.1                   # Maximum dt increase btw successive steps
+#---------------------- IO CONTROL -------------------------------
+amr.plot_int = 100                        # Frequency of pltfile output
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+#---------------------- Reactor CONTROL --------------------------
+peleLM.chem_integrator = "ReactorCvode"
+peleLM.use_typ_vals_chem = 1              # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-6                         # Relative tolerance of the chemical solve
+ode.atol = 1.0e-5                         # Absolute tolerance factor applied on typical values
+cvode.solve_type = GMRES                  # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                      # CVODE max BDF order.
+#---------------------- Linear solver CONTROL --------------------
+mac_proj.verbose = 0
+nodal_proj.verbose = 0
+# MAC projection: composite hypre solve
+mac_proj.use_mlhypre                 = 1
+hypre_mlabeclap.hypre_solver         = FlexGMRES
+hypre_mlabeclap.hypre_preconditioner = BoomerAMG
+hypre_mlabeclap.num_krylov           = 50
+hypre_mlabeclap.bamg_coarsen_type    = 8
+hypre_mlabeclap.bamg_interp_type     = 6
+hypre_mlabeclap.bamg_relax_type      = 18
+hypre_mlabeclap.bamg_relax_order     = 0
+# Nodal projection: composite AlgMG solve
+nodal_proj.use_mlhypre               = 1
+hypre_mlnodelap.backend              = algmg
+# Scalar diffusion: composite hypre solve, setup reused across the species
+diffusion.use_mlhypre                  = 1
+diffusion_mlhypre.hypre_solver         = FlexGMRES
+diffusion_mlhypre.hypre_preconditioner = BoomerAMG
+diffusion_mlhypre.num_krylov           = 50
+diffusion_mlhypre.bamg_coarsen_type    = 8
+diffusion_mlhypre.bamg_interp_type     = 6
+diffusion_mlhypre.bamg_relax_type      = 18
+diffusion_mlhypre.bamg_relax_order     = 0
+# Velocity diffusion: GMRES preconditioned by MLMG
+tensor_diffusion.use_gmres = 1
+#---------------------- Refinement CONTROL------------------------
+amr.refinement_indicators = yH
+amr.yH.max_level     = 3
+amr.yH.value_greater = 1.0e-6
+amr.yH.field_name    = Y(H)

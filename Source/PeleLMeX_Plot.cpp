@@ -2092,8 +2092,10 @@ PeleLM::WriteMLMGResidual(
     }
   }
 
-  // Get state data
-  auto state_data = GetVecOfConstPtrs(getStateVect(PeleLM::AmrNewTime));
+  // Get state data. getStateVect returns the owning aliases by value: keep
+  // them alive while state_data is in use.
+  auto state_aliases = getStateVect(PeleLM::AmrNewTime);
+  auto state_data = GetVecOfConstPtrs(state_aliases);
   amrex::Vector<std::string> var_names;
   int ncomp_total = ncomp_residual;
   bool has_eb = false;
@@ -2118,7 +2120,9 @@ PeleLM::WriteMLMGResidual(
     var_names.push_back("volFrac");
   }
 
-  if (is_species) {
+  // One name per residual component: the variable count must match
+  // ncomp_total for the plotfile header.
+  if (is_species && ncomp_residual == NUM_SPECIES) {
     // Get species names
     amrex::Vector<std::string> spec_names;
     pele::physics::eos::speciesNames<pele::physics::PhysicsType::eos_type>(
@@ -2131,23 +2135,28 @@ PeleLM::WriteMLMGResidual(
     for (int n = 0; n < ncomp_residual; ++n) {
       var_names.push_back("mlmg_residual_" + std::to_string(n));
     }
-  } else if (is_proj) {
+  } else if (ncomp_residual == 1 && is_proj) {
     var_names.push_back("mlmg_residual_" + a_solver_name);
-  } else if (is_temp) {
+  } else if (ncomp_residual == 1 && is_temp) {
     var_names.push_back("mlmg_residual_temp");
   } else {
+    // A multi-component scalar solve that is not the full species set
     for (int n = 0; n < ncomp_residual; ++n) {
       var_names.push_back("mlmg_residual_comp_" + std::to_string(n));
     }
   }
+  AMREX_ALWAYS_ASSERT(static_cast<int>(var_names.size()) == ncomp_total);
 
   // Create combined MultiFabs with state + volFrac + residual
   amrex::Vector<amrex::MultiFab> combined_data(nlevs);
   amrex::Vector<const amrex::MultiFab*> combined_ptrs(nlevs);
 
   for (int lev = 0; lev < nlevs; ++lev) {
-    const auto& ba = a_sol[lev]->boxArray();
-    const auto& dm = a_sol[lev]->DistributionMap();
+    // Plot on the (cell-centered) state grids. The solution may be nodal
+    // (nodal projection), in which case the residual is averaged to cell
+    // centers below.
+    const auto& ba = state_data[lev]->boxArray();
+    const auto& dm = state_data[lev]->DistributionMap();
     combined_data[lev].define(ba, dm, ncomp_total, 0);
 
     int comp_offset = 0;
@@ -2167,8 +2176,20 @@ PeleLM::WriteMLMGResidual(
     }
 #endif
 
-    amrex::MultiFab::Copy(
-      combined_data[lev], residual[lev], 0, comp_offset, ncomp_residual, 0);
+    if (residual[lev].ixType().cellCentered()) {
+      combined_data[lev].ParallelCopy(
+        residual[lev], 0, comp_offset, ncomp_residual);
+    } else {
+      AMREX_ALWAYS_ASSERT(residual[lev].ixType().nodeCentered());
+      amrex::MultiFab residual_cc(
+        amrex::convert(
+          residual[lev].boxArray(), amrex::IntVect::TheZeroVector()),
+        residual[lev].DistributionMap(), ncomp_residual, 0);
+      amrex::average_node_to_cellcenter(
+        residual_cc, 0, residual[lev], 0, ncomp_residual);
+      combined_data[lev].ParallelCopy(
+        residual_cc, 0, comp_offset, ncomp_residual);
+    }
     combined_ptrs[lev] = &combined_data[lev];
   }
 

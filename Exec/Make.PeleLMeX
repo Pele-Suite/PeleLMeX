@@ -195,7 +195,7 @@ Blocs += $(foreach dir, $(Hdirs), $(AMREX_HYDRO_HOME)/$(dir))
 #---------------
 # AMReX sources
 #---------------
-Pdirs := Base Boundary AmrCore LinearSolvers/MLMG
+Pdirs := Base Boundary AmrCore LinearSolvers
 ifeq ($(USE_EB), TRUE)
     Pdirs += EB
 endif
