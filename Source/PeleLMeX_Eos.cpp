@@ -329,11 +329,42 @@ PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
     advData->mac_divu[lev].plus(-Sbar, 0, 1);
   }
 
-  // Compute 1/Volume * int(U_inflow)dA across all boundary faces
-  const amrex::Real umacFluxBalance = AMREX_D_TERM(
-    m_domainUmacFlux[0] + m_domainUmacFlux[1],
-    +m_domainUmacFlux[2] + m_domainUmacFlux[3],
-    +m_domainUmacFlux[4] + m_domainUmacFlux[5]);
+  // Net outward volume flux through the domain boundary, per unit volume,
+  // from the predicted face velocity (inflow faces carry their boundary
+  // values).  This has to be the flux the MAC projection will see: it was
+  // previously taken from m_domainUmacFlux, which is accumulated after the
+  // projection (so the first SDC iteration saw zero) with the opposite sign.
+  // Under mesh mapping the projector works with (J/fac).u on the uniform
+  // grid, so the flux is taken from that scaled velocity.
+  amrex::Real umacFluxBalance = 0.0;
+  if (m_mesh_mapping) {
+    amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> umac_xi(
+      finest_level + 1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        umac_xi[lev][idim].define(
+          advData->umac[lev][idim].boxArray(),
+          advData->umac[lev][idim].DistributionMap(), 1, 0, amrex::MFInfo(),
+          advData->umac[lev][idim].Factory());
+        const auto& fac_ma = m_mesh_map->fac_fc(lev, idim).const_arrays();
+        const auto& detJ_ma = m_mesh_map->detJ_fc(lev, idim).const_arrays();
+        const auto& umac_ma = advData->umac[lev][idim].const_arrays();
+        const auto& uxi_ma = umac_xi[lev][idim].arrays();
+        const int nc = idim;
+        amrex::ParallelFor(
+          umac_xi[lev][idim],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            uxi_ma[box_no](i, j, k) = umac_ma[box_no](i, j, k) *
+                                      detJ_ma[box_no](i, j, k) /
+                                      fac_ma[box_no](i, j, k, nc);
+          });
+      }
+    }
+    amrex::Gpu::streamSynchronize();
+    umacFluxBalance = domainFaceFlux(GetVecOfArrOfConstPtrs(umac_xi));
+  } else {
+    umacFluxBalance = domainFaceFlux(GetVecOfArrOfConstPtrs(advData->umac));
+  }
   const amrex::Real divu_vol = umacFluxBalance / m_uncoveredVol;
 
   // Advance the ambient pressure
@@ -359,7 +390,7 @@ PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
     amrex::Print() << " >> Closed chamber pOld: " << m_pOld
                    << ", pNew: " << m_pNew << ", dp0dt: " << m_dp0dt
                    << ", Sbar: " << Sbar << ", Thetabar: " << Thetabar
-                   << "\n";
+                   << ", divu_vol: " << divu_vol << "\n";
     amrex::Print() << " >> Total mass old: " << m_massOld
                    << ", mass new: " << m_massNew << "\n";
   }
