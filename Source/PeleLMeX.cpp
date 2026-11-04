@@ -21,7 +21,9 @@ PeleLM::~PeleLM()
   if (m_incompressible == 0) {
     trans_parms.deallocate();
     eos_parms.deallocate();
-    m_reactor->close();
+    if (m_reactor) {
+      m_reactor->close();
+    }
   }
 
   closeTempFile();
