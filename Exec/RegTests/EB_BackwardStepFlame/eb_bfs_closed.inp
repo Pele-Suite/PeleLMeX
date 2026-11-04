@@ -1,0 +1,120 @@
+#---------------------- DOMAIN DEFINITION ------------------------
+geometry.is_periodic = 0 0                  # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                    # 0 => cart, 1 => RZ
+geometry.prob_lo     = -0.01   -0.01        # x_lo y_lo (z_lo)
+geometry.prob_hi     =  0.07    0.01        # x_hi y_hi (z_hi)
+
+#---------------------- BC FLAGS ---------------------------------
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = NoSlipWallAdiab NoSlipWallAdiab      # bc in x_lo y_lo (z_lo)
+peleLM.hi_bc = NoSlipWallAdiab NoSlipWallAdiab      # bc in x_hi y_hi (z_hi)
+
+#---------------------- AMR CONTROL ------------------------------
+amr.n_cell          = 256 64                # Level 0 number of cells in each direction
+amr.v               = 1                     # AMR verbose
+amr.max_level       = 0                     # maximum level number allowed
+# amr.ref_ratio       = 2 2 2 2               # refinement ratio
+# amr.regrid_int      = 5                     # how often to regrid
+amr.n_error_buf     = 2 2 2 2               # number of buffer cells in error est
+amr.grid_eff        = 0.7                   # what constitutes an efficient grid
+amr.blocking_factor = 16                    # block factor in grid generation (min box size)
+amr.max_grid_size   = 64                    # max box size
+
+#---------------------- Problem ----------------------------------
+prob.T_mean = 298.0
+prob.P_mean = 101325.0
+prob.T_hot  = 2000
+prob.T_wall = 300
+prob.meanFlowMag = 10.0
+prob.Y_fuel = 0.0
+prob.Y_oxid = 0.23
+prob.EBinflow_Yfuel = 0.1
+peleLM.EBinflow = 1
+mac_proj.atol = 5e-11
+mac_proj.rtol = 5e-11
+mac_proj.verbose = 2
+#---------------------- PeleLM CONTROL ---------------------------
+peleLM.v = 3
+peleLM.use_wbar = 1                         # Include Wbar term in species diffusion fluxes
+peleLM.sdc_iterMax = 2                      # Number of SDC iterations
+peleLM.num_init_iter = 3                    # Number of initial iterations
+peleLM.floor_species = 0                    # Enforce species positivity (non-conservative !)
+peleLM.initDataPlt_patch_flow_variables = false      # Enable flow variable patching after reading a plot solution file
+
+
+#---------------------- Temporal CONTROL -------------------------
+peleLM.do_temporals = 1
+peleLM.temporal_int = 1
+peleLM.do_extremas = 1                      # Compute state extremas
+peleLM.do_mass_balance = 1                  # Compute mass balance
+peleLM.do_species_balance = 1               # Compute species balance
+
+#---------------------- Time Stepping CONTROL --------------------
+amr.max_step = 3
+amr.stop_time = 0.1                         # final simulation physical time
+amr.cfl = 0.4                               # CFL number for hyperbolic system
+amr.dt_shrink = 0.001                       # Scale back initial timestep
+amr.dt_change_max = 1.1                     # Maximum dt increase btw successive steps
+
+#---------------------- IO CONTROL -------------------------------
+#amr.initDataPlt = plt_cold
+#amr.restart = chk00250                     # Restart checkpoint file
+amr.check_int = -1
+amr.plot_int = -1
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+
+#---------------------- Derived CONTROLS -------------------------
+peleLM.fuel_name = CH4
+peleLM.mixtureFraction.format = Cantera
+peleLM.mixtureFraction.type   = mass
+peleLM.mixtureFraction.oxidTank = O2:0.233 N2:0.767
+peleLM.mixtureFraction.fuelTank = CH4:1.0
+peleLM.progressVariable.format = Cantera
+peleLM.progressVariable.weights = CO:1.0 CO2:1.0
+peleLM.progressVariable.coldState = CO:0.0 CO2:0.0
+peleLM.progressVariable.hotState = CO:0.000002 CO2:0.0666
+
+#---------------------- Reactor CONTROL --------------------------
+peleLM.chem_integrator = "ReactorCvode"
+peleLM.use_typ_vals_chem = 1                # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-6                           # Relative tolerance of the chemical solve
+ode.atol = 1.0e-5                           # Absolute tolerance factor applied on typical values
+ode.clean_init_massfrac = 0                 # Reaction computed as an increment
+cvode.solve_type = denseAJ_direct           # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                        # CVODE max BDF order.
+
+#---------------------- EB SETUP ---------------------------------
+eb2.geom_type = box
+eb2.box_lo =    -0.01   -0.01
+eb2.box_hi =     0.01     0.0
+eb2.box_has_fluid_inside = 0
+eb2.small_volfrac   = 1.0e-4
+peleLM.isothermal_EB = 1
+
+#---------------------- Linear solver CONTROL --------------------
+nodal_proj.verbose = 0                      # Nodal projection verbose
+mac_proj.verbose = 0                        # MAC projection verbose
+
+#---------------------- Refinement CONTROL------------------------
+amr.refinement_indicators = gradT
+amr.gradT.max_level     = 3
+amr.gradT.adjacent_difference_greater = 100
+amr.gradT.field_name    = temp
+
+#---------------------- Debug/HPC CONTROL-------------------------
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+peleLM.closed_chamber = 1
+peleLM.debug_check_compatibility = 1
+peleLM.debug_divu_mismatch = 1
+prob.meanFlowMag = 0.0
+amr.fixed_dt = 2.0e-6
+amr.dt_shrink = 1.0
+amr.dt_change_max = 1.0e10
+peleLM.do_react = 0
+prob.T_hot = 298.0
+prob.T_wall = 298.0
+prob.EBinflow_T = 298.0

@@ -1048,7 +1048,9 @@ public:
    * which the MAC projection and the scalar prediction then both use.
    * \param advData container including mac_divu
    */
-  void adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData);
+  void adjustPandDivU(
+    const std::unique_ptr<AdvanceAdvData>& advData,
+    const PeleLM::TimeStamp a_time);
   //-----------------------------------------------------------------------------
 
   //-----------------------------------------------------------------------------
@@ -1554,6 +1556,11 @@ public:
   amrex::Real domainFaceFlux(
     const amrex::Vector<amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>>&
       a_umac);
+  //! Composite net outward volume flux through the embedded boundary from
+  //! the EB inflow velocity at \p a_time (zero without peleLM.EBinflow).
+  //! Same cut-cell formula as AMReX's EB divergence, so it balances the
+  //! projector's own EB term exactly.
+  amrex::Real ebInflowFlux(const PeleLM::TimeStamp a_time);
   //! (Re)build m_cellVol on level \p lev (after its metrics are defined).
   void defineCellVolume(
     const int lev,

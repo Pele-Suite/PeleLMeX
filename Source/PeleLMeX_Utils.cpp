@@ -1612,6 +1612,76 @@ PeleLM::domainFaceFlux(
   return net;
 }
 
+amrex::Real
+PeleLM::ebInflowFlux(const PeleLM::TimeStamp a_time)
+{
+#ifdef AMREX_USE_EB
+  if (m_useEBinflow == 0) {
+    return 0.0;
+  }
+  // AMReX adds (u_eb.n) * barea * |n/dx| / vfrac to the divergence of a cut
+  // cell; times the cell volume (vfrac * dV) that is the outward volume flux
+  // through the embedded surface of that cell.
+  amrex::Real net = 0.0;
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    const bool has_mask = (lev != finest_level);
+    auto ebvel = getEBState(lev, VELX, AMREX_SPACEDIM, a_time);
+    auto const& ebfact = EBFactory(lev);
+    auto const& flags = ebfact.getMultiEBCellFlagFab();
+    auto const& bnorm = ebfact.getBndryNormal();
+    auto const& barea = ebfact.getBndryArea();
+    const auto dxinv = geom[lev].InvCellSizeArray();
+    const amrex::Real dV = AMREX_D_TERM(
+      geom[lev].CellSize(0), *geom[lev].CellSize(1), *geom[lev].CellSize(2));
+    amrex::ReduceOps<amrex::ReduceOpSum> reduce_op;
+    amrex::ReduceData<amrex::Real> reduce_data(reduce_op);
+    using ReduceTuple = typename decltype(reduce_data)::Type;
+    for (amrex::MFIter mfi(*ebvel); mfi.isValid(); ++mfi) {
+      const amrex::Box& bx = mfi.validbox();
+      if (flags[mfi].getType(bx) != amrex::FabType::singlevalued) {
+        continue;
+      }
+      auto const& vel = ebvel->const_array(mfi);
+      auto const& flag = flags.const_array(mfi);
+      auto const& nrm = bnorm.const_array(mfi);
+      auto const& area = barea.const_array(mfi);
+      auto const& mask = has_mask ? m_coveredMask[lev]->const_array(mfi)
+                                  : amrex::Array4<int const>{};
+      reduce_op.eval(
+        bx, reduce_data,
+        [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept -> ReduceTuple {
+          if (!flag(i, j, k).isSingleValued()) {
+            return {0.0};
+          }
+          if (has_mask && mask(i, j, k) == 0) {
+            return {0.0};
+          }
+          const amrex::Real u_dot_n = AMREX_D_TERM(
+            vel(i, j, k, 0) * nrm(i, j, k, 0),
+            +vel(i, j, k, 1) * nrm(i, j, k, 1),
+            +vel(i, j, k, 2) * nrm(i, j, k, 2));
+          const amrex::Real dl_eb_inv = std::sqrt(AMREX_D_TERM(
+            nrm(i, j, k, 0) * dxinv[0] * nrm(i, j, k, 0) * dxinv[0],
+            +nrm(i, j, k, 1) * dxinv[1] * nrm(i, j, k, 1) * dxinv[1],
+            +nrm(i, j, k, 2) * dxinv[2] * nrm(i, j, k, 2) * dxinv[2]));
+          return {u_dot_n * area(i, j, k) * dl_eb_inv * dV};
+        });
+    }
+    ReduceTuple hv = reduce_data.value(reduce_op);
+    net += amrex::get<0>(hv);
+  }
+  amrex::ParallelDescriptor::ReduceRealSum(net);
+  if (m_debug_divu_mismatch != 0) {
+    amrex::Print() << "   ... EB inflow volume flux (outward +): " << net
+                   << "\n";
+  }
+  return net;
+#else
+  amrex::ignore_unused(a_time);
+  return 0.0;
+#endif
+}
+
 void
 PeleLM::checkProjectionCompatibility(
   const std::string& a_who,

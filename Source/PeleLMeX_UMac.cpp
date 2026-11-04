@@ -313,7 +313,7 @@ PeleLM::macProject(
   // For closed chamber, compute change in chamber pressure and turn
   // a_divu (= advData->mac_divu) into S - theta dp0/dt, which it keeps.
   if ((m_closed_chamber != 0) && (m_incompressible == 0)) {
-    adjustPandDivU(advData);
+    adjustPandDivU(advData, a_time);
   }
 
   //-------------------------------------------------------------------
@@ -397,7 +397,9 @@ PeleLM::macProject(
     checkProjectionCompatibility(
       "MAC projection",
       m_mesh_mapping ? divu_for_proj : GetVecOfConstPtrs(a_divu),
-      domainFaceFlux(GetVecOfArrOfConstPtrs(advData->umac)), -1.0, false);
+      domainFaceFlux(GetVecOfArrOfConstPtrs(advData->umac)) +
+        ebInflowFlux(a_time),
+      -1.0, false);
   }
 
   // set MAC velocity and projection RHS

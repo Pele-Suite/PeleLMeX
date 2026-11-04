@@ -280,7 +280,9 @@ PeleLM::calc_dPdt(
 }
 
 void
-PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
+PeleLM::adjustPandDivU(
+  const std::unique_ptr<AdvanceAdvData>& advData,
+  const PeleLM::TimeStamp a_time)
 {
   BL_PROFILE("PeleLMeX::adjustPandDivU()");
 
@@ -365,6 +367,9 @@ PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
   } else {
     umacFluxBalance = domainFaceFlux(GetVecOfArrOfConstPtrs(advData->umac));
   }
+  // Injection through the embedded boundary, if any (the projector adds it
+  // to div(umac) the same way).
+  umacFluxBalance += ebInflowFlux(a_time);
   const amrex::Real divu_vol = umacFluxBalance / m_uncoveredVol;
 
   // Advance the ambient pressure
