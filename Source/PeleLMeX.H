@@ -1524,6 +1524,14 @@ public:
     const amrex::Real a_bdry_flux,
     const amrex::Real a_rhs_sign,
     const bool a_rhs_is_rz_scaled);
+  //! Diagnostic (peleLM.debug_divu_mismatch): min and max of
+  //! (a_divu - div(a_umac)) over regular, uncovered cells of level a_lev.
+  //! Skipped under mesh mapping and RZ.  No effect on the solution.
+  void checkMACDivuMismatch(
+    const int a_lev,
+    const std::string& a_who,
+    const amrex::MultiFab& a_divu,
+    const amrex::Array<const amrex::MultiFab*, AMREX_SPACEDIM>& a_umac);
   //! The nodal-projection form of the check (sealed domains only).
   void checkNodalCompatibility(
     const std::string& a_who,
@@ -2415,6 +2423,8 @@ public:
   // Projection compatibility diagnostic (closed chamber only)
   int m_debug_check_compatibility = 0;
   amrex::Real m_debug_compatibility_tol = 1.0e-8;
+  // divu seen by the Godunov prediction vs div(umac), diagnostic only
+  int m_debug_divu_mismatch = 0;
 
   // Godunov is default
   std::string m_predict_advection_key = "Godunov_PLM";

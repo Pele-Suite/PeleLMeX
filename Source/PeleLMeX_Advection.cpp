@@ -81,6 +81,10 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
     // u~.q are rescaled by J_fc below (see getExtrapUmac).
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> umac_xi;
     const auto umacE = getExtrapUmac(lev, advData, umac_xi);
+    if (m_debug_divu_mismatch != 0) {
+      checkMACDivuMismatch(
+        lev, "velocity prediction, old-time S, umac as given", divu, umacE);
+    }
 
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB

@@ -385,6 +385,13 @@ PeleLM::oneSDC(
 
   // MAC projection
   macProject(AmrOldTime, advData, GetVecOfPtrs(advData->mac_divu));
+  if (m_debug_divu_mismatch != 0) {
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      checkMACDivuMismatch(
+        lev, "scalar prediction, after macProject", advData->mac_divu[lev],
+        GetArrOfConstPtrs(advData->umac[lev]));
+    }
+  }
   if (m_verbose > 1) {
     amrex::Real MACEnd = amrex::ParallelDescriptor::second() - MACStart;
     amrex::ParallelDescriptor::ReduceRealMax(

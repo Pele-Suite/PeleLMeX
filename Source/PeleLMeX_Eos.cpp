@@ -355,9 +355,11 @@ PeleLM::adjustPandDivU(const std::unique_ptr<AdvanceAdvData>& advData)
   }
   amrex::Gpu::streamSynchronize();
 
-  if (m_verbose > 2) {
+  if (m_verbose > 2 || m_debug_divu_mismatch != 0) {
     amrex::Print() << " >> Closed chamber pOld: " << m_pOld
-                   << ", pNew: " << m_pNew << ", dp0dt: " << m_dp0dt << "\n";
+                   << ", pNew: " << m_pNew << ", dp0dt: " << m_dp0dt
+                   << ", Sbar: " << Sbar << ", Thetabar: " << Thetabar
+                   << "\n";
     amrex::Print() << " >> Total mass old: " << m_massOld
                    << ", mass new: " << m_massNew << "\n";
   }

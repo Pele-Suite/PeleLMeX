@@ -350,6 +350,7 @@ PeleLM::readParameters()
   pp.query("closed_chamber", m_closed_chamber);
   pp.query("debug_check_compatibility", m_debug_check_compatibility);
   pp.query("debug_compatibility_tol", m_debug_compatibility_tol);
+  pp.query("debug_divu_mismatch", m_debug_divu_mismatch);
   if ((verbose != 0) && (m_closed_chamber != 0)) {
     amrex::Print()
       << " Simulation performed with the closed chamber algorithm \n";
