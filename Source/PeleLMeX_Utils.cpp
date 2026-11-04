@@ -1786,9 +1786,9 @@ PeleLM::checkMACDivuMismatch(
   const amrex::Box& domain = geom[a_lev].Domain();
   const amrex::IntVect dlo = domain.smallEnd();
   const amrex::IntVect dhi = domain.bigEnd();
-  amrex::GpuArray<int, AMREX_SPACEDIM> isper{
-    AMREX_D_DECL(geom[a_lev].isPeriodic(0), geom[a_lev].isPeriodic(1),
-                 geom[a_lev].isPeriodic(2))};
+  amrex::GpuArray<int, AMREX_SPACEDIM> isper{AMREX_D_DECL(
+    geom[a_lev].isPeriodic(0), geom[a_lev].isPeriodic(1),
+    geom[a_lev].isPeriodic(2))};
   const bool has_mask = (a_lev != finest_level);
   constexpr amrex::Real big = std::numeric_limits<amrex::Real>::max();
 
@@ -1805,9 +1805,10 @@ PeleLM::checkMACDivuMismatch(
   for (amrex::MFIter mfi(a_divu); mfi.isValid(); ++mfi) {
     const amrex::Box& bx = mfi.validbox();
     auto const& divu = a_divu.const_array(mfi);
-    AMREX_D_TERM(auto const& umac = a_umac[0]->const_array(mfi);
-                 , auto const& vmac = a_umac[1]->const_array(mfi);
-                 , auto const& wmac = a_umac[2]->const_array(mfi);)
+    AMREX_D_TERM(
+      auto const& umac = a_umac[0]->const_array(mfi);
+      , auto const& vmac = a_umac[1]->const_array(mfi);
+      , auto const& wmac = a_umac[2]->const_array(mfi);)
     auto const& mask = has_mask ? m_coveredMask[a_lev]->const_array(mfi)
                                 : amrex::Array4<int const>{};
 #ifdef AMREX_USE_EB

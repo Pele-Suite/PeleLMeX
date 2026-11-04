@@ -1962,8 +1962,7 @@ PeleLM::getScalarDiffForce(
     auto const& dn_ma = diffData->Dn[lev].const_arrays();
     auto const& dnp1_ma = diffData->Dnp1[lev].const_arrays();
     // No reaction data is allocated without reactions; the kernel skips it.
-    auto const& r_ma =
-      (m_do_react != 0) ? ldataR_p->I_R.const_arrays() : dn_ma;
+    auto const& r_ma = (m_do_react != 0) ? ldataR_p->I_R.const_arrays() : dn_ma;
     auto const& a_ma = advData->AofS[lev].const_arrays();
     auto const& ext_ma = m_extSource[lev]->const_arrays();
     auto const& f_ma = advData->Forcing[lev].arrays();
