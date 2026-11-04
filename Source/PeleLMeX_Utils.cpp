@@ -1108,8 +1108,14 @@ PeleLM::derive(
     // state
     auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
     std::unique_ptr<amrex::MultiFab> reactmf;
-    if (m_do_react != 0) {
+    if (m_incompressible == 0 && m_do_react != 0) {
       reactmf = fillPatchReact(lev, a_time, nGrow);
+    } else {
+      // No reaction data exists; derives that read it (HeatRelease) get
+      // zeros of the right width rather than an unrelated array.
+      reactmf = std::make_unique<amrex::MultiFab>(
+        grids[lev], dmap[lev], nCompIR(), nGrow, amrex::MFInfo(), Factory(lev));
+      reactmf->setVal(0.0);
     }
     auto stateBCs = fetchBCRecArray(VELX, NVAR);
 #ifdef AMREX_USE_OMP
@@ -1120,9 +1126,7 @@ PeleLM::derive(
       const amrex::Box& bx = mfi.growntilebox(nGrow);
       amrex::FArrayBox& derfab = (*mf)[mfi];
       amrex::FArrayBox const& statefab = (*statemf)[mfi];
-      amrex::FArrayBox const& reactfab =
-        (m_incompressible != 0 || m_do_react == 0) ? ldata_p->press[mfi]
-                                                   : (*reactmf)[mfi];
+      amrex::FArrayBox const& reactfab = (*reactmf)[mfi];
       amrex::FArrayBox const& pressfab = ldata_p->press[mfi];
       rec->derFunc()(
         this, bx, derfab, 0, rec->numDerive(), statefab, reactfab, pressfab,
@@ -1178,8 +1182,14 @@ PeleLM::deriveComp(
     // state
     auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
     std::unique_ptr<amrex::MultiFab> reactmf;
-    if (m_do_react != 0) {
+    if (m_incompressible == 0 && m_do_react != 0) {
       reactmf = fillPatchReact(lev, a_time, nGrow);
+    } else {
+      // No reaction data exists; derives that read it (HeatRelease) get
+      // zeros of the right width rather than an unrelated array.
+      reactmf = std::make_unique<amrex::MultiFab>(
+        grids[lev], dmap[lev], nCompIR(), nGrow, amrex::MFInfo(), Factory(lev));
+      reactmf->setVal(0.0);
     }
     auto stateBCs = fetchBCRecArray(VELX, NVAR);
 
@@ -1193,9 +1203,7 @@ PeleLM::deriveComp(
       const amrex::Box& bx = mfi.growntilebox(nGrow);
       amrex::FArrayBox& derfab = derTemp[mfi];
       amrex::FArrayBox const& statefab = (*statemf)[mfi];
-      amrex::FArrayBox const& reactfab =
-        (m_incompressible != 0 || m_do_react == 0) ? ldata_p->press[mfi]
-                                                   : (*reactmf)[mfi];
+      amrex::FArrayBox const& reactfab = (*reactmf)[mfi];
       amrex::FArrayBox const& pressfab = ldata_p->press[mfi];
       rec->derFunc()(
         this, bx, derfab, 0, rec->numDerive(), statefab, reactfab, pressfab,
