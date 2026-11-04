@@ -310,7 +310,9 @@ PeleLM::getScalarAdvForce(
     auto const& state_ma = ldata_p->state.const_arrays();
     auto const& dn_ma = diffData->Dn[lev].const_arrays();
     auto const& adv_ma = advData->Forcing[lev].arrays();
-    auto const& r_ma = ldataR_p->I_R.const_arrays();
+    // No reaction data is allocated without reactions; the kernel skips it.
+    auto const& r_ma =
+      (m_do_react != 0) ? ldataR_p->I_R.const_arrays() : dn_ma;
     auto const& ext_ma = m_extSource[lev]->arrays();
 
     auto const& dn_aux_ma =

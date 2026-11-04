@@ -1121,7 +1121,8 @@ PeleLM::derive(
       amrex::FArrayBox& derfab = (*mf)[mfi];
       amrex::FArrayBox const& statefab = (*statemf)[mfi];
       amrex::FArrayBox const& reactfab =
-        (m_incompressible) != 0 ? ldata_p->press[mfi] : (*reactmf)[mfi];
+        (m_incompressible != 0 || m_do_react == 0) ? ldata_p->press[mfi]
+                                                   : (*reactmf)[mfi];
       amrex::FArrayBox const& pressfab = ldata_p->press[mfi];
       rec->derFunc()(
         this, bx, derfab, 0, rec->numDerive(), statefab, reactfab, pressfab,
@@ -1193,7 +1194,8 @@ PeleLM::deriveComp(
       amrex::FArrayBox& derfab = derTemp[mfi];
       amrex::FArrayBox const& statefab = (*statemf)[mfi];
       amrex::FArrayBox const& reactfab =
-        (m_incompressible) != 0 ? ldata_p->press[mfi] : (*reactmf)[mfi];
+        (m_incompressible != 0 || m_do_react == 0) ? ldata_p->press[mfi]
+                                                   : (*reactmf)[mfi];
       amrex::FArrayBox const& pressfab = ldata_p->press[mfi];
       rec->derFunc()(
         this, bx, derfab, 0, rec->numDerive(), statefab, reactfab, pressfab,

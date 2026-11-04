@@ -477,11 +477,15 @@ PeleLM::oneSDC(
   if (m_verbose > 1) {
     ScalReacStart = amrex::ParallelDescriptor::second();
   }
-  // Get external forcing for chemistry
-  getScalarReactForce(advData);
+  // Without reactions the {np1,kp1} state is the AD state that
+  // differentialDiffusionUpdate just produced, and no reaction data exists.
+  if (m_do_react != 0) {
+    // Get external forcing for chemistry
+    getScalarReactForce(advData);
 
-  // Integrate chemistry
-  advanceChemistry(advData);
+    // Integrate chemistry
+    advanceChemistry(advData);
+  }
   if (m_verbose > 1) {
     amrex::Real ScalReacEnd =
       amrex::ParallelDescriptor::second() - ScalReacStart;
