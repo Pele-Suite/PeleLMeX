@@ -64,6 +64,42 @@ class BPatch;
 
 const std::string PrettyLine = " " + std::string(78, '=') + "\n";
 
+// State inflow: temperature and species mass fractions sampled from the
+// scalar fields of a TurbInflow file (SCALARS_V1 trailer, see
+// PelePhysics/Source/Utility/TurbInflow) and imposed on the ext_dir faces
+// that file feeds, on top of the values returned by bcnormal.  The velocity
+// of the same file is handled by the usual TurbInflow path.
+//
+// Recognized scalar names (PeleLMeX plotfile names): temp, Y(<species>).
+// Whatever the file supplies replaces the bcnormal value; the rest is kept,
+// the mass fractions are clipped to >= 0 and normalized, and density, rhoY
+// and rhoH are recomputed from the EOS at the ambient pressure so that the
+// imposed state is thermodynamically consistent.
+#ifdef PELEPHYSICS_TURBINFLOW_HAS_SCALARS
+#define PELELMEX_HAS_STATE_INFLOW 1
+#endif
+
+struct StateInflowFace
+{
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  pele::physics::turbinflow::TurbFileSampler sampler;
+#endif
+  int active = 0;
+  int tdir1 = 0; //!< Transverse directions, TurbInflow order
+  int tdir2 = 0;
+  int temp_s = -1; //!< Scalar index of temp, -1 if absent
+  int nspec_s = 0; //!< Number of species in the file
+  //! Scalar index of Y(k), -1 if absent
+  amrex::GpuArray<int, NUM_SPECIES> spec_s{};
+};
+
+struct StateInflowBC
+{
+  //! Indexed by 2 * dir + (side == high)
+  amrex::GpuArray<StateInflowFace, 2 * AMREX_SPACEDIM> face{};
+  amrex::Real p_amb = 0.0; //!< Ambient (thermodynamic) pressure, MKS
+};
+
 class PeleLM : public amrex::AmrCore
 {
 
@@ -1277,6 +1313,19 @@ public:
     const int lev,
     const amrex::Real a_time);
 
+  // With active inflow control, march through the turb data with the
+  // time-integrated controlled velocity (see fillTurbInflow)
+  void updateTurbConvectedDistance(const amrex::Real a_time);
+
+  // State inflow: map the scalar fields of the turbinflow files (temp,
+  // Y(<species>)) to the faces they feed (applyStateInflow, BCfill.H)
+  void initStateInflow();
+
+  // Device copy of the state inflow samplers at a_time, passed to the
+  // ext_dir fill functors; nullptr when there is no state inflow.  Valid
+  // until the next call.
+  StateInflowBC const* stateInflowBC(const amrex::Real a_time);
+
   // Inject synthetic turbulence into one inflow-adjacent ghost box. Wraps
   // the PelePhysics call so that the mesh-mapping case, which must supply
   // the injection face's physical cell-centre coordinates rather than let
@@ -2233,6 +2282,14 @@ public:
 
   // Turbulence injection
   pele::physics::turbinflow::TurbInflow turb_inflow;
+
+  // State inflow (temperature/species from the turbinflow files)
+  int m_do_state_inflow = 0;
+  StateInflowBC m_state_inflow_h;
+  amrex::Gpu::DeviceVector<StateInflowBC> m_state_inflow_d;
+  // Last state uploaded to m_state_inflow_d (skip identical uploads)
+  StateInflowBC m_state_inflow_last;
+  bool m_state_inflow_uploaded = false;
   pele::physics::turbforcing::TurbForcing turb_forcing;
 
   // Diagnostics

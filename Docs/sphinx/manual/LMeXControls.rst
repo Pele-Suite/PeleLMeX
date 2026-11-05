@@ -49,6 +49,20 @@ to use this capability and the
 `PelePhysics  documentation <https://pele-suite.github.io/PelePhysics/Utility.html#turbulent-inflows>`_
 for the relevant input file flags.
 
+If the turbulence file carries scalar fields (``SCALARS_V1`` trailer, written by the
+``TurbInflowGenerator`` with ``scalars="temp Y(O2) ..."``), PeleLMeX also imposes
+the temperature and species mass fractions on the face that file feeds. The
+recognized names are ``temp`` and ``Y(<species>)`` (others are reported and
+ignored). After ``bcnormal`` has been called, the sampled values replace its
+temperature and mass fractions. Whatever the file does not supply is kept. The
+mass fractions are clipped to be non-negative and normalized, and the density,
+``rhoY`` and ``rhoH`` are recomputed from the EOS at the ambient pressure. Positions
+outside the file keep the ``bcnormal`` state. The file's velocity is injected as
+usual and added to the ``bcnormal`` velocity, so a file holding the full velocity of a precursor should be used with a
+``bcnormal`` that sets no mean velocity on that face. Linear interpolation
+(``interp_type = linear``) avoids overshoots of the mass fractions near sharp
+gradients.
+
 Grid/AMR parameters
 -------------------
 
