@@ -1,0 +1,546 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PeleLMeX Verification &amp; Validations &mdash; PeleLMeX 22.12 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/theme.css?v=df66b05f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d09052ea"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Performances" href="Performances.html" />
+    <link rel="prev" title="Source code" href="Implementation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PeleLMeX
+              <img src="_static/swirlH2Fast_OH_vort_256.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Theory:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Model.html">The <cite>PeleLMeX</cite> Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Implementation.html">Source code</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PeleLMeX Verification &amp; Validations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#laminar-premixed-flame">Laminar premixed flame</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#laminar-poiseuille-flow">Laminar Poiseuille flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#taylor-green-vortex-breakdown">Taylor-Green vortex breakdown</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#building-and-running">Building and running</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#results">Results</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#channel-flow-using-eb">Channel Flow using EB</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#dns-results-at-re-tau-180">DNS results at <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 180</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#les-results-at-re-tau-395-934">LES results at <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 395, 934</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#laminar-counterflow-diffusion-flame">Laminar counterflow diffusion flame</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="Performances.html">Performances</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LMeXControls.html">PeleLMeX controls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PeleLMeX</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">PeleLMeX Verification &amp; Validations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/Validation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="pelelmex-verification-validations">
+<h1>PeleLMeX Verification &amp; Validations<a class="headerlink" href="#pelelmex-verification-validations" title="Link to this heading"></a></h1>
+<p>This section assembles results of <cite>PeleLMeX</cite> simulations on a set a test cases
+for which a reference solution can be obtained from the literature or an
+analytical solution exists.</p>
+<section id="laminar-premixed-flame">
+<h2>Laminar premixed flame<a class="headerlink" href="#laminar-premixed-flame" title="Link to this heading"></a></h2>
+<p>The case of a laminar premixed flame is a foundational test case for a reactive
+flow solver. A laminar premixed flame setup is available in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests/FlameSheet</span></code>.
+The case reported hereafter is that of a planar laminar methane/air flame at
+atmospheric conditions and a lean equivalence ratio of 0.9. The initial condition
+is obtained from a Cantera simulation using
+the DRM19 mechanism and the simulation is conducted starting with a coarse resolution
+<span class="math notranslate nohighlight">\(d_{l,0}/\delta_x = 3.5\)</span> (3.5 grid cells in the flame thermal thickness) and progressively
+refined to <span class="math notranslate nohighlight">\(d_{l,0}/\delta_x = 110\)</span> using AMR. Note that the simulation is carried for
+about 30 <span class="math notranslate nohighlight">\(\tau_f = d_{l,0} / S_{l,0}\)</span> before adding refinement levels ensuring that initial
+numerical noise introduced by interpolating the Cantera solution onto the cartesian grid is
+completely removed.</p>
+<p>The <cite>PeleLMeX</cite> results obtained with the finest grid are compared to that of Cantera in <a class="reference internal" href="#pmflmexcantera"><span class="std std-numref">Fig. 3</span></a>.
+Profiles of major and intermediate species as well as temperature across the flame front are
+displayed, with Cantera results shown as black ticked lined underlying each continuous line obtained
+with <cite>PeleLMeX</cite>, demonstrating the solver accuracy.</p>
+<figure class="align-center" id="pmflmexcantera" style="width: 50%">
+<img alt="_images/LMeX_DRM19_Phi0p9.png" src="_images/LMeX_DRM19_Phi0p9.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 3 </span><span class="caption-text">: One-dimentional flame profiles with PeleLMeX and Cantera (underlying black dashed lines)</span><a class="headerlink" href="#pmflmexcantera" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>It is interesting to see how resolution affect the prediction of <cite>PeleLMeX</cite>. The <a class="reference internal" href="#pmftableresolution"><span class="std std-numref">Table 1</span></a>
+shows the laminar flame speed, obtained by numerically integrating the fuel consumption rate, at
+increasing level of refinement. For each AMR level addition, simulation are conducted for about 10 <span class="math notranslate nohighlight">\(\tau_f\)</span>,
+until the flame speed stabilizes. With only a handful of cells across the flame thermal thickness, the flame
+speed is recovered with an accuracy close to 1.5%.</p>
+<table class="docutils align-center" id="pmftableresolution">
+<caption><span class="caption-number">Table 1 </span><span class="caption-text">Effect of resolution on the laminar flame speed</span><a class="headerlink" href="#pmftableresolution" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 12.5%" />
+<col style="width: 12.5%" />
+<col style="width: 12.5%" />
+<col style="width: 12.5%" />
+<col style="width: 12.5%" />
+<col style="width: 12.5%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="math notranslate nohighlight">\(d_{l,0}/\delta_x\)</span> [-]</p></th>
+<th class="head"><p>3.44</p></th>
+<th class="head"><p>6.88</p></th>
+<th class="head"><p>13.8</p></th>
+<th class="head"><p>27.5</p></th>
+<th class="head"><p>55</p></th>
+<th class="head"><p>110</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(S_{l,0}\)</span> [m/s]</p></td>
+<td><p>0.35696</p></td>
+<td><p>0.35144</p></td>
+<td><p>0.35408</p></td>
+<td><p>0.35473</p></td>
+<td><p>0.35488</p></td>
+<td><p>0.35494</p></td>
+</tr>
+<tr class="row-odd"><td><p>Error (vs. Cantera) [%]</p></td>
+<td><p>0.02</p></td>
+<td><p>1.54</p></td>
+<td><p>0.8</p></td>
+<td><p>0.6</p></td>
+<td><p>0.58</p></td>
+<td><p>0.57</p></td>
+</tr>
+</tbody>
+</table>
+<p>Additionally, <a class="reference internal" href="#pmflmexcrsefine"><span class="std std-numref">Fig. 4</span></a> compares profiles of major and intermediate species as well as
+temperature across the flame front for the coarsest and the finest resolution employed. Results
+indicates that major species (or temperature) are well captured whereas short lived species peak
+values are locally off due to the lack of resolution but are still reasonably well located within
+the flame front.</p>
+<figure class="align-center" id="pmflmexcrsefine" style="width: 50%">
+<img alt="_images/LMeX_FinevsCoarse.png" src="_images/LMeX_FinevsCoarse.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 4 </span><span class="caption-text">: Comparison of a coarsed and finely resolved 1D flame in PeleLMeX</span><a class="headerlink" href="#pmflmexcrsefine" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="laminar-poiseuille-flow">
+<h2>Laminar Poiseuille flow<a class="headerlink" href="#laminar-poiseuille-flow" title="Link to this heading"></a></h2>
+<p>The laminar pipe flow or Poiseuille flow, is a basic test case for wall bounded flows.
+In the present configuration, the geometry consist of a circular channel of radius <span class="math notranslate nohighlight">\(R\)</span> = 1 cm
+aligned with the <span class="math notranslate nohighlight">\(x\)</span>-direction, where no-slip boundary conditions are imposed on
+EB surface. The flow is periodic in the <span class="math notranslate nohighlight">\(x\)</span>-direction and a background pressure
+gradient <span class="math notranslate nohighlight">\(dp /dx\)</span> is used to drive the flow.</p>
+<p>The exact solution at steady state is:</p>
+<div class="math notranslate nohighlight">
+\[u(r) = \frac{G}{4 \mu} (R^2 - r^2)\]</div>
+<p>where <span class="math notranslate nohighlight">\(G = -dp/dx\)</span>, and <span class="math notranslate nohighlight">\(\mu\)</span> is the dynamic viscosity.
+The test case can be found in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests/EB_PipeFlow</span></code>, where
+the input parameters are very similar to the PeleC counterpart of
+this case.</p>
+<p>The steady-state <span class="math notranslate nohighlight">\(x\)</span>-velocity profiles across the pipe diameter
+at increasing resolution are plotted along with the theorerical profile in <a class="reference internal" href="#poiseuillevelprof"><span class="std std-numref">Fig. 5</span></a>:</p>
+<figure class="align-center" id="poiseuillevelprof" style="width: 50%">
+<img alt="_images/PoiseuilleVelProf.png" src="_images/PoiseuilleVelProf.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 5 </span><span class="caption-text">: Axial velocity profile at increasing resolution with PeleLMeX</span><a class="headerlink" href="#poiseuillevelprof" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>A more quantitative evaluation of PeleLMeX results is obtained by calculating
+the L2 norm of the error against the analytical profile:</p>
+<figure class="align-center" id="poiseuilleconvergence" style="width: 50%">
+<img alt="_images/PoiseuilleConvergence.png" src="_images/PoiseuilleConvergence.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 6 </span><span class="caption-text">: L2-norm of the axial velocity profile as function of the number of cells across the pipe diameter</span><a class="headerlink" href="#poiseuilleconvergence" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>showing second-order convergence for this diffusion dominated flow.</p>
+</section>
+<section id="taylor-green-vortex-breakdown">
+<h2>Taylor-Green vortex breakdown<a class="headerlink" href="#taylor-green-vortex-breakdown" title="Link to this heading"></a></h2>
+<p>The Taylor-Green vortex breakdown case is a classical CFD test case
+described in <a class="reference external" href="https://www1.grc.nasa.gov/research-and-engineering/hiocfd/">here</a>
+(case C3.3). It is intended to test the capability of the code to capture turbulence accurately,
+with the flow transitioning to turbulence, with the creation of small scales, followed
+by a decay phase similar to decaying homogeneous turbulence.</p>
+<section id="building-and-running">
+<h3>Building and running<a class="headerlink" href="#building-and-running" title="Link to this heading"></a></h3>
+<p>The test case can be found in <code class="docutils literal notranslate"><span class="pre">Exec/RegTests/TaylorGreen</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>make<span class="w"> </span>-j<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">DIM</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">USE_MPI</span><span class="o">=</span>TRUE<span class="w"> </span>TPL
+$<span class="w"> </span>make<span class="w"> </span>-j<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">DIM</span><span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="nv">USE_MPI</span><span class="o">=</span>TRUE
+$<span class="w"> </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="nv">$EXECUTABLE</span><span class="w"> </span>inputs_3d<span class="w"> </span>amr.ncell<span class="o">=</span><span class="m">64</span><span class="w"> </span><span class="m">64</span><span class="w"> </span><span class="m">64</span>
+</pre></div>
+</div>
+<p>The user can run a convergence study by varying <code class="docutils literal notranslate"><span class="pre">amr.ncell</span></code>.</p>
+</section>
+<section id="results">
+<h3>Results<a class="headerlink" href="#results" title="Link to this heading"></a></h3>
+<p>The following figures shows the kinetic energy, the dissipation rate and
+the enstrophy as function of time (all quantities are non-dimensional)
+for increasing resolutions (ranging from 64^3 to 512^3) and compared
+to the results of a high-order spectral solver with a 512^3 resolution.
+<cite>PeleLMeX</cite> results are obtained with the <em>Godunov_PPM</em> scheme and show
+that even though <cite>PeleLMeX</cite> uses a 2nd-order scheme, reasonable
+accuracy compared to the spectral results is obtained when the resolution is sufficient.</p>
+<p><a class="reference internal" href="_images/KinEnergy.png"><img alt="TGKinEnergy" src="_images/KinEnergy.png" style="width: 48%;" /></a> <a class="reference internal" href="_images/Dissipation.png"><img alt="TGDiss" src="_images/Dissipation.png" style="width: 48%;" /></a></p>
+<p><a class="reference internal" href="_images/Enstrophy.png"><img alt="TGEnstrophy" src="_images/Enstrophy.png" style="width: 48%;" /></a></p>
+<p>Additionally, it is interesting to compare the different advection schemes
+available in <cite>PeleLMeX</cite> (namely, <em>Godunov_PLM</em>, <em>Godunov_PPM</em>, <em>Godunov_BDS</em>,
+<em>Godunov_PPM_WENOZ</em>) at a fixed 256^3 spatial resolution:</p>
+<figure class="align-center" style="width: 48%">
+<img alt="_images/Enstrophy_AllSchemes.png" src="_images/Enstrophy_AllSchemes.png" />
+</figure>
+<p>On this particular case, the differences between the advection schemes are fairly
+marginal compared to those observed at different grid resolutions.</p>
+</section>
+</section>
+<section id="channel-flow-using-eb">
+<h2>Channel Flow using EB<a class="headerlink" href="#channel-flow-using-eb" title="Link to this heading"></a></h2>
+<p>We present results of the classical periodic channel flow, available in the
+<code class="docutils literal notranslate"><span class="pre">Exec/RegTests/EB_PipeFlow</span></code> folder. Simulations are performed at three
+stress Reynold number <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 180, 395 and 934 corresponding
+to the cases described in <a class="reference external" href="https://doi.org/10.1017/S0022112087000892">Kim et al., 1986</a>,
+<a class="reference external" href="https://doi.org/10.1063/1.869966">Moser et al., 1999</a> and
+<a class="reference external" href="https://doi.org/10.1063/1.2162185">Hoyas and Jimenez, 2006</a>, respectively. A first
+DNS is performed at <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 180, then the LES models implementation is tested
+at higher Reynold numbers.</p>
+<p>For all cases, the configuration is periodic in the <span class="math notranslate nohighlight">\(x\)</span> and <span class="math notranslate nohighlight">\(z\)</span> directions and wall boundaries are
+imposed in the <span class="math notranslate nohighlight">\(y\)</span> direction using Embedded Boundaries.</p>
+<section id="dns-results-at-re-tau-180">
+<h3>DNS results at <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 180<a class="headerlink" href="#dns-results-at-re-tau-180" title="Link to this heading"></a></h3>
+<p>The channel half width <span class="math notranslate nohighlight">\(\delta\)</span> is set to 0.005 m, and the computational domain extend
+in +/- 0.0052 m in <span class="math notranslate nohighlight">\(y\)</span> with EB intersecting the domain at +/- <span class="math notranslate nohighlight">\(\delta\)</span>. A background pressure gradient in
+imposed in the <span class="math notranslate nohighlight">\(x\)</span> to compensate wall friction. The base grid and two levels of refinement are described in <a class="reference internal" href="#ebcdomain"><span class="std std-numref">Table 2</span></a>:</p>
+<table class="docutils align-center" id="ebcdomain">
+<caption><span class="caption-number">Table 2 </span><span class="caption-text">DNS Channel flow domain</span><a class="headerlink" href="#ebcdomain" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 40.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(x\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(y\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(z\)</span></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Domain size</p></td>
+<td><p>6.24 <span class="math notranslate nohighlight">\(\delta\)</span></p></td>
+<td><p>2.08 <span class="math notranslate nohighlight">\(\delta\)</span></p></td>
+<td><p>3.12 <span class="math notranslate nohighlight">\(\delta\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p>Base grid L0</p></td>
+<td><p>384</p></td>
+<td><p>128</p></td>
+<td><p>192</p></td>
+</tr>
+<tr class="row-even"><td><p>L1</p></td>
+<td><p>768</p></td>
+<td><p>256</p></td>
+<td><p>384</p></td>
+</tr>
+<tr class="row-odd"><td><p>L2</p></td>
+<td><p>1536</p></td>
+<td><p>512</p></td>
+<td><p>768</p></td>
+</tr>
+</tbody>
+</table>
+<p>The fluid in the simulation is air at ambient pressure and a temperature of 750.0 K, the physical
+property of which are summarized in <a class="reference internal" href="#ebcfluidprop"><span class="std std-numref">Table 3</span></a>:</p>
+<table class="docutils align-center" id="ebcfluidprop">
+<caption><span class="caption-number">Table 3 </span><span class="caption-text">Fluid properties</span><a class="headerlink" href="#ebcfluidprop" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 16.7%" />
+<col style="width: 16.7%" />
+<col style="width: 16.7%" />
+<col style="width: 16.7%" />
+<col style="width: 16.7%" />
+<col style="width: 16.7%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>Pressure</p></th>
+<th class="head"><p>Temperature</p></th>
+<th class="head"><p>Density</p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\mu\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\nu\)</span></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Value [MKS]</p></td>
+<td><p>102325.0</p></td>
+<td><p>750.0</p></td>
+<td><p>0.468793</p></td>
+<td><p>3.57816e-5</p></td>
+<td><p>7.63271e-5</p></td>
+</tr>
+</tbody>
+</table>
+<p>The characteristics of the flows are reported in <a class="reference internal" href="#ebcflowchar"><span class="std std-numref">Table 4</span></a>:</p>
+<table class="docutils align-center" id="ebcflowchar">
+<caption><span class="caption-number">Table 4 </span><span class="caption-text">DNS Channel flow characteristics</span><a class="headerlink" href="#ebcflowchar" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 25.9%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="math notranslate nohighlight">\(Re_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(u_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\tau_w\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(dp/dx\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(t^* = \delta/u_{\tau}\)</span></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>180.2</p></td>
+<td><p>2.75122</p></td>
+<td><p>3.5485</p></td>
+<td><p>-709.79</p></td>
+<td><p>1.817e-3</p></td>
+</tr>
+</tbody>
+</table>
+<p>Two levels of refinement, targeted on the EB, are employed in order to sufficiently resolve the boundary
+layer. The mesh characteristics are summarized in <a class="reference internal" href="#ebcmeshes"><span class="std std-numref">Table 5</span></a>. The <span class="math notranslate nohighlight">\(y^+\)</span> value is that of
+the cell center of the first full cell (uncut by the EB).</p>
+<table class="docutils align-center" id="ebcmeshes">
+<caption><span class="caption-number">Table 5 </span><span class="caption-text">Mesh characteristics</span><a class="headerlink" href="#ebcmeshes" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 18.5%" />
+<col style="width: 25.9%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="math notranslate nohighlight">\(Re_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\Delta y^+ L0\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\Delta y^+ Lmax\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(y^+\)</span></p></th>
+<th class="head"><p>Cells count</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>180.2</p></td>
+<td><p>2.93</p></td>
+<td><p>0.732</p></td>
+<td><p>0.479</p></td>
+<td><p>56.6 M</p></td>
+</tr>
+</tbody>
+</table>
+<p>Simulations are carried out for 20 eddy turn over time <span class="math notranslate nohighlight">\(t^*\)</span> to reach statistically steady
+conditions and data are then spatially averaged in the periodic directions and averaged in time over 10 <span class="math notranslate nohighlight">\(t^*\)</span>
+to get the velocity statistics in the direction normal to the wall.</p>
+<p><a class="reference internal" href="_images/Uplus_Re180_DNS_LMeX.png"><img alt="DNS180Uplus" src="_images/Uplus_Re180_DNS_LMeX.png" style="width: 48%;" /></a> <a class="reference internal" href="_images/VelRMSplus_Re180_DNS_LMeX.png"><img alt="DNS180Urms" src="_images/VelRMSplus_Re180_DNS_LMeX.png" style="width: 48%;" /></a></p>
+<p>Results indicate that <cite>PeleLMeX</cite> is able to reproduce accurately the DNS data obtained with
+a high-order spectral solver, provided sufficient resolution at the wall.</p>
+</section>
+<section id="les-results-at-re-tau-395-934">
+<h3>LES results at <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 395, 934<a class="headerlink" href="#les-results-at-re-tau-395-934" title="Link to this heading"></a></h3>
+<p>The channel half width <span class="math notranslate nohighlight">\(\delta\)</span> is set to 0.01 m, and the computational domain extend
+in +/- 0.0101 m in <span class="math notranslate nohighlight">\(y\)</span> with EB intersecting the domain at +/- <span class="math notranslate nohighlight">\(\delta\)</span>. The base grid is coarser
+than the DNS one by a factor of 2. A background pressure gradient in imposed in the <span class="math notranslate nohighlight">\(x\)</span> to compensate
+wall friction. The fluid conditions are similar to that of the DNS case and the flow
+and mesh characteristics are summarized in <a class="reference internal" href="#ebclesflowschar"><span class="std std-numref">Table 6</span></a>:</p>
+<table class="docutils align-center" id="ebclesflowschar">
+<caption><span class="caption-number">Table 6 </span><span class="caption-text">LES Channel flow characteristics</span><a class="headerlink" href="#ebclesflowschar" title="Link to this table"></a></caption>
+<colgroup>
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+<col style="width: 14.3%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="math notranslate nohighlight">\(Re_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(u_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\tau_w\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(dp/dx\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(t^* = \delta/u_{\tau}\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\Delta y^+ L0\)</span></p></th>
+<th class="head"><p><span class="math notranslate nohighlight">\(\Delta y^+ Lmax\)</span></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>395</p></td>
+<td><p>3.01492</p></td>
+<td><p>4.26121</p></td>
+<td><p>-426.121</p></td>
+<td><p>3.3317e-3</p></td>
+<td><p>12.467</p></td>
+<td><p>6.2336</p></td>
+</tr>
+<tr class="row-odd"><td><p>934</p></td>
+<td><p>7.12895</p></td>
+<td><p>23.8250</p></td>
+<td><p>-2382.50</p></td>
+<td><p>1.4027e-3</p></td>
+<td><p>29.479</p></td>
+<td><p>7.36984</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note that a single level of refinement is employed for the <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 395 while two are
+used for <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 934 in order to provide sufficient (but still below <span class="math notranslate nohighlight">\(y^+=1\)</span>)
+resolution near the walls.</p>
+<p>Simulations are performed with the WALE LES SGS model. The plots below shows that <cite>PeleLMeX</cite> is
+able to reproduce the normalized velocity profile reasonably well even though the resolution
+requirements for a Wall Resolved LES are not quite attained with the grid employed here.</p>
+<p><a class="reference internal" href="_images/Uplus_Re395_LES_LMeX.png"><img alt="LES395Uplus" src="_images/Uplus_Re395_LES_LMeX.png" style="width: 48%;" /></a> <a class="reference internal" href="_images/VelRMSplus_Re395_LES_LMeX.png"><img alt="LES395Urms" src="_images/VelRMSplus_Re395_LES_LMeX.png" style="width: 48%;" /></a></p>
+<p><a class="reference internal" href="_images/Uplus_Re934_LES_LMeX.png"><img alt="LES934Uplus" src="_images/Uplus_Re934_LES_LMeX.png" style="width: 48%;" /></a> <a class="reference internal" href="_images/VelRMSplus_Re934_LES_LMeX.png"><img alt="LES934Urms" src="_images/VelRMSplus_Re934_LES_LMeX.png" style="width: 48%;" /></a></p>
+<p>The velocity variance in the plot above show distinctive drops around coarse/fine interfaces,
+where the filter size change and a the subgrid-scale contribution increases as depicted on the figure below showing the
+subgrid-scale viscosity for the <span class="math notranslate nohighlight">\(Re_{\tau}\)</span> = 934 case.</p>
+<figure class="align-center" style="width: 48%">
+<img alt="_images/nu_t_Re934_LES_LMeX.png" src="_images/nu_t_Re934_LES_LMeX.png" />
+</figure>
+<p>Further work is ongoing to assess how to better handle large LES filter size changes in the context
+of AMR-LES</p>
+</section>
+</section>
+<section id="laminar-counterflow-diffusion-flame">
+<h2>Laminar counterflow diffusion flame<a class="headerlink" href="#laminar-counterflow-diffusion-flame" title="Link to this heading"></a></h2>
+<p>The laminar counterflow diffusion flame is a fundamental test case for non-premixed reactive flows. A
+laminar counterflow diffusion flame setup is available in <code class="docutils literal notranslate"><span class="pre">Exec/Production/CounterFlow</span></code>.
+In the present configuration, the geometry consists of a 1.5 cm x 1.5 cm domain with inflow at the left
+and right boundaries and outflow at the top and bottom boundaries. The left and right inflow boundaries
+correspond to the oxidizer and fuel inlet sides respectively, with an oxidizer/fuel jet section of
+diameter <span class="math notranslate nohighlight">\(d_{jet} = 0.5 cm\)</span> (<code class="docutils literal notranslate"><span class="pre">prob.jet_radius</span></code> of 0.0025) centered at the boundary. The
+remainder of the inflow boundary consists of inert inflow sections with composition of pure N2.
+The oxidizer jet section composition is that of air, while the fuel jet section composition is pure
+gaseous Dodecane. The inert inflow velocity on the left and right is set equal to the oxidizer and fuel
+jet velocities, respectively, in order to eliminate shear interactions between the inert and jet
+streams. The oxidizer and fuel jet velocities are 15.0 cm/s and 6.17 cm/s, respectively, corresponding
+to a global strain rate of <span class="math notranslate nohighlight">\(40 s^{-1}\)</span>. The initial condition corresponds to air composition
+filling the left half of the domain and gaseous Dodecane composition filling the right half of the
+domain with a hyperbolic tangent smoothly transitioning species mass fractions in the center of the
+domain. Ignition is performed by patching a spherical kernel of elevated temperature (in this case
+1000 K) with radius of 0.3 cm in the center of the domain as to cause autoignition. Grid refinement
+criteria based on the gradient of temperature is used and solution convergence is achieved with
+<code class="docutils literal notranslate"><span class="pre">amr.max_level</span></code> of 2.</p>
+<p>The <cite>PeleLMeX</cite> results obtained using the specified grid refinement criteria are compared to that of
+Cantera in spatial and mixture fraction space in <a class="reference internal" href="#counterflowlmexcantera-spatial"><span class="std std-numref">Fig. 7</span></a> and
+<a class="reference internal" href="#counterflowlmexcantera-mixture"><span class="std std-numref">Fig. 8</span></a>, respectively. Centerline profiles of major species as well as
+temperature across the flame front at steady-state are displayed, with PeleLMeX results indicated by
+solid colored lines and Cantera results indicated by black ticked lines. The results show very good
+agreement between the PeleLMeX and Cantera centerline profiles, with only small differences visible
+when plotting versus spatial coordinate due to differences in geometry (1-D vs. 2-D).</p>
+<figure class="align-center" id="counterflowlmexcantera-spatial" style="width: 50%">
+<img alt="_images/Dodecane_Counterflow_Spatial_Dodecane_Added.png" src="_images/Dodecane_Counterflow_Spatial_Dodecane_Added.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 7 </span><span class="caption-text">: One-dimentional flame spatial profiles with PeleLMeX and Cantera (underlying black dashed lines)</span><a class="headerlink" href="#counterflowlmexcantera-spatial" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="counterflowlmexcantera-mixture" style="width: 50%">
+<img alt="_images/Dodecane_Counterflow_Mixture_Dodecane_Added.png" src="_images/Dodecane_Counterflow_Mixture_Dodecane_Added.png" />
+<figcaption>
+<p><span class="caption-number">Fig. 8 </span><span class="caption-text">: One-dimentional flame profiles (mixture fraction space) with PeleLMeX and Cantera (underlying black dashed lines)</span><a class="headerlink" href="#counterflowlmexcantera-mixture" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Implementation.html" class="btn btn-neutral float-left" title="Source code" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="Performances.html" class="btn btn-neutral float-right" title="Performances" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, PeleTeam.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
