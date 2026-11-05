@@ -540,6 +540,15 @@ i.e. each uniform-space difference must be divided by the stretch factor for its
 omits the :math:`1/f_i` weights will over- or under-estimate every gradient in the stretched regions, by exactly the local factor
 :math:`f_i`.
 
+**What the solver already handles.** Inside `PeleLMeX` the mapping is applied consistently: the projections, advection and
+diffusion operate in uniform space with the metric terms above; domain integrals (``MFSum``, which feeds the closed-chamber
+mean of :math:`\nabla\cdot u`, the periodic-channel background pressure gradient, active control and the temporal balances) weight
+each cell by its physical volume :math:`J\,\Delta\chi\Delta\eta\Delta\xi`; the gradient-based derived fields (``mag_vort``,
+``vorticity``, ``Qcrit``, ``enstrophy``), the ``x``/``y``/``z`` coordinate derives, the divU time-step estimate, spark locations,
+active-control flame positions and boundary-patch membership are all evaluated in physical coordinates. Mesh mapping is
+currently **not** supported together with embedded boundaries, RZ geometry, the plasma solver, spray particles, radiation or
+the LES models; the code aborts at startup for these combinations.
+
 
 Large Eddy Simulation
 ^^^^^^^^^^^^^^^^^^^^^

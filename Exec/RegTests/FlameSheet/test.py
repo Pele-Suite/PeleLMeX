@@ -30,7 +30,7 @@
 # MESH MAPPING: the mapped FV update conserves rho*detJ and telescopes to
 # the Xi-space boundary flux that addMassFluxes already sums, so only the
 # volume integral needs the metric: PeleLM::massBalance integrates rho
-# with the detJ weight (MFSumMapped); the boundary-flux sum stays in Xi
+# with the detJ weight (MFSum, cached physical cell volume); the boundary-flux sum stays in Xi
 # space (must NOT be fac-weighted).  The detJ-weighted reduction has a
 # slightly larger round-off floor than the uniform one, but on the
 # mass-relative basis both the identity-map control and the stretched

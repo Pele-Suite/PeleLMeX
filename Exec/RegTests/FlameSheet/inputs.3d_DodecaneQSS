@@ -55,8 +55,15 @@ peleLM.chem_integrator = "ReactorCvode"
 peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
 ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
 ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
-cvode.solve_type = GMRES              # CVODE Linear solve type (for Newton direction) 
+cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
+# GMRES is 3.5x (CPU) to 4x (GPU) slower than a direct solve here. On GPU, build
+# with PELE_CVODE_FORCE_YCORDER=TRUE and use cvode.solve_type = sparse_direct;
+# ode.atol = 1.0e-4 there cuts the step cost by a fifth.
 cvode.max_order  = 4                  # CVODE max BDF order. 
+# Chemistry box size (default: the flow boxes). CPU with many MPI ranks: 8
+# spreads the flame chemistry over more ranks (63 ranks with flow boxes of 16:
+# -2% per step). On GPU with sparse_direct, 32 made no difference.
+#peleLM.max_grid_size_chem = 8     # CPU
 
 #--------------------REFINEMENT CONTROL------------------------
 #amr.refinement_indicators = temp
@@ -81,4 +88,3 @@ amr.yH.field_name    = Y(H)
 amrex.the_arena_is_managed=1
 amrex.abort_on_out_of_gpu_memory = 1
 amrex.signal_handling=0
-amr.loadbalance_with_workestimates = 1

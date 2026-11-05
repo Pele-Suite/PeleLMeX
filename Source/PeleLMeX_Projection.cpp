@@ -146,6 +146,8 @@ PeleLM::initialProjection()
     }
   }
 
+  checkNodalCompatibility("initial projection", GetVecOfConstPtrs(rhs_cc));
+
   doNodalProject(
     GetVecOfPtrs(vel), GetVecOfPtrs(sigma), GetVecOfPtrs(rhs_cc), {},
     incremental, dummy_dt);
@@ -633,6 +635,8 @@ PeleLM::velocityProjection(
     }
   }
 
+  checkNodalCompatibility("velocity projection", GetVecOfConstPtrs(rhs_cc));
+
   doNodalProject(
     GetVecOfPtrs(vel), GetVecOfPtrs(sigma), GetVecOfPtrs(rhs_cc), {},
     incremental, a_dt);
@@ -727,6 +731,19 @@ PeleLM::velocityProjection(
 }
 
 void
+PeleLM::checkNodalCompatibility(
+  const std::string& a_who, const amrex::Vector<const amrex::MultiFab*>& a_rhs)
+{
+  // Sealed box only: the NodalProjector forms div(U) + rhs_cc, and with no
+  // inflow/outflow face the boundary term is zero so sum(rhs_cc) must
+  // vanish.  With open faces the nodal boundary term is not reconstructed
+  // here and the check is skipped.
+  if (compatibilityCheckEnabled() && !a_rhs.empty() && !domainHasOpenFace()) {
+    checkProjectionCompatibility(a_who, a_rhs, 0.0, 1.0, geom[0].IsRZ());
+  }
+}
+
+void
 PeleLM::doNodalProject(
   const amrex::Vector<amrex::MultiFab*>& a_vel,
   const amrex::Vector<amrex::MultiFab*>& a_sigma,
@@ -813,7 +830,7 @@ PeleLM::doNodalProject(
   if (!m_mlmg_fail_plt_residuals) {
     nodal_projector->project(m_nodal_mg_rtol, m_nodal_mg_atol);
   } else {
-    nodal_projector->getMLMG().setThrowException(true);
+    nodal_projector->setThrowException(true);
     nodal_projector->getMLMG().setConvergenceNormType(
       amrex::MLMGNormType::bnorm);
     try {

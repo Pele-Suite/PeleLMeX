@@ -162,6 +162,25 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
             (std::sin(2 * Pi * 11 * z / Lz) * std::sin(2 * Pi * 4 * x / Lx) +
              std::sin(2 * Pi * 3 * z / Lz) *
                std::sin(2 * Pi * 9 * (x - 0.00779) / Lx)));
+    } else if (prob_parm.flowType == 3) {
+      // Quartic laminar channel profile, no perturbations:
+      //     u = meanFlowMag . (1 - yhat^4),   yhat = 2 (y - y_mid) / Ly
+      // Its viscous force mu u'' = -48 mu U yhat^2 / Ly^2 varies across
+      // the channel, so the domain-mean viscous force (the periodic-
+      // channel background pressure gradient) depends on how cells are
+      // volume-weighted: a wall-clustered stretched mesh over-weights
+      // the near-wall cells unless the mean is detJ-weighted.  The
+      // exact mean is -16 mu U / Ly^2.  A parabolic profile would NOT
+      // expose this (u'' is then constant), which is why this profile
+      // exists.  Used by Exec/RegTests/MeshMappingConvergence/
+      // run_mean_integrals.sh.
+      const amrex::Real y_mid =
+        mmap.x_phys_face(1, 0, geomdata) + 0.5 * Ly; // physical mid-plane
+      const amrex::Real yhat = 2.0 * (y - y_mid) / Ly;
+      const amrex::Real yhat2 = yhat * yhat;
+      AMREX_D_TERM(state(i, j, k, VELX) =
+                     prob_parm.meanFlowMag * (1.0 - yhat2 * yhat2);
+                   , state(i, j, k, VELY) = 0.0;, state(i, j, k, VELZ) = 0.0);
     }
 
     if (!(is_incompressible == 0)) {

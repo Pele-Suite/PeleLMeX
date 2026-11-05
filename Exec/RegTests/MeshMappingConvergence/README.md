@@ -161,6 +161,25 @@ temperature gradient; a FlameSheet-based pair is the natural case).
 The same field-by-field check (`compare_plotfiles.py`, tol 1e-10) runs in
 CI on that pair, so a change that reintroduces a mapped-operator drift
 fails CI rather than showing up as a slow convergence-study surprise.
+The gradient derives (`mag_vort`, `vorticity`, `Qcrit`, `enstrophy`) and
+the `x`/`y`/`z` coordinate derives are part of that comparison: they are
+mapping-aware and must match the unmapped run exactly.
+
+## Derived fields and positions
+
+`run_derives_equivalence.sh` runs the same ConstantMap-vs-reference check
+on PipeFlow in all three directions, with the derives above in the
+plotfile, and a `TanhStretchMap` run whose `x`/`y`/`z` derives are checked
+against the analytic map by `check_coordinates.py`.  A derive that
+differences on the Xi grid is off by exactly `fac` in the mapped
+direction, so the comparison is sharp.
+
+## Physical-volume means
+
+`run_mean_integrals.sh` + `check_mean_integrals.py` cover the domain means
+formed through `MFSum` (closed-chamber `Sbar`, periodic-channel background
+pressure gradient) on a wall-clustered `TanhStretchMap`; see the header of
+the script.
 
 ## Historical caveat (resolved)
 

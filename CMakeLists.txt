@@ -27,6 +27,7 @@ set(PELE_PRECISION "DOUBLE" CACHE STRING "Floating point precision SINGLE or DOU
 # Physics options
 option(PELE_ENABLE_EB "Enable Embedded Boundary" OFF)
 option(PELE_ENABLE_PARTICLES "Enable particles and spray" ON)
+option(PELE_CVODE_FORCE_YCORDER "Use YCOrder in CVODE on GPUs (enables sparse_direct, precGMRES, fixed_point)" OFF)
 
 # HPC options
 option(PELE_ENABLE_MPI "Enable MPI" OFF)

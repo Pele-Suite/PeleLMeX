@@ -3,6 +3,9 @@ function(build_pele_physics_lib pele_physics_lib_name)
     add_library(${pele_physics_lib_name} OBJECT)
 
     target_compile_definitions(${pele_physics_lib_name} PUBLIC PELE_USE_CMAKE)
+    if(PELE_CVODE_FORCE_YCORDER)
+      target_compile_definitions(${pele_physics_lib_name} PUBLIC PELE_CVODE_FORCE_YCORDER)
+    endif()
 
     set(PELE_PHYSICS_SRC_DIR "${CMAKE_SOURCE_DIR}/Submodules/PelePhysics")
     set(PELE_PHYSICS_TRANSPORT_DIR "${PELE_PHYSICS_SRC_DIR}/Source/Transport")

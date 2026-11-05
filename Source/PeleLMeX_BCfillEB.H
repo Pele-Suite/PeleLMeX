@@ -81,10 +81,7 @@ struct PeleLMFillBCStateEB
     amrex::Array4<amrex::Real> const& /*ebState*/,
     const int /*firstcomp*/,
     const int /*numcomp*/,
-    AMREX_D_DECL(
-      amrex::Array4<const amrex::Real> const& /*ebfc_x*/,
-      amrex::Array4<const amrex::Real> const& /*ebfc_y*/,
-      amrex::Array4<const amrex::Real> const& /*ebfc_z*/),
+    amrex::Array4<const amrex::Real> const& /*ebbc*/,
     amrex::Array4<amrex::Real const> const& /*ebnorm*/,
     amrex::GeometryData const& /*geom*/,
     const amrex::Real /*time*/) const
@@ -113,23 +110,20 @@ struct PeleLMFillBCStateEB<T, true>
     amrex::Array4<amrex::Real> const& ebState,
     const int firstcomp,
     const int numcomp,
-    AMREX_D_DECL(
-      amrex::Array4<const amrex::Real> const& ebfc_x,
-      amrex::Array4<const amrex::Real> const& ebfc_y,
-      amrex::Array4<const amrex::Real> const& ebfc_z),
+    amrex::Array4<const amrex::Real> const& ebbc,
     amrex::Array4<amrex::Real const> const& ebnorm,
     amrex::GeometryData const& geom,
     const amrex::Real time) const
   {
-    // Get the EBface centroid coordinates
+    // Get the EB boundary centroid coordinates
     const amrex::Real* dx = geom.CellSize();
     const amrex::Real* prob_lo = geom.ProbLo();
     const amrex::Real xcell[AMREX_SPACEDIM] = {AMREX_D_DECL(
       prob_lo[0] + (i + 0.5_rt) * dx[0], prob_lo[1] + (j + 0.5_rt) * dx[1],
       prob_lo[2] + (k + 0.5_rt) * dx[2])};
     const amrex::Real xface[AMREX_SPACEDIM] = {AMREX_D_DECL(
-      xcell[0] + ebfc_x(i, j, k) * dx[0], xcell[1] + ebfc_y(i, j, k) * dx[1],
-      xcell[2] + ebfc_z(i, j, k) * dx[2])};
+      xcell[0] + ebbc(i, j, k, 0) * dx[0], xcell[1] + ebbc(i, j, k, 1) * dx[1],
+      xcell[2] + ebbc(i, j, k, 2) * dx[2])};
     const amrex::Real bcnorm[AMREX_SPACEDIM] = {
       AMREX_D_DECL(ebnorm(i, j, k, 0), ebnorm(i, j, k, 1), ebnorm(i, j, k, 2))};
 
@@ -217,10 +211,7 @@ struct PeleLMFillBCTypeEB
     int /*k*/,
     int& /*EBFlagType*/,
     amrex::Real& /*EBfaceFrac*/,
-    AMREX_D_DECL(
-      amrex::Array4<const amrex::Real> const& /*ebfc_x*/,
-      amrex::Array4<const amrex::Real> const& /*ebfc_y*/,
-      amrex::Array4<const amrex::Real> const& /*ebfc_z*/),
+    amrex::Array4<const amrex::Real> const& /*ebbc*/,
     amrex::GeometryData const& /*geom*/,
     ProbParm const& /*prob_parm*/) const
   {
@@ -246,22 +237,19 @@ struct PeleLMFillBCTypeEB<T, true>
     int k,
     int& EBFlagType,
     amrex::Real& EBfaceFrac,
-    AMREX_D_DECL(
-      amrex::Array4<const amrex::Real> const& ebfc_x,
-      amrex::Array4<const amrex::Real> const& ebfc_y,
-      amrex::Array4<const amrex::Real> const& ebfc_z),
+    amrex::Array4<const amrex::Real> const& ebbc,
     amrex::GeometryData const& geom,
     ProbParm const& /*prob_parm*/) const
   {
-    // Get the EBface centroid coordinates
+    // Get the EB boundary centroid coordinates
     const amrex::Real* dx = geom.CellSize();
     const amrex::Real* prob_lo = geom.ProbLo();
     const amrex::Real xcell[AMREX_SPACEDIM] = {AMREX_D_DECL(
       prob_lo[0] + (i + 0.5_rt) * dx[0], prob_lo[1] + (j + 0.5_rt) * dx[1],
       prob_lo[2] + (k + 0.5_rt) * dx[2])};
     const amrex::Real xface[AMREX_SPACEDIM] = {AMREX_D_DECL(
-      xcell[0] + ebfc_x(i, j, k) * dx[0], xcell[1] + ebfc_y(i, j, k) * dx[1],
-      xcell[2] + ebfc_z(i, j, k) * dx[2])};
+      xcell[0] + ebbc(i, j, k, 0) * dx[0], xcell[1] + ebbc(i, j, k, 1) * dx[1],
+      xcell[2] + ebbc(i, j, k, 2) * dx[2])};
 
     // User-defined fill type function, default is wall adiab
     EBFlagType = pelelmex::BCTypeEB::wall_adiab;

@@ -523,7 +523,7 @@ Chemistry integrator
     cvode.max_order  = 4                        # [OPT, DEF=2] Maximum order of the BDF method in CVODE
     cvode.max_substeps = 10000                  # [OPT, DEF=10000] Maximum number of substeps for the linear solver in CVODE
 
-Note that the last five parameters belong to the Reactor class of PelePhysics but are specified here for completeness. In particular, CVODE is the adequate choice of integrator to tackle PeleLMeX large time step sizes. Several linear solvers are available depending on whether or not GPU are employed: on CPU, `dense_direct` is a finite-difference direct solver, `denseAJ_direct` is an analytical-jacobian direct solver (preferred choice), `sparse_direct` is an analytical-jacobian sparse direct solver based on the KLU library and `GMRES` is a matrix-free iterative solver; on GPU `GMRES` is a matrix-free iterative solver (available on all the platforms), `sparse_direct` is a batched block-sparse direct solve based on NVIDIA's cuSparse (only with CUDA), `magma_direct` is a batched block-dense direct solve based on the MAGMA library (available with CUDA and HIP. Different `cvode.solve_type` should be tried before increasing the `cvode.max_substeps`.
+Note that the last five parameters belong to the Reactor class of PelePhysics but are specified here for completeness. In particular, CVODE is the adequate choice of integrator to tackle PeleLMeX large time step sizes. Several linear solvers are available depending on whether or not GPU are employed: on CPU, `dense_direct` is a finite-difference direct solver, `denseAJ_direct` is an analytical-jacobian direct solver (preferred choice), `sparse_direct` is an analytical-jacobian sparse direct solver based on the KLU library and `GMRES` is a matrix-free iterative solver; on GPU `GMRES` is a matrix-free iterative solver (available on all the platforms), `sparse_direct` is a batched sparse direct solve based on NVIDIA's cuSolverSp (only with CUDA), `magma_direct` is a batched dense direct solve based on the MAGMA library (available with CUDA and HIP). On GPU, CVODE uses by default a data layout (CYOrder) that only supports `GMRES`; build with `PELE_CVODE_FORCE_YCORDER=TRUE` (GNU make) or `-DPELE_CVODE_FORCE_YCORDER=ON` (CMake) to enable `sparse_direct`, `precGMRES` and `fixed_point` (`PELE_USE_MAGMA=TRUE` does this automatically). On GPU, `GMRES` is usually the fastest choice for small mechanisms such as drm19, while a direct solve (`sparse_direct` or `magma_direct`) can be several times faster for larger ones such as the 53-species n-dodecane mechanism. Different `cvode.solve_type` should be tried before increasing the `cvode.max_substeps`.
 
 .. note::
    The default chemistry integrator is 'ReactorNull' which do not include the chemical source terms.
@@ -665,11 +665,27 @@ Linear solvers are a key component of PeleLMeX algorithm, separate controls are 
     diffusion.rtol = 1.0e-11                  # [OPT, DEF=1e-11] Relative tolerance of the scalar diffusion solve
     diffusion.atol = 1.0e-12                  # [OPT, DEF=1e-14] Absolute tolerance of the scalar diffusion solve
     diffusion.max_iter = 100                  # [OPT, DEF=100] Maximum number of iterations of the scalar diffusion solve
+    diffusion.bottom_solver = bicgstab        # [OPT, DEF=operator default] smoother, bicgstab, cg, bicgcg, cgbicg, hypre, petsc or algmg
+    diffusion.bottom_rtol = 1e-4              # [OPT, DEF=MLMG default] Relative tolerance of the bottom solve
+    diffusion.bottom_verbose = 1              # [OPT, DEF=0] Verbose of the bottom solve
+    diffusion.hypre_namespace = diff_hypre    # [OPT, DEF=diffusion_hypre] ParmParse prefix of the hypre bottom solver options
+    diffusion.mg_max_coarsening_level = 0     # [OPT, DEF=100] Maximum number of MG levels (0: the bottom solver solves level 0)
+    diffusion.multigrid_type = geometric      # [OPT, DEF=geometric] geometric, algebraic or hybrid (AMReX's AlgMG on level 0)
+    diffusion.max_order = 4                   # [OPT, DEF=4] Order of the boundary stencils
+    diffusion.use_gmres = 0                   # [OPT, DEF=0] Solve with GMRES preconditioned by MLMG
+    diffusion.gmres_precond_iters = 1         # [OPT, DEF=1] MLMG cycles per GMRES iteration
+    diffusion.use_mlhypre = 0                 # [OPT, DEF=0] Composite (all AMR levels) solve with AMReX's HypreMLABecLap
+    diffusion.mlhypre_prefix = diff_mlhypre   # [OPT, DEF=diffusion_mlhypre] ParmParse prefix of the HypreMLABecLap options
+    diffusion.mlhypre_reuse_setup = 1         # [OPT, DEF=1] Reuse the solver setup: 0 never, 1 across the components of a solve, 2 also across solves
 
     tensor_diffusion.verbose = 1              # [OPT, DEF=0] Verbose of the velocity tensor diffusion solve
     tensor_diffusion.rtol = 1.0e-11           # [OPT, DEF=1e-11] Relative tolerance of the velocity tensor diffusion solve
     tensor_diffusion.atol = 1.0e-12           # [OPT, DEF=1e-14] Absolute tolerance of the velocity tensor diffusion solve
     tensor_diffusion.max_iter = 100           # [OPT, DEF=100] Maximum number of iterations of the velocity tensor diffusion solve
+    tensor_diffusion.bottom_solver = bicgstab # [OPT, DEF=operator default] smoother, bicgstab, cg, bicgcg or cgbicg
+    tensor_diffusion.use_gmres = 0            # [OPT, DEF=0] Solve with GMRES preconditioned by MLMG
+    tensor_diffusion.gmres_precond_iters = 1  # [OPT, DEF=1] MLMG cycles per GMRES iteration
+    tensor_diffusion.gmres_restart = 30       # [OPT, DEF=GMRES default] GMRES restart length
 
 Hypre support
 ^^^^^^^^^^^^^
@@ -710,6 +726,41 @@ solvers and parameters can be found in the `Hypre documentation <https://hypre.r
     mac_proj.hypre.bamg_interp_type = 4
     mac_proj.hypre.bamg_relax_type = 7
 
+Matrix-based and composite solvers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Besides the hypre bottom solver, AMReX assembles the operator as a matrix for
+the ``petsc`` and ``algmg`` (AMReX's algebraic multigrid) bottom solvers, and
+for ``multigrid_type = algebraic`` (AlgMG solves AMR level 0) or ``hybrid``
+(geometric multigrid, switching to AlgMG if it stalls).  These solvers handle
+one component at a time, so the species diffusion is then solved component by
+component.  With EB they support boundary stencils up to order 3, and
+``diffusion.max_order`` is lowered to 3 accordingly.  The projections read
+``mac_proj.bottom_solver = algmg`` and ``mac_proj.multigrid_type`` (and the
+``nodal_proj`` equivalents) from AMReX-Hydro.
+
+The composite solvers solve all AMR levels as one system:
+
+* ``diffusion.use_mlhypre = 1`` solves each scalar diffusion component with
+  AMReX's ``HypreMLABecLap`` (not with EB).  It requires the IJ mode, selected
+  with a ``hypre_solver`` key (e.g. ``FlexGMRES`` with ``BoomerAMG``) or
+  ``backend = algmg`` under ``diffusion.mlhypre_prefix``.  It uses order-3
+  boundary stencils, so ``diffusion.max_order`` is lowered to 3, and it
+  converges to ``diffusion.rtol`` only (``diffusion.atol`` is not used).
+  Poisson solves through the same operator (the plasma electric field) stay
+  with MLMG.
+* ``mac_proj.use_mlhypre = 1`` and ``nodal_proj.use_mlhypre = 1`` do the same
+  for the projections (see the AMReX-Hydro documentation); the MAC
+  projection then uses order-3 boundary stencils.
+
+::
+
+    diffusion.use_mlhypre = 1
+    diffusion_mlhypre.hypre_solver = FlexGMRES
+    diffusion_mlhypre.hypre_preconditioner = BoomerAMG
+    nodal_proj.use_mlhypre = 1
+    hypre_mlnodelap.hypre_solver = GMRES
+    hypre_mlnodelap.hypre_preconditioner = BoomerAMG
 
 Active control
 --------------

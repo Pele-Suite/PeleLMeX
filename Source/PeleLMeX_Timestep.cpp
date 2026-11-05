@@ -212,11 +212,13 @@ PeleLM::estDivUDt(const TimeStamp a_time)
       estdt = amrex::min<amrex::Real>(divu_dt, estdt);
     } else if (m_divu_checkFlag == 2) {
       const auto& dxinv = geom[lev].InvCellSizeArray();
+      const MeshMapEvaluator mmap = m_map_eval;
+      const amrex::GeometryData gd = geom[lev].data();
       std::unique_ptr<amrex::MultiFab> velo = std::make_unique<amrex::MultiFab>(
         ldata_p->state, amrex::make_alias, VELX, AMREX_SPACEDIM);
       amrex::Real divu_dt = amrex::ReduceMin(
         *density, *velo, ldata_p->divu, 0,
-        [dtfac, rhoMin, dxinv] AMREX_GPU_HOST_DEVICE(
+        [dtfac, rhoMin, dxinv, mmap, gd] AMREX_GPU_HOST_DEVICE(
           amrex::Box const& bx, amrex::Array4<amrex::Real const> const& rho,
           amrex::Array4<amrex::Real const> const& vel,
           amrex::Array4<amrex::Real const> const& divu) -> amrex::Real {
@@ -226,8 +228,8 @@ PeleLM::estDivUDt(const TimeStamp a_time)
           for (int k = lo.z; k <= hi.z; ++k) {
             for (int j = lo.y; j <= hi.y; ++j) {
               for (int i = lo.x; i <= hi.x; ++i) {
-                amrex::Real dtcell =
-                  est_divu_dt_2(i, j, k, dtfac, rhoMin, dxinv, rho, vel, divu);
+                amrex::Real dtcell = est_divu_dt_2(
+                  i, j, k, dtfac, rhoMin, dxinv, mmap, gd, rho, vel, divu);
                 dt = amrex::min<amrex::Real>(dt, dtcell);
               }
             }
@@ -256,21 +258,24 @@ PeleLM::checkDt(const TimeStamp a_time, const amrex::Real a_dt)
     auto* ldata_p = getLevelDataPtr(lev, a_time);
     const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> dxinv =
       geom[lev].InvCellSizeArray();
+    const MeshMapEvaluator mmap = m_map_eval;
+    const amrex::GeometryData gd = geom[lev].data();
 
     auto const& state_ma = ldata_p->state.const_arrays();
     auto const& divu_ma = ldata_p->divu.const_arrays();
 
     amrex::ParallelFor(
       ldata_p->state,
-      [state_ma, divu_ma, dxinv, a_dt, divu_checkFlag = m_divu_checkFlag,
-       dtfac = m_divu_dtFactor,
+      [state_ma, divu_ma, dxinv, mmap, gd, a_dt,
+       divu_checkFlag = m_divu_checkFlag, dtfac = m_divu_dtFactor,
        rhoMin =
          m_divu_rhoMin] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
         amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
         amrex::Array4<amrex::Real const> vel(state_ma[box_no], VELX);
         amrex::Array4<amrex::Real const> divu = divu_ma[box_no];
         check_divu_dt(
-          i, j, k, divu_checkFlag, dtfac, rhoMin, dxinv, rho, vel, divu, a_dt);
+          i, j, k, divu_checkFlag, dtfac, rhoMin, dxinv, mmap, gd, rho, vel,
+          divu, a_dt);
       });
   }
   amrex::Gpu::streamSynchronize();

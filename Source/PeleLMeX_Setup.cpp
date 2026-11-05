@@ -348,6 +348,9 @@ PeleLM::readParameters()
   // enable overwriting
   m_closed_chamber = (isOpenDomain) != 0 ? 0 : 1;
   pp.query("closed_chamber", m_closed_chamber);
+  pp.query("debug_check_compatibility", m_debug_check_compatibility);
+  pp.query("debug_compatibility_tol", m_debug_compatibility_tol);
+  pp.query("debug_divu_mismatch", m_debug_divu_mismatch);
   if ((verbose != 0) && (m_closed_chamber != 0)) {
     amrex::Print()
       << " Simulation performed with the closed chamber algorithm \n";
@@ -631,6 +634,12 @@ PeleLM::readParameters()
     }
     m_do_les = true;
     m_les_verbose = m_verbose;
+    if (m_mesh_mapping) {
+      amrex::Abort(
+        "peleLM.les_model is not supported with geometry.mesh_mapping: the "
+        "filter width is formed from the uniform Xi cell volume and the "
+        "velocity-gradient operator has not been mapped.");
+    }
     pp.query("plot_les", m_plot_les);
     pp.query("les_v", m_les_verbose);
     pp.query("les_c_chi", m_les_c_chi);
@@ -790,10 +799,17 @@ PeleLM::readParameters()
   parseUserKey(pp, "load_balancing_cost_estimate", lbcost, m_loadBalanceCost);
   pp.query(
     "load_balancing_efficiency_threshold", m_loadBalanceEffRatioThreshold);
-  parseUserKey(
-    pp, "chem_load_balancing_method", lbmethod, m_loadBalanceMethodChem);
-  parseUserKey(
-    pp, "chem_load_balancing_cost_estimate", lbcost, m_loadBalanceCostChem);
+  // The chemistry keys share the flow keys' tables, whose "default" entries
+  // are the flow defaults (sfc, ncell). Parse them only when given, so that
+  // the chemistry defaults set in PeleLMeX.H apply otherwise.
+  if (pp.contains("chem_load_balancing_method")) {
+    parseUserKey(
+      pp, "chem_load_balancing_method", lbmethod, m_loadBalanceMethodChem);
+  }
+  if (pp.contains("chem_load_balancing_cost_estimate")) {
+    parseUserKey(
+      pp, "chem_load_balancing_cost_estimate", lbcost, m_loadBalanceCostChem);
+  }
 
   // Deactivate load balancing for serial runs
 #ifdef AMREX_USE_MPI
@@ -859,6 +875,13 @@ PeleLM::readParameters()
   ppmacproj.query("atol", m_mac_mg_atol);
   ppmacproj.query("rtol", m_mac_mg_rtol);
   ppmacproj.query("hypre_namespace", m_hypre_namespace_mac);
+  // Hydro's composite hypre solve (mac_proj.use_mlhypre) uses order-3
+  // boundary stencils; the MLMG fluxes must match
+  int mac_use_mlhypre = 0;
+  ppmacproj.query("use_mlhypre", mac_use_mlhypre);
+  if (mac_use_mlhypre != 0) {
+    m_mac_max_order = amrex::min(m_mac_max_order, 3);
+  }
   ppmacproj.query("mlmg_fail_sdc_miniter", m_mac_mg_fail_sdc_miniter);
   ppmacproj.query(
     "mlmg_fail_maxiter_after_sdc_miniter",
@@ -982,6 +1005,12 @@ PeleLM::readParameters()
 
 #ifdef PELE_USE_SPRAY
   SprayReadParameters();
+  if (do_spray_particles && m_mesh_mapping) {
+    amrex::Abort(
+      "Spray particles are not supported with geometry.mesh_mapping: the "
+      "particle positions and CFL assume a uniform physical grid.  Set "
+      "peleLM.do_spray_particles = 0 or drop the mapping.");
+  }
 #endif
 #ifdef PELE_USE_SOOT
   do_soot_solve = true;
@@ -994,6 +1023,11 @@ PeleLM::readParameters()
 #ifdef PELE_USE_RADIATION
   do_rad_solve = false;
   pp.query("do_rad_solve", do_rad_solve);
+  if (do_rad_solve && m_mesh_mapping) {
+    amrex::Abort(
+      "Radiation (do_rad_solve) is not supported with geometry.mesh_mapping: "
+      "the optical path lengths assume a uniform physical grid.");
+  }
   if ((m_verbose != 0) && do_rad_solve) {
     amrex::Print() << "Simulation performed with radiation modeling \n";
   }
@@ -2040,6 +2074,9 @@ PeleLM::resizeArray()
 
   // External sources
   m_extSource.resize(max_level + 1);
+
+  // Physical cell volumes (MFSum weights)
+  m_cellVol.resize(max_level + 1);
 
   // Factory
   m_factory.resize(max_level + 1);

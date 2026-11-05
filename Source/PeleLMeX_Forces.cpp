@@ -186,8 +186,10 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
       auto const dx = geom[lev].CellSizeArray();
       amrex::IntVect spark_idx;
       for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-        spark_idx[d] =
-          static_cast<int>((m_spark_location[n][d] - probLo[d]) / dx[d]);
+        // Spark location is physical: index it through Xi.
+        const amrex::Real xi = m_map_eval.xi_from_x_phys(
+          d, m_spark_location[n][d], geom[lev].data());
+        spark_idx[d] = static_cast<int>(std::floor((xi - probLo[d]) / dx[d]));
       }
       const amrex::Box domainBox = geom[lev].Domain();
       // just a check
@@ -203,17 +205,33 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
       auto const& statema =
         getLevelDataPtr(lev, a_timestamp)->state.const_arrays();
       auto const& extma = m_extSource[lev]->arrays();
+      const MeshMapEvaluator mmap = m_map_eval;
+      const amrex::GeometryData gd = geom[lev].data();
       amrex::ParallelFor(
         *m_extSource[lev],
-        [statema, extma, leosparm, dx, spark_idx,
+        [statema, extma, leosparm, dx, spark_idx, mmap, gd,
          spark_duration = m_spark_duration[n], spark_temp = m_spark_temp[n],
          spark_radius = m_spark_radius
            [n]] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
           auto eos = pele::physics::PhysicsType::eos(leosparm);
-          const amrex::Real dist_to_center = std::sqrt(AMREX_D_TERM(
-            (i - spark_idx[0]) * (i - spark_idx[0]) * dx[0] * dx[0],
-            +(j - spark_idx[1]) * (j - spark_idx[1]) * dx[1] * dx[1],
-            +(k - spark_idx[2]) * (k - spark_idx[2]) * dx[2] * dx[2]));
+          // Physical distance from the centre of the spark cell; the
+          // index-space form is kept bit-identical without mapping.
+          amrex::Real dist_to_center = 0.0;
+          if (!is_identity_map(mmap)) {
+            const int ic[3] = {i, j, k};
+            amrex::Real d2 = 0.0;
+            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+              const amrex::Real dxc = mmap.x_phys_cc(d, ic[d], gd) -
+                                      mmap.x_phys_cc(d, spark_idx[d], gd);
+              d2 += dxc * dxc;
+            }
+            dist_to_center = std::sqrt(d2);
+          } else {
+            dist_to_center = std::sqrt(AMREX_D_TERM(
+              (i - spark_idx[0]) * (i - spark_idx[0]) * dx[0] * dx[0],
+              +(j - spark_idx[1]) * (j - spark_idx[1]) * dx[1] * dx[1],
+              +(k - spark_idx[2]) * (k - spark_idx[2]) * dx[2] * dx[2]));
+          }
           if (dist_to_center < spark_radius) {
             const amrex::Real rho = statema[box_no](i, j, k, DENSITY);
             amrex::Real Y[NUM_SPECIES];

@@ -140,6 +140,7 @@ PeleLM::MakeNewLevelFromScratch(
     m_map_eval = m_mesh_map->make_evaluator();
     rebuildMappedInterps();
   }
+  defineCellVolume(lev, grids[lev], dmap[lev], *m_factory[lev]);
 
 #ifdef AMREX_USE_EB
   if (lev == 0 && (m_signDistNeeded != 0)) {

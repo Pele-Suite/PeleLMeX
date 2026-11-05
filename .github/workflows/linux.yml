@@ -15,7 +15,7 @@ jobs:
   # Build and Run the EB_FlowPastCylinder RegTest with GNU9.3 and MPI support
   #FPC2D:
   #  name: GNU@9.3 MPI Run [FPC2DDBG]
-  #  runs-on: ubuntu-latest
+  #  runs-on: ubuntu-24.04
   #  env:
   #    {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
   #  steps:
@@ -58,7 +58,7 @@ jobs:
   # Build and Run the EB_PipeFlow RegTest with GNU9.3 and MPI support
   EBPF3D:
     name: GNU@9.3 MPI Run [EBPF3D]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -80,7 +80,7 @@ jobs:
   # Build and Run the SootRadTest RegTest with GNU9.3 and MPI support
   SOOTRAD:
     name: GNU@9.3 MPI Run [SootRadTest]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -112,7 +112,7 @@ jobs:
   # Build and Run the EB_BackwardStepFlame RegTest with GNU9.3 and MPI support
   EBBFS:
     name: GNU@9.3 MPI Run [EBBFS]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -134,7 +134,7 @@ jobs:
   # Build and Run the Plasma flamesheet with GNU9.3 and MPI support
   PLASMA:
     name: GNU@9.3 MPI Run [PLASMA]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -156,7 +156,7 @@ jobs:
   # Build and Run the TurbInflow RegTest in DEBUG with GNU9.3 and MPI support
   TI3D:
     name: GNU@9.3 MPI Run [TI3DDBG]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
     steps:
@@ -207,7 +207,9 @@ jobs:
         python3 compare_inflow_plane.py planeCMref_000001 planeCM_000001 --map constant --beta 2 --require 0.99
         # The same pair is a round-off equivalence test of every mapped operator: on
         # index-identical grids of the same physical mesh, the ConstantMap run must
-        # reproduce the unmapped one field by field (gradp up to its known fac scaling).
+        # reproduce the unmapped one field by field (gradp up to its known fac scaling),
+        # including the gradient derives (mag_vort, vorticity, Qcrit, enstrophy) and
+        # the x/y/z coordinate derives, which must be physical.
         python3 ../MeshMappingConvergence/compare_plotfiles.py pltCMref_00002 pltCM_00002 --fac 2,1,1 --tol 1e-10
         mpirun -n 2 ./PeleLMeX3d.gnu.DEBUG.MPI.ex input.3d_TanhStretch peleLM.num_init_iter=1 amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
         # Same map with x periodic: the tanh clustering straddles the periodic seam and meets the inflow face.
@@ -254,7 +256,7 @@ jobs:
   # Build and Run the SprayTest RegTest with GNU9.3 and MPI support
   SPRAY:
     name: GNU@9.3 MPI Run [SPRAY]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"
       CMLM_VERSION: 0.0.1

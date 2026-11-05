@@ -7,13 +7,14 @@ scalings are undone:
   gradpx/y/z   stored as the Xi-space gradient fac_d * dp/dx_d  -> divided by fac_d
   everything else is physical (velocity, density, species, T, divu, ...)
 
-Fields whose derivation is not mapping-aware are skipped (mag_vort by
-default; add more with --skip).  A field passes when
+Fields can be excluded with --skip (none by default: the gradient derives
+mag_vort / vorticity / Qcrit / enstrophy and the x/y/z coordinate derives
+are mapping-aware and must agree too).  A field passes when
     max |mapped - ref| <= tol * max(max |ref|, floor)
 so fields that are numerically zero in both runs do not trip the gate.
 
 usage: compare_plotfiles.py REF MAPPED [--fac fx,fy(,fz)] [--tol 1e-10]
-                            [--floor 1e-30] [--skip mag_vort,...] [--only a,b]
+                            [--floor 1e-30] [--skip a,b,...] [--only a,b]
 exit status 0 on PASS, 1 on FAIL.
 """
 import argparse
@@ -82,7 +83,7 @@ def main():
     ap.add_argument("--fac", default="1,1,1", help="ConstantMap factors of the mapped run, comma separated")
     ap.add_argument("--tol", type=float, default=1e-10)
     ap.add_argument("--floor", type=float, default=1e-30, help="absolute floor on the reference scale of a field")
-    ap.add_argument("--skip", default="mag_vort", help="comma separated fields to ignore")
+    ap.add_argument("--skip", default="", help="comma separated fields to ignore")
     ap.add_argument("--only", default="", help="comma separated fields to compare (default: all)")
     a = ap.parse_args()
     fac = [float(v) for v in a.fac.split(",")]

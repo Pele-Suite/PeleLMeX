@@ -54,35 +54,48 @@ public:
     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> m_patch_rect_ann_inner_lo;
     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> m_patch_rect_ann_inner_hi;
 
+    /**
+     * \brief Is the cell centred at \p point_coordinate (physical) inside
+     *        the patch?  \p dx holds the cell's physical width in each
+     *        direction; only the transverse components are used, as a
+     *        half-width tolerance per direction for rectangles and the
+     *        half-diagonal of the transverse cell face for circles, so a
+     *        cell straddling the patch edge counts as inside.
+     */
     AMREX_GPU_DEVICE
     AMREX_FORCE_INLINE
     bool CheckifPointInside(
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> point_coordinate,
-      amrex::Real dx) const
+      amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> dx) const
     {
       bool inside = false;
 
-      // auto dx = geom.CellSizeArray();
       amrex::Real xp, yp;
 
       point_coordinate[m_boundary_dir] = 0.0;
+      dx[m_boundary_dir] = 0.0;
 #if (AMREX_SPACEDIM == 2)
+      // The one transverse width (the normal component was zeroed above).
+      const amrex::Real dxt = dx[0] + dx[1];
       xp = point_coordinate[0];
       yp = point_coordinate[1];
       if (m_patchtype_num == 0) {
         inside = true;
       } else if (m_patchtype_num == 1) {
-        amrex::Real patch_line_radius_touse = m_patch_circle_radius + dx / 2.0;
-        amrex::Real rad = sqrt(
-          (xp - m_patch_circle_center[0]) * (xp - m_patch_circle_center[0]) +
-          (yp - m_patch_circle_center[1]) * (yp - m_patch_circle_center[1]));
+        const amrex::Real patch_line_radius_touse =
+          m_patch_line_radius + dxt / 2.0;
+        const amrex::Real rad = sqrt(
+          (xp - m_patch_line_center[0]) * (xp - m_patch_line_center[0]) +
+          (yp - m_patch_line_center[1]) * (yp - m_patch_line_center[1]));
         if (rad <= patch_line_radius_touse) {
           inside = true;
         }
       }
 #elif (AMREX_SPACEDIM == 3)
       amrex::Real zp;
-      constexpr amrex::Real sqrt2 = 1.4142135623730951;
+      // Half-diagonal of the transverse cell face (normal width zeroed).
+      const amrex::Real half_diag =
+        0.5 * std::sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
 
       xp = point_coordinate[0];
       yp = point_coordinate[1];
@@ -93,7 +106,7 @@ public:
       } else if (m_patchtype_num == 1) {
 
         const amrex::Real patch_circle_radius_touse =
-          m_patch_circle_radius + dx * sqrt2 / 2.0;
+          m_patch_circle_radius + half_diag;
         const amrex::Real rad = sqrt(
           (xp - m_patch_circle_center[0]) * (xp - m_patch_circle_center[0]) +
           (yp - m_patch_circle_center[1]) * (yp - m_patch_circle_center[1]) +
@@ -105,14 +118,14 @@ public:
       } else if (m_patchtype_num == 2) {
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> patch_rectangle_lo_touse =
           {AMREX_D_DECL(
-            m_patch_rectangle_lo[0] - dx / 2.0_rt,
-            m_patch_rectangle_lo[1] - dx / 2.0_rt,
-            m_patch_rectangle_lo[2] - dx / 2.0_rt)};
+            m_patch_rectangle_lo[0] - dx[0] / 2.0_rt,
+            m_patch_rectangle_lo[1] - dx[1] / 2.0_rt,
+            m_patch_rectangle_lo[2] - dx[2] / 2.0_rt)};
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> patch_rectangle_hi_touse =
           {AMREX_D_DECL(
-            m_patch_rectangle_hi[0] + dx / 2.0_rt,
-            m_patch_rectangle_hi[1] + dx / 2.0_rt,
-            m_patch_rectangle_hi[2] + dx / 2.0_rt)};
+            m_patch_rectangle_hi[0] + dx[0] / 2.0_rt,
+            m_patch_rectangle_hi[1] + dx[1] / 2.0_rt,
+            m_patch_rectangle_hi[2] + dx[2] / 2.0_rt)};
         patch_rectangle_hi_touse[m_boundary_dir] = 0.0;
         patch_rectangle_lo_touse[m_boundary_dir] = 0.0;
 
@@ -127,9 +140,9 @@ public:
         }
       } else if (m_patchtype_num == 3) {
         const amrex::Real patch_circ_ann_outer_radius_touse =
-          m_patch_circ_ann_outer_radius + dx * sqrt2 / 2.0;
+          m_patch_circ_ann_outer_radius + half_diag;
         const amrex::Real patch_circ_ann_inner_radius_touse =
-          m_patch_circ_ann_inner_radius - dx * sqrt2 / 2.0;
+          m_patch_circ_ann_inner_radius - half_diag;
 
         const amrex::Real rad = sqrt(
           (xp - m_patch_circ_ann_center[0]) *
@@ -148,24 +161,24 @@ public:
         bool inside_inner = false;
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>
           patch_rect_ann_inner_lo_touse = {AMREX_D_DECL(
-            m_patch_rect_ann_inner_lo[0] + dx / 2.0_rt,
-            m_patch_rect_ann_inner_lo[1] + dx / 2.0_rt,
-            m_patch_rect_ann_inner_lo[2] + dx / 2.0_rt)};
+            m_patch_rect_ann_inner_lo[0] + dx[0] / 2.0_rt,
+            m_patch_rect_ann_inner_lo[1] + dx[1] / 2.0_rt,
+            m_patch_rect_ann_inner_lo[2] + dx[2] / 2.0_rt)};
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>
           patch_rect_ann_inner_hi_touse = {AMREX_D_DECL(
-            m_patch_rect_ann_inner_hi[0] - dx / 2.0_rt,
-            m_patch_rect_ann_inner_hi[1] - dx / 2.0_rt,
-            m_patch_rect_ann_inner_hi[2] - dx / 2.0_rt)};
+            m_patch_rect_ann_inner_hi[0] - dx[0] / 2.0_rt,
+            m_patch_rect_ann_inner_hi[1] - dx[1] / 2.0_rt,
+            m_patch_rect_ann_inner_hi[2] - dx[2] / 2.0_rt)};
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>
           patch_rect_ann_outer_lo_touse = {AMREX_D_DECL(
-            m_patch_rect_ann_outer_lo[0] - dx / 2.0_rt,
-            m_patch_rect_ann_outer_lo[1] - dx / 2.0_rt,
-            m_patch_rect_ann_outer_lo[2] - dx / 2.0_rt)};
+            m_patch_rect_ann_outer_lo[0] - dx[0] / 2.0_rt,
+            m_patch_rect_ann_outer_lo[1] - dx[1] / 2.0_rt,
+            m_patch_rect_ann_outer_lo[2] - dx[2] / 2.0_rt)};
         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>
           patch_rect_ann_outer_hi_touse = {AMREX_D_DECL(
-            m_patch_rect_ann_outer_hi[0] + dx / 2.0_rt,
-            m_patch_rect_ann_outer_hi[1] + dx / 2.0_rt,
-            m_patch_rect_ann_outer_hi[2] + dx / 2.0_rt)};
+            m_patch_rect_ann_outer_hi[0] + dx[0] / 2.0_rt,
+            m_patch_rect_ann_outer_hi[1] + dx[1] / 2.0_rt,
+            m_patch_rect_ann_outer_hi[2] + dx[2] / 2.0_rt)};
         patch_rect_ann_inner_lo_touse[m_boundary_dir] = 0.0;
         patch_rect_ann_inner_hi_touse[m_boundary_dir] = 0.0;
         patch_rect_ann_outer_lo_touse[m_boundary_dir] = 0.0;

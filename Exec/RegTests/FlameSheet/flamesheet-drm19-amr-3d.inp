@@ -7,7 +7,7 @@
 # flamesheet-drm19-mapped-amr-3d.inp.  It is byte-for-byte identical
 # EXCEPT TanhStretchMap.beta = 0 0 0 (an identity map: detJ = 1,
 # fac = 1, zero displacement), i.e. the mesh is NOT stretched.  It runs
-# the very same diagnostic path (MFSumMapped with detJ = 1, the
+# the very same diagnostic path (MFSum with detJ = 1, the
 # mapping-aware fillpatch/average-down with unit weights) and the same
 # test.py mass-flux-balance check.
 #

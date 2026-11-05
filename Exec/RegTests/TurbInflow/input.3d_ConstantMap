@@ -88,6 +88,6 @@ amr.plot_int = -1
 amr.check_int = -1
 amr.max_step = 2
 amr.fixed_dt = 2.e-5
-amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+amr.derive_plot_vars = avg_pressure mag_vort vorticity Qcrit enstrophy coordinates mass_fractions
 
 fabarray.mfiter_tile_size = 1024 1024 1024

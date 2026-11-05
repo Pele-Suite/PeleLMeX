@@ -13,7 +13,9 @@ PeleLM::readProbParm() // NOLINT(readability-make-member-function-const)
   pp.query("perturbMag", prob_parm->perturbMag);
   pp.query("channelFullHeight", prob_parm->channelFullHeight);
   pp.query("problem_type", prob_parm->flowType);
-  AMREX_ALWAYS_ASSERT(prob_parm->flowType == 1 || prob_parm->flowType == 2);
+  AMREX_ALWAYS_ASSERT(
+    prob_parm->flowType == 1 || prob_parm->flowType == 2 ||
+    prob_parm->flowType == 3);
 }
 
 void

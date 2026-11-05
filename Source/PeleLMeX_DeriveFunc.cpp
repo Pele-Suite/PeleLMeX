@@ -323,7 +323,7 @@ pelelmex_dermgvel(
 //
 void
 pelelmex_dermgvort(
-  PeleLM* /*a_pelelm*/,
+  PeleLM* a_pelelm,
   const amrex::Box& bx,
   amrex::FArrayBox& derfab,
   int dcomp,
@@ -338,9 +338,12 @@ pelelmex_dermgvort(
 
 {
   AMREX_D_TERM(
-    const amrex::Real idx = geom.InvCellSize(0);
-    , const amrex::Real idy = geom.InvCellSize(1);
-    , const amrex::Real idz = geom.InvCellSize(2););
+    const amrex::Real idx0 = geom.InvCellSize(0);
+    , const amrex::Real idy0 = geom.InvCellSize(1);
+    , const amrex::Real idz0 = geom.InvCellSize(2););
+  // Physical derivatives under mesh mapping (identity otherwise).
+  const MeshMapEvaluator mmap = a_pelelm->meshMapEvaluator();
+  const amrex::GeometryData gd = geom.data();
 
   auto const& dat_arr = statefab.const_array();
   auto const& vort_arr = derfab.array(dcomp);
@@ -359,12 +362,17 @@ pelelmex_dermgvort(
   } else if (typ == amrex::FabType::singlevalued) {
     const auto& flag_fab = flags.const_array();
     amrex::ParallelFor(
-      bx, [vort_arr, dat_arr, flag_fab, idx, idy
+      bx, [vort_arr, dat_arr, flag_fab, mmap, gd, idx0, idy0
 #if AMREX_SPACEDIM == 3
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         constexpr amrex::Real c0 = -1.5;
         constexpr amrex::Real c1 = 2.0;
         constexpr amrex::Real c2 = -0.5;
@@ -465,12 +473,17 @@ pelelmex_dermgvort(
 #endif // Check on EB
   {
     amrex::ParallelFor(
-      bx, [dat_arr, vort_arr, idx, idy
+      bx, [dat_arr, vort_arr, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
 #if (AMREX_SPACEDIM == 2)
         const amrex::Real vx =
           0.5 * (dat_arr(i + 1, j, k, 1) - dat_arr(i - 1, j, k, 1)) * idx;
@@ -499,7 +512,7 @@ pelelmex_dermgvort(
 //
 void
 pelelmex_dervort(
-  PeleLM* /*a_pelelm*/,
+  PeleLM* a_pelelm,
   const amrex::Box& bx,
   amrex::FArrayBox& derfab,
   int dcomp,
@@ -517,9 +530,12 @@ pelelmex_dervort(
   AMREX_ASSERT(statefab.box().contains(bx));
   AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
   AMREX_D_TERM(
-    const amrex::Real idx = geom.InvCellSize(0);
-    , const amrex::Real idy = geom.InvCellSize(1);
-    , const amrex::Real idz = geom.InvCellSize(2););
+    const amrex::Real idx0 = geom.InvCellSize(0);
+    , const amrex::Real idy0 = geom.InvCellSize(1);
+    , const amrex::Real idz0 = geom.InvCellSize(2););
+  // Physical derivatives under mesh mapping (identity otherwise).
+  const MeshMapEvaluator mmap = a_pelelm->meshMapEvaluator();
+  const amrex::GeometryData gd = geom.data();
 
   auto const& dat_arr = statefab.const_array();
   auto const& vort_arr = derfab.array(dcomp);
@@ -539,12 +555,17 @@ pelelmex_dervort(
   } else if (typ == amrex::FabType::singlevalued) {
     const auto& flag_fab = flags.const_array();
     amrex::ParallelFor(
-      bx, [vort_arr, flag_fab, dat_arr, ncomp, idx, idy
+      bx, [vort_arr, flag_fab, dat_arr, ncomp, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         constexpr amrex::Real c0 = -1.5;
         constexpr amrex::Real c1 = 2.0;
         constexpr amrex::Real c2 = -0.5;
@@ -650,12 +671,17 @@ pelelmex_dervort(
 
   {
     amrex::ParallelFor(
-      bx, [dat_arr, vort_arr, idx, idy
+      bx, [dat_arr, vort_arr, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
 #if (AMREX_SPACEDIM == 2)
         const amrex::Real vx =
           0.5 * (dat_arr(i + 1, j, k, 1) - dat_arr(i - 1, j, k, 1)) * idx;
@@ -686,7 +712,7 @@ pelelmex_dervort(
 //
 void
 pelelmex_dercoord(
-  PeleLM* /*a_pelelm*/,
+  PeleLM* a_pelelm,
   const amrex::Box& bx,
   amrex::FArrayBox& derfab,
   int dcomp,
@@ -711,6 +737,7 @@ pelelmex_dercoord(
 
   auto const& coord_arr = derfab.array(dcomp);
   const auto geomdata = geom.data();
+  const MeshMapEvaluator mmap = a_pelelm->meshMapEvaluator(); // physical x
 
 #ifdef AMREX_USE_EB
   AMREX_ASSERT(statefab.box().contains(bx));
@@ -751,14 +778,11 @@ pelelmex_dercoord(
 #endif
   {
     amrex::ParallelFor(
-      bx, [coord_arr, geomdata] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-        AMREX_D_TERM(coord_arr(i, j, k, 0) =
-                       geomdata.ProbLo(0) + (i + 0.5) * geomdata.CellSize(0);
-                     , coord_arr(i, j, k, 1) =
-                         geomdata.ProbLo(1) + (j + 0.5) * geomdata.CellSize(1);
-                     ,
-                     coord_arr(i, j, k, 2) =
-                       geomdata.ProbLo(2) + (k + 0.5) * geomdata.CellSize(2););
+      bx, [coord_arr, geomdata,
+           mmap] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        AMREX_D_TERM(coord_arr(i, j, k, 0) = mmap.x_phys_cc(0, i, geomdata);
+                     , coord_arr(i, j, k, 1) = mmap.x_phys_cc(1, j, geomdata);
+                     , coord_arr(i, j, k, 2) = mmap.x_phys_cc(2, k, geomdata););
       });
   }
 }
@@ -768,7 +792,7 @@ pelelmex_dercoord(
 //
 void
 pelelmex_derQcrit(
-  PeleLM* /*a_pelelm*/,
+  PeleLM* a_pelelm,
   const amrex::Box&
 #if AMREX_SPACEDIM == 3
     bx
@@ -804,9 +828,12 @@ pelelmex_derQcrit(
 {
 #if AMREX_SPACEDIM == 3
   AMREX_D_TERM(
-    const amrex::Real idx = geom.InvCellSize(0);
-    , const amrex::Real idy = geom.InvCellSize(1);
-    , const amrex::Real idz = geom.InvCellSize(2););
+    const amrex::Real idx0 = geom.InvCellSize(0);
+    , const amrex::Real idy0 = geom.InvCellSize(1);
+    , const amrex::Real idz0 = geom.InvCellSize(2););
+  // Physical derivatives under mesh mapping (identity otherwise).
+  const MeshMapEvaluator mmap = a_pelelm->meshMapEvaluator();
+  const amrex::GeometryData gd = geom.data();
 
   auto const& dat_arr = statefab.const_array();
   auto const& qcrit_arr = derfab.array(dcomp);
@@ -825,12 +852,17 @@ pelelmex_derQcrit(
   } else if (typ == amrex::FabType::singlevalued) {
     const auto& flag_fab = flags.const_array();
     amrex::ParallelFor(
-      bx, [qcrit_arr, dat_arr, flag_fab, idx, idy
+      bx, [qcrit_arr, dat_arr, flag_fab, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         if (flag_fab(i, j, k).isCovered()) {
           qcrit_arr(i, j, k) = 0.0;
         } else {
@@ -973,12 +1005,17 @@ pelelmex_derQcrit(
 #endif
   {
     amrex::ParallelFor(
-      bx, [dat_arr, qcrit_arr, idx, idy
+      bx, [dat_arr, qcrit_arr, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         // Strain rate tensor
         amrex::Array2D<amrex::Real, 0, 2, 0, 2> gradU;
         gradU(0, 0) =
@@ -1020,6 +1057,8 @@ pelelmex_derQcrit(
         }
       });
   }
+#else
+  amrex::ignore_unused(a_pelelm);
 #endif
 }
 
@@ -1091,9 +1130,12 @@ pelelmex_derenstrophy(
 
 {
   AMREX_D_TERM(
-    const amrex::Real idx = geom.InvCellSize(0);
-    , const amrex::Real idy = geom.InvCellSize(1);
-    , const amrex::Real idz = geom.InvCellSize(2););
+    const amrex::Real idx0 = geom.InvCellSize(0);
+    , const amrex::Real idy0 = geom.InvCellSize(1);
+    , const amrex::Real idz0 = geom.InvCellSize(2););
+  // Physical derivatives under mesh mapping (identity otherwise).
+  const MeshMapEvaluator mmap = a_pelelm->meshMapEvaluator();
+  const amrex::GeometryData gd = geom.data();
 
   auto const& dat_arr = statefab.const_array(VELX);
   auto const& rho_arr = (a_pelelm->m_incompressible) != 0
@@ -1117,12 +1159,18 @@ pelelmex_derenstrophy(
     const auto incomp = a_pelelm->m_incompressible;
     const auto rho = a_pelelm->m_rho;
     amrex::ParallelFor(
-      bx, [ens_arr, flag_fab, dat_arr, rho, incomp, rho_arr, idx, idy
+      bx,
+      [ens_arr, flag_fab, dat_arr, rho, incomp, rho_arr, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
-           ,
-           idz
+       ,
+       idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         constexpr amrex::Real c0 = -1.5;
         constexpr amrex::Real c1 = 2.0;
         constexpr amrex::Real c2 = -0.5;
@@ -1274,12 +1322,17 @@ pelelmex_derenstrophy(
     const auto incomp = a_pelelm->m_incompressible;
     const auto rho = a_pelelm->m_rho;
     amrex::ParallelFor(
-      bx, [rho_arr, dat_arr, rho, incomp, ens_arr, idx, idy
+      bx, [rho_arr, dat_arr, rho, incomp, ens_arr, mmap, gd, idx0, idy0
 #if (AMREX_SPACEDIM == 3)
            ,
-           idz
+           idz0
 #endif
     ] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+        const amrex::Real idx = mapped_inv_dx(0, i, idx0, mmap, gd);
+        const amrex::Real idy = mapped_inv_dx(1, j, idy0, mmap, gd);
+#if (AMREX_SPACEDIM == 3)
+        const amrex::Real idz = mapped_inv_dx(2, k, idz0, mmap, gd);
+#endif
         amrex::Real l_rho = rho;
         if (incomp == 0) {
           l_rho = rho_arr(i, j, k);

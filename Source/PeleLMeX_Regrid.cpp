@@ -358,6 +358,7 @@ PeleLM::MakeNewLevelFromCoarse(
     m_map_eval = m_mesh_map->make_evaluator();
     rebuildMappedInterps();
   }
+  defineCellVolume(lev, ba, dm, *new_fact);
 
   // Fill the leveldata_new
   fillcoarsepatch_state(lev, time, n_leveldata_new->state, m_nGrowState);
@@ -488,6 +489,7 @@ PeleLM::RemakeLevel(
     m_map_eval = m_mesh_map->make_evaluator();
     rebuildMappedInterps();
   }
+  defineCellVolume(lev, ba, dm, *new_fact);
 
   // Fill the leveldata_new
   fillpatch_state(lev, time, n_leveldata_new->state, m_nGrowState);
@@ -601,6 +603,7 @@ PeleLM::ClearLevel(const int lev)
     m_mesh_map->clear_level(lev);
     m_mapped_interps.clear();
   }
+  m_cellVol[lev].clear();
   // Recycling-plane storage covers all current levels; flag for rebuild.
   m_recycling_needs_rebuild = true;
 }
