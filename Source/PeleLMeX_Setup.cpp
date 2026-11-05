@@ -235,6 +235,7 @@ PeleLM::Setup()
 
   // Initialize turbulence injection
   turb_inflow.init(Geom(0));
+  initStateInflow();
   if (m_do_turbulent_forcing) {
     turb_forcing.init(Geom(0).data());
   }

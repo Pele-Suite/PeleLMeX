@@ -31,6 +31,7 @@
 #include <PMFData.H>
 #include <PltFileManager.H>
 #include <turbinflow.H>
+#include "PeleLMeX_BCfill.H"
 #include <ReactorBase.H>
 #include <TurbForcing.H>
 #include <Utilities.H>
@@ -1277,6 +1278,19 @@ public:
     const int lev,
     const amrex::Real a_time);
 
+  // With active inflow control, march through the turb data with the
+  // time-integrated controlled velocity (see fillTurbInflow)
+  void updateTurbConvectedDistance(const amrex::Real a_time);
+
+  // State inflow: map the scalar fields of the turbinflow files (temp,
+  // Y(<species>)) to the faces they feed (applyStateInflow, BCfill.H)
+  void initStateInflow();
+
+  // Device copy of the state inflow samplers at a_time, passed to the
+  // ext_dir fill functors; nullptr when there is no state inflow.  Valid
+  // until the next call.
+  StateInflowBC const* stateInflowBC(const amrex::Real a_time);
+
   // Inject synthetic turbulence into one inflow-adjacent ghost box. Wraps
   // the PelePhysics call so that the mesh-mapping case, which must supply
   // the injection face's physical cell-centre coordinates rather than let
@@ -2233,6 +2247,14 @@ public:
 
   // Turbulence injection
   pele::physics::turbinflow::TurbInflow turb_inflow;
+
+  // State inflow (temperature/species from the turbinflow files)
+  int m_do_state_inflow = 0;
+  StateInflowBC m_state_inflow_h;
+  amrex::Gpu::DeviceVector<StateInflowBC> m_state_inflow_d;
+  // Last state uploaded to m_state_inflow_d (skip identical uploads)
+  StateInflowBC m_state_inflow_last;
+  bool m_state_inflow_uploaded = false;
   pele::physics::turbforcing::TurbForcing turb_forcing;
 
   // Diagnostics

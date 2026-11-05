@@ -4,9 +4,13 @@
 #include <PeleLMeX_MeshMapEvaluator.H>
 #include <pelelmex_prob.H>
 #include <PMFData.H>
+#include <PelePhysics.H>
+#include <turbinflow.H>
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_REAL.H>
+
+#include <cmath>
 
 using namespace amrex::literals;
 
@@ -54,6 +58,121 @@ pelelm_bc_face_x(
   }
 }
 
+// State inflow: temperature and species mass fractions sampled from the
+// scalar fields of a TurbInflow file (SCALARS_V1 trailer, see
+// PelePhysics/Source/Utility/TurbInflow) and imposed on the ext_dir faces
+// that file feeds, on top of the values returned by bcnormal.  The velocity
+// of the same file is handled by the usual TurbInflow path.
+//
+// Recognized scalar names (PeleLMeX plotfile names): temp, Y(<species>).
+// Whatever the file supplies replaces the bcnormal value; the rest is kept,
+// the mass fractions are clipped to >= 0 and normalized, and density, rhoY
+// and rhoH are recomputed from the EOS at the ambient pressure so that the
+// imposed state is thermodynamically consistent.
+#ifdef PELEPHYSICS_TURBINFLOW_HAS_SCALARS
+#define PELELMEX_HAS_STATE_INFLOW 1
+#endif
+
+struct StateInflowFace
+{
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  pele::physics::turbinflow::TurbFileSampler sampler;
+#endif
+  int active = 0;
+  int tdir1 = 0; //!< Transverse directions, TurbInflow order
+  int tdir2 = 0;
+  int temp_s = -1; //!< Scalar index of temp, -1 if absent
+  int nspec_s = 0; //!< Number of species in the file
+  //! Scalar index of Y(k), -1 if absent
+  amrex::GpuArray<int, NUM_SPECIES> spec_s{};
+};
+
+struct StateInflowBC
+{
+  //! Indexed by 2 * dir + (side == high)
+  amrex::GpuArray<StateInflowFace, 2 * AMREX_SPACEDIM> face{};
+  amrex::Real p_amb = 0.0; //!< Ambient (thermodynamic) pressure, MKS
+};
+
+/**
+ * \brief Impose the sampled state of the (\p idir, \p sgn) face on s_ext.
+ *
+ * Called by the ext_dir fill functors right after bcnormal, with the same
+ * physical face coordinates \p x.  \p sgn = +1 is the low side.  No-op when
+ * \p a_sib is null, the face has no state inflow, or \p x lies outside the
+ * file (the bcnormal values are then kept).
+ */
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE void
+applyStateInflow(
+  StateInflowBC const* a_sib,
+  const amrex::Real x[AMREX_SPACEDIM],
+  const int idir,
+  const int sgn,
+  amrex::Real s_ext[NVAR]) noexcept
+{
+#if defined(PELELMEX_HAS_STATE_INFLOW) && (AMREX_SPACEDIM == 3)
+  if (a_sib == nullptr) {
+    return;
+  }
+  const StateInflowFace& F = a_sib->face[2 * idir + ((sgn > 0) ? 0 : 1)];
+  if (F.active == 0) {
+    return;
+  }
+  // One stencil for all the sampled fields
+  pele::physics::turbinflow::TurbFileSampler::Stencil st;
+  if (!F.sampler.locate(x[F.tdir1], x[F.tdir2], st)) {
+    return; // outside the file: keep the bcnormal state
+  }
+
+  // Start from the bcnormal state
+  amrex::Real T = s_ext[TEMP];
+  amrex::Real Y[NUM_SPECIES];
+  const amrex::Real rho_bc = s_ext[DENSITY];
+  const amrex::Real rhoinv = (rho_bc > 0.0) ? 1.0 / rho_bc : 0.0;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    Y[n] = s_ext[FIRSTSPEC + n] * rhoinv;
+  }
+
+  if (F.temp_s >= 0) {
+    T = F.sampler.scalar(st, F.temp_s);
+  }
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    if (F.spec_s[n] >= 0) {
+      Y[n] = F.sampler.scalar(st, F.spec_s[n]);
+    }
+  }
+
+  // Quadratic interpolation can overshoot: clip and normalize
+  amrex::Real sumY = 0.0;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    Y[n] = amrex::max(Y[n], 0.0);
+    sumY += Y[n];
+  }
+  if (sumY > 0.0) {
+    for (int n = 0; n < NUM_SPECIES; ++n) {
+      Y[n] /= sumY;
+    }
+  }
+
+  // EOS in CGS, state in MKS
+  auto eos = pele::physics::PhysicsType::eos();
+  amrex::Real rho_cgs = 0.0;
+  amrex::Real h_cgs = 0.0;
+  amrex::Real P_cgs = a_sib->p_amb * 10.0;
+  eos.PYT2R(P_cgs, Y, T, rho_cgs);
+  eos.TY2H(T, Y, h_cgs);
+  const amrex::Real rho = rho_cgs * 1.0e3;
+  s_ext[DENSITY] = rho;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    s_ext[FIRSTSPEC + n] = rho * Y[n];
+  }
+  s_ext[RHOH] = rho * h_cgs * 1.0e-4;
+  s_ext[TEMP] = T;
+#else
+  amrex::ignore_unused(a_sib, x, idir, sgn, s_ext);
+#endif
+}
+
 template <typename T>
 struct PeleLMCCFillExtDirState
 {
@@ -63,6 +182,8 @@ struct PeleLMCCFillExtDirState
   const int m_nAux;
   int m_do_turbInflow = 0;
   MeshMapEvaluator m_map_eval{}; // defaults to Identity (no mesh mapping)
+  // Sampled temperature/species imposed after bcnormal (null: none)
+  StateInflowBC const* m_state_inflow = nullptr;
   int m_do_inlet_from_plane = 0;
   int m_inlet_from_plane_dir = -1;
   // When != 0 (peleLM.recycling_mode = full), the pre-loaded ghost value on
@@ -79,12 +200,14 @@ struct PeleLMCCFillExtDirState
     int do_inletFromPlane,
     int inlet_plane_dir,
     int recycling_full,
-    MeshMapEvaluator a_map_eval = MeshMapEvaluator{})
+    MeshMapEvaluator a_map_eval = MeshMapEvaluator{},
+    StateInflowBC const* a_state_inflow = nullptr)
     : lprobparm(a_prob_parm),
       lpmfdata(a_pmf_data),
       m_nAux(a_nAux),
       m_do_turbInflow(do_turbInflow),
       m_map_eval(a_map_eval),
+      m_state_inflow(a_state_inflow),
       m_do_inlet_from_plane(do_inletFromPlane),
       m_inlet_from_plane_dir(inlet_plane_dir),
       m_recycling_full(recycling_full)
@@ -165,8 +288,8 @@ struct PeleLMCCFillExtDirState
         if (bcr[n].data()[bcidx] != amrex::BCType::ext_dir) {
           continue;
         }
-        if (!isnan(state(iv, VELX + n))) { // During fillcoarsepatch, get here
-                                           // with nan. TODO: find a better fix
+        // During fillcoarsepatch, get here with nan. TODO: find a better fix
+        if (!std::isnan(state(iv, VELX + n))) {
           s_ext[VELX + n] = state(iv, VELX + n);
           keep_recycled[n] = (m_recycling_full != 0) &&
                              (m_do_inlet_from_plane != 0) &&
@@ -187,6 +310,7 @@ struct PeleLMCCFillExtDirState
 
     // bcnormal() is defined in pelelmex_prob.H in problem directory in /Exec
     T::bcnormal(x, s_in, s_ext, idir, sgn, time, geom, *lprobparm, lpmfdata);
+    applyStateInflow(m_state_inflow, x, idir, sgn, s_ext);
 
     for (int n = 0; n < ncomp; ++n) {
       if (
@@ -285,17 +409,21 @@ struct PeleLMCCFillExtDirSpec
   pele::physics::PMF::PmfData::DataContainer const* lpmfdata;
   const int m_nAux;
   MeshMapEvaluator m_map_eval{};
+  // Sampled temperature/species imposed after bcnormal (null: none)
+  StateInflowBC const* m_state_inflow = nullptr;
 
   AMREX_GPU_HOST
   constexpr PeleLMCCFillExtDirSpec(
     ProbParm const* a_prob_parm,
     pele::physics::PMF::PmfData::DataContainer const* a_pmf_data,
     int a_nAux,
-    MeshMapEvaluator a_map_eval = MeshMapEvaluator{})
+    MeshMapEvaluator a_map_eval = MeshMapEvaluator{},
+    StateInflowBC const* a_state_inflow = nullptr)
     : lprobparm(a_prob_parm),
       lpmfdata(a_pmf_data),
       m_nAux(a_nAux),
-      m_map_eval(a_map_eval)
+      m_map_eval(a_map_eval),
+      m_state_inflow(a_state_inflow)
   {
   }
 
@@ -379,6 +507,7 @@ struct PeleLMCCFillExtDirSpec
         // /Exec
         T::bcnormal(
           x, s_in, s_ext, idir, sgn, time, geom, *lprobparm, lpmfdata);
+        applyStateInflow(m_state_inflow, x, idir, sgn, s_ext);
 
         for (int k = n; k < NUM_SPECIES; ++k) {
           if (mask[k] == mask[n]) {
@@ -398,17 +527,21 @@ struct PeleLMCCFillExtDirDens
   pele::physics::PMF::PmfData::DataContainer const* lpmfdata;
   const int m_nAux;
   MeshMapEvaluator m_map_eval{};
+  // Sampled temperature/species imposed after bcnormal (null: none)
+  StateInflowBC const* m_state_inflow = nullptr;
 
   AMREX_GPU_HOST
   constexpr PeleLMCCFillExtDirDens(
     ProbParm const* a_prob_parm,
     pele::physics::PMF::PmfData::DataContainer const* a_pmf_data,
     int a_nAux,
-    MeshMapEvaluator a_map_eval = MeshMapEvaluator{})
+    MeshMapEvaluator a_map_eval = MeshMapEvaluator{},
+    StateInflowBC const* a_state_inflow = nullptr)
     : lprobparm(a_prob_parm),
       lpmfdata(a_pmf_data),
       m_nAux(a_nAux),
-      m_map_eval(a_map_eval)
+      m_map_eval(a_map_eval),
+      m_state_inflow(a_state_inflow)
   {
   }
 
@@ -454,6 +587,7 @@ struct PeleLMCCFillExtDirDens
         // bcnormal() is defined in pelelmex_prob.H in problem directory in
         // /Exec
         T::bcnormal(x, s_in, s_ext, idir, 1, time, geom, *lprobparm, lpmfdata);
+        applyStateInflow(m_state_inflow, x, idir, 1, s_ext);
 
         state(iv, dcomp) = s_ext[DENSITY];
 
@@ -473,6 +607,7 @@ struct PeleLMCCFillExtDirDens
         // bcnormal() is defined in pelelmex_prob.H in problem directory in
         // /Exec
         T::bcnormal(x, s_in, s_ext, idir, -1, time, geom, *lprobparm, lpmfdata);
+        applyStateInflow(m_state_inflow, x, idir, -1, s_ext);
 
         state(iv, dcomp) = s_ext[DENSITY];
       }
@@ -578,17 +713,21 @@ struct PeleLMCCFillExtDirTemp
   pele::physics::PMF::PmfData::DataContainer const* lpmfdata;
   const int m_nAux;
   MeshMapEvaluator m_map_eval{};
+  // Sampled temperature/species imposed after bcnormal (null: none)
+  StateInflowBC const* m_state_inflow = nullptr;
 
   AMREX_GPU_HOST
   constexpr PeleLMCCFillExtDirTemp(
     ProbParm const* a_prob_parm,
     pele::physics::PMF::PmfData::DataContainer const* a_pmf_data,
     int a_nAux,
-    MeshMapEvaluator a_map_eval = MeshMapEvaluator{})
+    MeshMapEvaluator a_map_eval = MeshMapEvaluator{},
+    StateInflowBC const* a_state_inflow = nullptr)
     : lprobparm(a_prob_parm),
       lpmfdata(a_pmf_data),
       m_nAux(a_nAux),
-      m_map_eval(a_map_eval)
+      m_map_eval(a_map_eval),
+      m_state_inflow(a_state_inflow)
   {
   }
 
@@ -633,6 +772,7 @@ struct PeleLMCCFillExtDirTemp
         // bcnormal() is defined in pelelmex_prob.H in problem directory in
         // /Exec
         T::bcnormal(x, s_in, s_ext, idir, 1, time, geom, *lprobparm, lpmfdata);
+        applyStateInflow(m_state_inflow, x, idir, 1, s_ext);
 
         state(iv, dcomp) = s_ext[TEMP];
 
@@ -652,6 +792,7 @@ struct PeleLMCCFillExtDirTemp
         // bcnormal() is defined in pelelmex_prob.H in problem directory in
         // /Exec
         T::bcnormal(x, s_in, s_ext, idir, -1, time, geom, *lprobparm, lpmfdata);
+        applyStateInflow(m_state_inflow, x, idir, -1, s_ext);
 
         state(iv, dcomp) = s_ext[TEMP];
       }

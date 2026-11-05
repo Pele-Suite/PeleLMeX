@@ -4,7 +4,9 @@
 #include <AMReX_REAL.H>
 #include <AMReX_Reduce.H>
 #include <cmath>
+#include <cstring>
 #include <memory>
+#include <type_traits>
 #include <queue>
 #ifdef AMREX_USE_EB
 #include <AMReX_EBInterpolater.H>
@@ -443,6 +445,7 @@ PeleLM::fillpatch_state(
   amrex::MultiFab& a_state,
   const int nGhost)
 {
+  StateInflowBC const* sib = stateInflowBC(a_time);
   ProbParm const* lprobparm = prob_parm_d;
   auto const* lpmfdata = pmf_data.device_parm();
   const int recycFull =
@@ -508,7 +511,8 @@ PeleLM::fillpatch_state(
         PeleLMCCFillExtDirState<ProblemSpecificFunctions>{
           lprobparm, lpmfdata, m_nAux,
           static_cast<int>(turb_inflow.is_initialized()),
-          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval});
+          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval,
+          sib});
     FillPatchSingleLevel(
       a_state, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev]->state), &(m_leveldata_new[lev]->state)},
@@ -528,7 +532,8 @@ PeleLM::fillpatch_state(
         PeleLMCCFillExtDirState<ProblemSpecificFunctions>{
           lprobparm, lpmfdata, m_nAux,
           static_cast<int>(turb_inflow.is_initialized()),
-          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval});
+          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval,
+          sib});
     amrex::PhysBCFunct<
       amrex::GpuBndryFuncFab<PeleLMCCFillExtDirState<ProblemSpecificFunctions>>>
       fine_bndry_func(
@@ -536,7 +541,8 @@ PeleLM::fillpatch_state(
         PeleLMCCFillExtDirState<ProblemSpecificFunctions>{
           lprobparm, lpmfdata, m_nAux,
           static_cast<int>(turb_inflow.is_initialized()),
-          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval});
+          m_use_inlet_from_plane, m_inlet_plane_dir, recycFull, m_map_eval,
+          sib});
     FillPatchTwoLevels(
       a_state, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev - 1]->state), &(m_leveldata_new[lev - 1]->state)},
@@ -559,6 +565,7 @@ PeleLM::fillpatch_density(
   const int rho_comp,
   const int nGhost)
 {
+  StateInflowBC const* sib = stateInflowBC(a_time);
   ProbParm const* lprobparm = prob_parm_d;
   auto const* lpmfdata = pmf_data.device_parm();
   if (lev == 0) {
@@ -569,7 +576,7 @@ PeleLM::fillpatch_density(
       bndry_func_rho(
         geom[lev], fetchBCRecArray(DENSITY, 1),
         PeleLMCCFillExtDirDens<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchSingleLevel(
       a_density, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev]->state), &(m_leveldata_new[lev]->state)},
@@ -587,13 +594,13 @@ PeleLM::fillpatch_density(
       crse_bndry_func_rho(
         geom[lev - 1], fetchBCRecArray(DENSITY, 1),
         PeleLMCCFillExtDirDens<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     amrex::PhysBCFunct<
       amrex::GpuBndryFuncFab<PeleLMCCFillExtDirDens<ProblemSpecificFunctions>>>
       fine_bndry_func_rho(
         geom[lev], fetchBCRecArray(DENSITY, 1),
         PeleLMCCFillExtDirDens<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchTwoLevels(
       a_density, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev - 1]->state), &(m_leveldata_new[lev - 1]->state)},
@@ -614,6 +621,7 @@ PeleLM::fillpatch_species(
   const int rhoY_comp,
   const int nGhost)
 {
+  StateInflowBC const* sib = stateInflowBC(a_time);
   ProbParm const* lprobparm = prob_parm_d;
   auto const* lpmfdata = pmf_data.device_parm();
   if (lev == 0) {
@@ -624,7 +632,7 @@ PeleLM::fillpatch_species(
       bndry_func(
         geom[lev], fetchBCRecArray(FIRSTSPEC, NUM_SPECIES),
         PeleLMCCFillExtDirSpec<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchSingleLevel(
       a_species, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev]->state), &(m_leveldata_new[lev]->state)},
@@ -641,13 +649,13 @@ PeleLM::fillpatch_species(
       crse_bndry_func(
         geom[lev - 1], fetchBCRecArray(FIRSTSPEC, NUM_SPECIES),
         PeleLMCCFillExtDirSpec<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     amrex::PhysBCFunct<
       amrex::GpuBndryFuncFab<PeleLMCCFillExtDirSpec<ProblemSpecificFunctions>>>
       fine_bndry_func(
         geom[lev], fetchBCRecArray(FIRSTSPEC, NUM_SPECIES),
         PeleLMCCFillExtDirSpec<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchTwoLevels(
       a_species, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev - 1]->state), &(m_leveldata_new[lev - 1]->state)},
@@ -668,6 +676,7 @@ PeleLM::fillpatch_temp(
   const int temp_comp,
   const int nGhost)
 {
+  StateInflowBC const* sib = stateInflowBC(a_time);
   ProbParm const* lprobparm = prob_parm_d;
   auto const* lpmfdata = pmf_data.device_parm();
   if (lev == 0) {
@@ -676,7 +685,7 @@ PeleLM::fillpatch_temp(
       bndry_func(
         geom[lev], fetchBCRecArray(TEMP, 1),
         PeleLMCCFillExtDirTemp<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchSingleLevel(
       a_temp, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev]->state), &(m_leveldata_new[lev]->state)},
@@ -692,13 +701,13 @@ PeleLM::fillpatch_temp(
       crse_bndry_func(
         geom[lev - 1], fetchBCRecArray(TEMP, 1),
         PeleLMCCFillExtDirTemp<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     amrex::PhysBCFunct<
       amrex::GpuBndryFuncFab<PeleLMCCFillExtDirTemp<ProblemSpecificFunctions>>>
       fine_bndry_func(
         geom[lev], fetchBCRecArray(TEMP, 1),
         PeleLMCCFillExtDirTemp<ProblemSpecificFunctions>{
-          lprobparm, lpmfdata, m_nAux, m_map_eval});
+          lprobparm, lpmfdata, m_nAux, m_map_eval, sib});
     FillPatchTwoLevels(
       a_temp, amrex::IntVect(nGhost), a_time,
       {&(m_leveldata_old[lev - 1]->state), &(m_leveldata_new[lev - 1]->state)},
@@ -1039,6 +1048,7 @@ PeleLM::fillcoarsepatch_state(
   amrex::MultiFab& a_state,
   const int nGhost)
 {
+  StateInflowBC const* sib = stateInflowBC(a_time);
   AMREX_ASSERT(lev > 0);
   ProbParm const* lprobparm = prob_parm_d;
   auto const* lpmfdata = pmf_data.device_parm();
@@ -1067,7 +1077,7 @@ PeleLM::fillcoarsepatch_state(
       PeleLMCCFillExtDirState<ProblemSpecificFunctions>{
         lprobparm, lpmfdata, m_nAux,
         static_cast<int>(turb_inflow.is_initialized()), m_use_inlet_from_plane,
-        m_inlet_plane_dir, recycFull, m_map_eval});
+        m_inlet_plane_dir, recycFull, m_map_eval, sib});
   amrex::PhysBCFunct<
     amrex::GpuBndryFuncFab<PeleLMCCFillExtDirState<ProblemSpecificFunctions>>>
     fine_bndry_func(
@@ -1075,7 +1085,7 @@ PeleLM::fillcoarsepatch_state(
       PeleLMCCFillExtDirState<ProblemSpecificFunctions>{
         lprobparm, lpmfdata, m_nAux,
         static_cast<int>(turb_inflow.is_initialized()), m_use_inlet_from_plane,
-        m_inlet_plane_dir, recycFull, m_map_eval});
+        m_inlet_plane_dir, recycFull, m_map_eval, sib});
   InterpFromCoarseLevel(
     a_state, amrex::IntVect(nGhost), a_time, m_leveldata_new[lev - 1]->state, 0,
     0, nCompState, geom[lev - 1], geom[lev], crse_bndry_func, 0,
@@ -1304,6 +1314,151 @@ PeleLM::addTurbInflowToBox(
 }
 
 void
+PeleLM::initStateInflow()
+{
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  if (!turb_inflow.is_initialized() || !turb_inflow.has_scalars()) {
+    return;
+  }
+  if (m_incompressible != 0) {
+    amrex::Abort(
+      "turbinflow scalar fields (state inflow) require a reacting run, not "
+      "peleLM.incompressible");
+  }
+
+  amrex::Vector<std::string> spec_names;
+  pele::physics::eos::speciesNames<pele::physics::PhysicsType::eos_type>(
+    spec_names);
+
+  for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+    for (int iside = 0; iside < 2; ++iside) {
+      const auto side =
+        (iside == 0) ? amrex::Orientation::low : amrex::Orientation::high;
+      const auto names = turb_inflow.scalar_names(dir, side);
+      if (names.empty()) {
+        continue;
+      }
+      StateInflowFace& F = m_state_inflow_h.face[2 * dir + iside];
+      F = StateInflowFace{};
+      pele::physics::turbinflow::TurbInflow::transverseDirs(
+        dir, F.tdir1, F.tdir2);
+      for (int& sk : F.spec_s) {
+        sk = -1;
+      }
+      amrex::Vector<std::string> ignored;
+      for (int s = 0; s < static_cast<int>(names.size()); ++s) {
+        const std::string& name = names[s];
+        if (name == "temp") {
+          F.temp_s = s;
+          continue;
+        }
+        bool found = false;
+        if (name.size() > 3 && name.rfind("Y(", 0) == 0 && name.back() == ')') {
+          const std::string sp = name.substr(2, name.size() - 3);
+          for (int k = 0; k < NUM_SPECIES; ++k) {
+            if (spec_names[k] == sp) {
+              F.spec_s[k] = s;
+              F.nspec_s += 1;
+              found = true;
+              break;
+            }
+          }
+        }
+        if (!found) {
+          ignored.push_back(name);
+        }
+      }
+      const std::string face = "(dir " + std::to_string(dir) + ", " +
+                               ((iside == 0) ? "low" : "high") + ")";
+      if (!ignored.empty()) {
+        amrex::Print() << " WARNING: state inflow on face " << face
+                       << " ignores the turbinflow scalar(s):";
+        for (const auto& n : ignored) {
+          amrex::Print() << " " << n;
+        }
+        amrex::Print() << " (recognized: temp, Y(<species>))\n";
+      }
+      if (F.temp_s < 0 && F.nspec_s == 0) {
+        continue;
+      }
+      F.active = 1;
+      m_do_state_inflow = 1;
+      if (verbose != 0) {
+        amrex::Print() << " State inflow on face " << face << ": "
+                       << ((F.temp_s >= 0) ? "temp, " : "") << F.nspec_s
+                       << " species from the turbinflow file, the rest from "
+                          "bcnormal\n";
+      }
+    }
+  }
+  if (m_do_state_inflow != 0) {
+    m_state_inflow_d.resize(1);
+  }
+#endif
+}
+
+void
+PeleLM::updateTurbConvectedDistance(const amrex::Real a_time)
+{
+  // When active control drives the inlet velocity, march through the turb
+  // data using the time-integrated controlled velocity (convected distance)
+  // instead of turb_conv_vel * time. This keeps the marcher consistent with
+  // the time-varying mean inflow and avoids the position jumps that would
+  // arise from rescaling turb_conv_vel against absolute time.
+  if (m_ctrl_active != 0) {
+    const amrex::Real dtl = a_time - m_ctrl_tBase;
+    const amrex::Real conv_dist =
+      m_turb_conv_dist + m_ctrl_V_in * dtl + 0.5 * m_ctrl_dV * dtl * dtl;
+    turb_inflow.set_convected_distance(conv_dist);
+  }
+}
+
+StateInflowBC const*
+PeleLM::stateInflowBC(const amrex::Real a_time)
+{
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  if (m_do_state_inflow == 0) {
+    return nullptr;
+  }
+  updateTurbConvectedDistance(a_time);
+
+  StateInflowBC h = m_state_inflow_h;
+  h.p_amb = (m_pNew > 0.0) ? m_pNew : m_pOld;
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    h.p_amb > 0.0, "state inflow: ambient pressure not set yet");
+  for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+    for (int iside = 0; iside < 2; ++iside) {
+      StateInflowFace& F = h.face[2 * dir + iside];
+      if (F.active != 0) {
+        F.sampler = turb_inflow.scalar_sampler(
+          dir,
+          (iside == 0) ? amrex::Orientation::low : amrex::Orientation::high,
+          a_time);
+      }
+    }
+  }
+  // The fills of one step mostly ask for the same time: skip the upload
+  // when nothing changed.  The samplers point at the plane chunk, so a
+  // reload in between (new planes, new weights) shows up as a difference.
+  // A byte compare may also see differing padding, which only costs a copy.
+  static_assert(std::is_trivially_copyable_v<StateInflowBC>);
+  if (
+    !m_state_inflow_uploaded ||
+    std::memcmp(&h, &m_state_inflow_last, sizeof(StateInflowBC)) != 0) {
+    // Blocking copy: h is a local, and the previous fill's kernels, which
+    // read the device copy, are ordered before it on the stream
+    amrex::Gpu::htod_memcpy(m_state_inflow_d.data(), &h, sizeof(StateInflowBC));
+    std::memcpy(&m_state_inflow_last, &h, sizeof(StateInflowBC));
+    m_state_inflow_uploaded = true;
+  }
+  return m_state_inflow_d.data();
+#else
+  amrex::ignore_unused(a_time);
+  return nullptr;
+#endif
+}
+
+void
 PeleLM::fillTurbInflow(
   amrex::MultiFab& a_vel,
   const int vel_comp,
@@ -1312,27 +1467,10 @@ PeleLM::fillTurbInflow(
 {
   if (turb_inflow.is_initialized()) {
 
-    ProbParm* probparmDD = PeleLM::prob_parm_d;
-    ProbParm* probparmDH = PeleLM::prob_parm;
-
     // Velocity BCs
     auto velBCRec = fetchBCRecArray(VELX, AMREX_SPACEDIM);
 
-    // Copy problem parameter structs to host
-    amrex::Gpu::copy(
-      amrex::Gpu::deviceToHost, probparmDD, probparmDD + 1, probparmDH);
-
-    // When active control drives the inlet velocity, march through the turb
-    // data using the time-integrated controlled velocity (convected distance)
-    // instead of turb_conv_vel * time. This keeps the marcher consistent with
-    // the time-varying mean inflow and avoids the position jumps that would
-    // arise from rescaling turb_conv_vel against absolute time.
-    if (m_ctrl_active != 0) {
-      const amrex::Real dtl = a_time - m_ctrl_tBase;
-      const amrex::Real conv_dist =
-        m_turb_conv_dist + m_ctrl_V_in * dtl + 0.5 * m_ctrl_dV * dtl * dtl;
-      turb_inflow.set_convected_distance(conv_dist);
-    }
+    updateTurbConvectedDistance(a_time);
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
@@ -1389,10 +1527,6 @@ PeleLM::fillTurbInflow(
         }
       }
     }
-
-    // Copy problem parameter structs back to device
-    amrex::Gpu::copy(
-      amrex::Gpu::hostToDevice, probparmDH, probparmDH + 1, probparmDD);
   }
 }
 
