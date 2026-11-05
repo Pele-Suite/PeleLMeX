@@ -91,7 +91,8 @@ PeleLM::speciesBalance()
   amrex::Array<amrex::Real, NUM_SPECIES> rhoYdots;
   for (int n = 0; n < NUM_SPECIES; ++n) {
     m_RhoYNew[n] = MFSum(GetVecOfConstPtrs(getSpeciesVect(AmrNewTime)), n);
-    rhoYdots[n] = MFSum(GetVecOfConstPtrs(getIRVect()), n);
+    rhoYdots[n] =
+      (m_do_react != 0) ? MFSum(GetVecOfConstPtrs(getIRVect()), n) : 0.0;
     dmYdt[n] = (m_RhoYNew[n] - m_RhoYOld[n]) / m_dt;
     massYFluxBalance[n] = AMREX_D_TERM(
       m_domainRhoYFlux[2 * n * AMREX_SPACEDIM] +
@@ -790,7 +791,8 @@ PeleLM::writeTemporals()
     heatReleaseRateInt = MFSum(GetVecOfConstPtrs(kinEnergy), 0);
   }
 #else
-  if (fuelID >= 0 && !(m_chem_integrator == "ReactorNull")) {
+  if (
+    (m_do_react != 0) && fuelID >= 0 && !(m_chem_integrator == "ReactorNull")) {
     fuelConsumptionInt = MFSum(GetVecOfConstPtrs(getIRVect()), fuelID);
     for (int lev = 0; lev <= finest_level; ++lev) {
       getHeatRelease(lev, kinEnergy[lev].get()); // Reuse kinEnergy container

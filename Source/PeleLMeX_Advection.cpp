@@ -69,11 +69,14 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
     // Get divU
     amrex::MultiFab divu(
       grids[lev], dmap[lev], 1, m_nGrowdivu, amrex::MFInfo(), Factory(lev));
+    // The face velocity satisfies div(umac) = mac_divu (S at t^{n+1/2},
+    // less theta dp0/dt in a closed chamber), so the prediction's divu is
+    // taken from it rather than from the old-time S, which differs by the
+    // time centering and, in a closed chamber, by theta dp0/dt.
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
 
     // Under mesh mapping the extrapolation is done in Xi with the
@@ -81,6 +84,10 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
     // u~.q are rescaled by J_fc below (see getExtrapUmac).
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> umac_xi;
     const auto umacE = getExtrapUmac(lev, advData, umac_xi);
+    if (m_debug_divu_mismatch != 0) {
+      checkMACDivuMismatch(
+        lev, "velocity prediction, mac_divu vs umac", divu, umacE);
+    }
 
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB
@@ -162,11 +169,12 @@ PeleLM::computeVelocityAdvTerm(const std::unique_ptr<AdvanceAdvData>& advData)
 
     amrex::MultiFab divu(
       grids[lev], dmap[lev], 1, m_nGrowdivu, amrex::MFInfo(), Factory(lev));
+    // Convective form: u.grad(u) = div(umac u) - u div(umac).  The identity
+    // needs the divergence umac actually satisfies, which is mac_divu.
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
     if (m_mesh_mapping) {
       amrex::MultiFab::Multiply(
@@ -302,7 +310,8 @@ PeleLM::getScalarAdvForce(
     auto const& state_ma = ldata_p->state.const_arrays();
     auto const& dn_ma = diffData->Dn[lev].const_arrays();
     auto const& adv_ma = advData->Forcing[lev].arrays();
-    auto const& r_ma = ldataR_p->I_R.const_arrays();
+    // No reaction data is allocated without reactions; the kernel skips it.
+    auto const& r_ma = (m_do_react != 0) ? ldataR_p->I_R.const_arrays() : dn_ma;
     auto const& ext_ma = m_extSource[lev]->arrays();
 
     auto const& dn_aux_ma =
