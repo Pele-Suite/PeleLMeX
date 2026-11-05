@@ -2405,7 +2405,7 @@ public:
   int m_doLoadBalance{0};
   int m_loadBalanceCost{LoadBalanceCost::Ncell};
   int m_loadBalanceMethod{LoadBalanceMethod::SFC};
-  int m_loadBalanceCostChem{LoadBalanceCost::ChemFunctCallMax};
+  int m_loadBalanceCostChem{LoadBalanceCost::ChemFunctCallSum};
   int m_loadBalanceMethodChem{LoadBalanceMethod::Knapsack};
   amrex::Real m_loadBalanceKSfactor{1.2};
   amrex::Real m_loadBalanceEffRatioThreshold{1.1};
