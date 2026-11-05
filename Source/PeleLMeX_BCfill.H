@@ -1,16 +1,13 @@
 #ifndef PELELM_BCFILL
 #define PELELM_BCFILL
+#include <PeleLMeX.H>
 #include <PeleLMeX_Index.H>
 #include <PeleLMeX_MeshMapEvaluator.H>
 #include <pelelmex_prob.H>
 #include <PMFData.H>
-#include <PelePhysics.H>
-#include <turbinflow.H>
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_REAL.H>
-
-#include <cmath>
 
 using namespace amrex::literals;
 
@@ -57,42 +54,6 @@ pelelm_bc_face_x(
     }
   }
 }
-
-// State inflow: temperature and species mass fractions sampled from the
-// scalar fields of a TurbInflow file (SCALARS_V1 trailer, see
-// PelePhysics/Source/Utility/TurbInflow) and imposed on the ext_dir faces
-// that file feeds, on top of the values returned by bcnormal.  The velocity
-// of the same file is handled by the usual TurbInflow path.
-//
-// Recognized scalar names (PeleLMeX plotfile names): temp, Y(<species>).
-// Whatever the file supplies replaces the bcnormal value; the rest is kept,
-// the mass fractions are clipped to >= 0 and normalized, and density, rhoY
-// and rhoH are recomputed from the EOS at the ambient pressure so that the
-// imposed state is thermodynamically consistent.
-#ifdef PELEPHYSICS_TURBINFLOW_HAS_SCALARS
-#define PELELMEX_HAS_STATE_INFLOW 1
-#endif
-
-struct StateInflowFace
-{
-#ifdef PELELMEX_HAS_STATE_INFLOW
-  pele::physics::turbinflow::TurbFileSampler sampler;
-#endif
-  int active = 0;
-  int tdir1 = 0; //!< Transverse directions, TurbInflow order
-  int tdir2 = 0;
-  int temp_s = -1; //!< Scalar index of temp, -1 if absent
-  int nspec_s = 0; //!< Number of species in the file
-  //! Scalar index of Y(k), -1 if absent
-  amrex::GpuArray<int, NUM_SPECIES> spec_s{};
-};
-
-struct StateInflowBC
-{
-  //! Indexed by 2 * dir + (side == high)
-  amrex::GpuArray<StateInflowFace, 2 * AMREX_SPACEDIM> face{};
-  amrex::Real p_amb = 0.0; //!< Ambient (thermodynamic) pressure, MKS
-};
 
 /**
  * \brief Impose the sampled state of the (\p idir, \p sgn) face on s_ext.
@@ -288,8 +249,8 @@ struct PeleLMCCFillExtDirState
         if (bcr[n].data()[bcidx] != amrex::BCType::ext_dir) {
           continue;
         }
-        // During fillcoarsepatch, get here with nan. TODO: find a better fix
-        if (!std::isnan(state(iv, VELX + n))) {
+        if (!isnan(state(iv, VELX + n))) { // During fillcoarsepatch, get here
+                                           // with nan. TODO: find a better fix
           s_ext[VELX + n] = state(iv, VELX + n);
           keep_recycled[n] = (m_recycling_full != 0) &&
                              (m_do_inlet_from_plane != 0) &&

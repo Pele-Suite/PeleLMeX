@@ -31,7 +31,6 @@
 #include <PMFData.H>
 #include <PltFileManager.H>
 #include <turbinflow.H>
-#include "PeleLMeX_BCfill.H"
 #include <ReactorBase.H>
 #include <TurbForcing.H>
 #include <Utilities.H>
@@ -64,6 +63,42 @@ class SootModel;
 class BPatch;
 
 const std::string PrettyLine = " " + std::string(78, '=') + "\n";
+
+// State inflow: temperature and species mass fractions sampled from the
+// scalar fields of a TurbInflow file (SCALARS_V1 trailer, see
+// PelePhysics/Source/Utility/TurbInflow) and imposed on the ext_dir faces
+// that file feeds, on top of the values returned by bcnormal.  The velocity
+// of the same file is handled by the usual TurbInflow path.
+//
+// Recognized scalar names (PeleLMeX plotfile names): temp, Y(<species>).
+// Whatever the file supplies replaces the bcnormal value; the rest is kept,
+// the mass fractions are clipped to >= 0 and normalized, and density, rhoY
+// and rhoH are recomputed from the EOS at the ambient pressure so that the
+// imposed state is thermodynamically consistent.
+#ifdef PELEPHYSICS_TURBINFLOW_HAS_SCALARS
+#define PELELMEX_HAS_STATE_INFLOW 1
+#endif
+
+struct StateInflowFace
+{
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  pele::physics::turbinflow::TurbFileSampler sampler;
+#endif
+  int active = 0;
+  int tdir1 = 0; //!< Transverse directions, TurbInflow order
+  int tdir2 = 0;
+  int temp_s = -1; //!< Scalar index of temp, -1 if absent
+  int nspec_s = 0; //!< Number of species in the file
+  //! Scalar index of Y(k), -1 if absent
+  amrex::GpuArray<int, NUM_SPECIES> spec_s{};
+};
+
+struct StateInflowBC
+{
+  //! Indexed by 2 * dir + (side == high)
+  amrex::GpuArray<StateInflowFace, 2 * AMREX_SPACEDIM> face{};
+  amrex::Real p_amb = 0.0; //!< Ambient (thermodynamic) pressure, MKS
+};
 
 class PeleLM : public amrex::AmrCore
 {
