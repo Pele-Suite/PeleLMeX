@@ -26,7 +26,8 @@ FSANITIZER = FALSE
 THREAD_SANITIZER = FALSE
 
 # PelePhysics
-Chemistry_Model = LiDryer
+USE_CUSTOM_CHEMISTRY = TRUE
+Chemistry_Model = LiDryer_CO2_He
 Eos_Model = Fuego
 Transport_Model = Simple
 

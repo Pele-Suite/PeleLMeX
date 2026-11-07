@@ -1,0 +1,4 @@
+peleLM.les_model = WALE
+peleLM.les_v = 1
+peleLM.plot_les = 1
+peleLM.base_output_prefix = output_les/

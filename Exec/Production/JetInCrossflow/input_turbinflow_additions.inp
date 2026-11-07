@@ -1,0 +1,14 @@
+turbinflows = lowZ
+turbinflow.lowZ.turb_file      = TurbInflow
+turbinflow.lowZ.dir            = 2
+turbinflow.lowZ.side           = low
+turbinflow.lowZ.turb_scale_loc = 314.15927
+turbinflow.lowZ.turb_scale_vel = 2.0
+turbinflow.lowZ.turb_center    = 0. 0.
+turbinflow.lowZ.tile_periodic  = 1
+turbinflow.lowZ.turb_conv_vel  = 19.1
+turbinflow.lowZ.turb_nplane    = 32
+prob.jet_start_time = 0.0075
+prob.jet_init_time = 1.0e-4
+
+peleLM.base_output_prefix = output_turbinflow/
