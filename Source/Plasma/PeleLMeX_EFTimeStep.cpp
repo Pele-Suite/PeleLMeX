@@ -11,6 +11,9 @@ PeleLM::estEFIonsDt(const TimeStamp a_time)
   // Need the mobility of the ions
   calcDiffusivity(a_time);
 
+  // The E-field stencil below reads phiV one cell outside each box
+  fillPatchPhiV(a_time);
+
   for (int lev = 0; lev <= finest_level; ++lev) {
 
     amrex::Real estdt_lev = 1.0e200;
