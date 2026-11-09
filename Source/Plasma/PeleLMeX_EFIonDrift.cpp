@@ -151,8 +151,8 @@ PeleLM::ionDriftVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
         GetArrOfPtrs(advData->uDrift[lev]), amrex::IntVect(1), dummy,
         {GetArrOfPtrs(advData->uDrift[lev - 1])}, {dummy},
         {GetArrOfPtrs(advData->uDrift[lev])}, {dummy}, 0, 0, NUM_IONS,
-        geom[lev - 1], geom[lev], cbndyFuncArr, 0, fbndyFuncArr, 0, rr,
-        mapper, bcrecArr, 0);
+        geom[lev - 1], geom[lev], cbndyFuncArr, 0, fbndyFuncArr, 0, rr, mapper,
+        bcrecArr, 0);
     } else {
       AMREX_D_TERM(
         advData->uDrift[lev][0].FillBoundary(geom[lev].periodicity());
