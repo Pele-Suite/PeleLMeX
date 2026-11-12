@@ -158,8 +158,17 @@ struct PeleLMCCFillExtDirState
     // mode the pre-loaded value is the complete inflow velocity and is
     // kept regardless of what bcnormal does to it.
     bool keep_recycled[NVAR] = {false};
+    // Only pre-load the sampled velocity on a face where every velocity
+    // component is ext_dir (an inflow face). On a slip wall only the normal
+    // component is ext_dir and fillTurbInflow never zeroes those ghost cells,
+    // so the ghost value is whatever the allocation left there.
+    bool all_vel_ext_dir = true;
+    for (int n = VELX; n < amrex::min<int>(ncomp, DENSITY); ++n) {
+      all_vel_ext_dir =
+        all_vel_ext_dir && (bcr[n].data()[bcidx] == amrex::BCType::ext_dir);
+    }
     if (
-      m_do_turbInflow != 0 ||
+      (m_do_turbInflow != 0 && all_vel_ext_dir) ||
       ((m_do_inlet_from_plane != 0) && (idir == m_inlet_from_plane_dir))) {
       for (int n = VELX; n < amrex::min<int>(ncomp, DENSITY); ++n) {
         if (bcr[n].data()[bcidx] != amrex::BCType::ext_dir) {
