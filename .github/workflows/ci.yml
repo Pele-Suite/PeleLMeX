@@ -136,6 +136,9 @@ jobs:
           echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
           cmake -E make_directory ${{runner.workspace}}/deps
+          # Keep the helper outside the work tree: the reference comparison
+          # checks out development, which may not have it.
+          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           if [ "${RUNNER_OS}" != "macOS" ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
           fi
@@ -234,8 +237,13 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         run : |
           ccache -z
-            cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference \
-            --parallel ${{env.NPROCS}}
+          # The reference build only produces plotfiles for the comparison:
+          # build just the executables its tests run.
+          BUILD_DIR=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference
+          TARGETS=$(python3 ${{runner.temp}}/ctest_targets.py ${BUILD_DIR} ${{matrix.ctest_args}}) \
+            || { echo "::warning::could not list the test targets, building all"; TARGETS=""; }
+          echo "Building: ${TARGETS:-all targets}"
+          cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
           ccache -s
           du -hs ${{matrix.ccache_cache}}
       - name: Test Reference and Compare
