@@ -107,9 +107,14 @@ jobs:
           - build_type: Release
             ctest_args: -LE no-ci
             ccache_size: 250M
+            build_targets: all
+          # Release compiles every case with gcc and AppleClang; Debug is
+          # there to run the tests with assertions, so it builds only the
+          # executables the tests run.
           - build_type: Debug
             ctest_args: -LE no-ci
             ccache_size: 500M
+            build_targets: tested
           - enable_eb: EB-OFF
             use_eb: "OFF"
           - enable_eb: EB-ON
@@ -188,9 +193,16 @@ jobs:
       - name: Build
         run: |
           ccache -z
-          cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
+          BUILD_DIR=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
+          TARGETS=""
+          if [ "${{matrix.build_targets}}" == "tested" ]; then
+            TARGETS=$(python3 ${{runner.temp}}/ctest_targets.py ${BUILD_DIR} ${{matrix.ctest_args}}) \
+              || { echo "::warning::could not list the test targets, building all"; TARGETS=""; }
+          fi
+          echo "Building: ${TARGETS:-all targets}"
+          cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}} \
+            2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
       - name: Ccache Report
         run: |
           ccache -s
