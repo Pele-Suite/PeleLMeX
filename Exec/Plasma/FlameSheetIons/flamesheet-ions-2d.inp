@@ -1,5 +1,6 @@
 # CTest regression input for FlameSheetIons (Tests/CMakeLists.txt):
-# a coarser input.2d-regt with one AMR level and small boxes, so that the
+# a coarser input.2d-regt with one level of refinement (two AMR levels)
+# and small boxes, so that the
 # ion drift fillpatch between levels and the phiV ghost fill of the ion
 # time-step estimate are exercised across many box/rank boundaries.
 

@@ -197,10 +197,6 @@ MLGMRESSolver::one_restart(
       k_end = k;
       break;
     }
-
-    // Last iteration and not converged yet, just set k_end
-    if (k == m_krylovSize - 1)
-      k_end = m_krylovSize - 1;
   }
 
   // Solve the minimization problem H.y = g
@@ -422,6 +418,8 @@ MLGMRESSolver::readParameters()
   amrex::ParmParse pp("gmres");
 
   pp.query("krylovBasis_size", m_krylovSize);
+  AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+    m_krylovSize > 0, "gmres.krylovBasis_size must be positive");
   pp.query("max_restart", m_restart);
   pp.query("verbose", m_verbose);
   pp.query("checkGSortho", check_GramSchmidtOrtho);
