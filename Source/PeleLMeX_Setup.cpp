@@ -1047,6 +1047,13 @@ PeleLM::readParameters()
       "peleLM.ext_sources_SDC ignored: no SDC iterations when incompressible");
     m_ext_sources_SDC = false;
   }
+  if (m_ext_sources_SDC && m_nSDCmax < 2) {
+    // With one SDC iteration the scalars only see S^n, while divU^{n+1}
+    // and the velocity forcing would use S^{n+1}
+    amrex::Warning(
+      "peleLM.ext_sources_SDC ignored: it needs peleLM.sdc_iterMax >= 2");
+    m_ext_sources_SDC = false;
+  }
   pp.query("plot_extSource", m_plot_extSource);
   pp.query("add_variance_sources", m_add_variance_sources);
 }
