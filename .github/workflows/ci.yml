@@ -647,7 +647,16 @@ jobs:
           echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_EXTRAFILES=${{github.workspace}}/.clang-tidy" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
-          echo "CTCACHE_DIR=~/.cache/ctcache" >> $GITHUB_ENV
+          # clang-tidy-cache skips files whose preprocessed source, flags and
+          # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL
+          # store each file's diagnostics and exit code and replay them on a
+          # hit, so the report below is the same as a full run. Keyed on the
+          # clang-tidy version, which the hash does not include. Comments are
+          # kept in the hash so that NOLINT edits invalidate the entry.
+          echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
+          echo "CTCACHE_SAVE_OUTPUT=1" >> $GITHUB_ENV
+          echo "CTCACHE_SAVE_ALL=1" >> $GITHUB_ENV
+          echo "CTCACHE_KEEP_COMMENTS=1" >> $GITHUB_ENV
       - name: Clone
         uses: actions/checkout@v6
         with:
@@ -655,11 +664,11 @@ jobs:
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          sudo curl https://raw.githubusercontent.com/matus-chochlik/ctcache/7fd516e91c17779cbc6fc18bd119313d9532dd90/clang-tidy-cache -Lo /usr/bin/clang-tidy-cache
           tar xvf ccache-4.8-linux-x86_64.tar.xz
           sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-          sudo chmod +x /usr/bin/clang-tidy-cache
-          mkdir -p ~/.cache/ctcache
+          # ctcache 1.2.0; the module is a self-contained script
+          sudo curl -L https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
+          sudo chmod +x /usr/local/bin/clang-tidy-cache
       - name: Set Up Ccache
         uses: actions/cache@v5
         with:
@@ -680,13 +689,24 @@ jobs:
           -DPELE_ENABLE_MPI:BOOL=OFF \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_CLANG_TIDY:BOOL=ON \
+          "-DCLANG_TIDY_EXE:STRING=clang-tidy-cache;$(command -v clang-tidy)" \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           #set -eu -o pipefail
+          mkdir -p ${CTCACHE_DIR}
+          touch ${{runner.temp}}/ctcache-start
           cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt
+          build_status=${PIPESTATUS[0]}
+          # Hits refresh an entry's mtime: drop the ones this run did not use
+          # (and older clang-tidy versions) so the cache does not grow. Only
+          # after a complete build: a failed one never reached some files.
+          if [ ${build_status} -eq 0 ]; then
+            find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/ctcache-start -delete
+            find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
+          fi
           egrep "Warning:|Error:|warning:|error:" clang-tidy-full-report.txt \
             | egrep -v "Submodules/amrex|Submodules/sundials|Submodules/AMReX-Hydro" \
             | egrep -v "ld: warning:" | sort | uniq \
@@ -696,8 +716,10 @@ jobs:
           ls ~/.cache
           ls ~/.cache/ccache
           du -hs ~/.cache/ccache
-          ls ~/.cache/ctcache
           du -hs ~/.cache/ctcache
+          # Entries are named by the rest of their sha1 digest (38 hex
+          # characters); the per-directory stats files are not counted.
+          echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           ccache -s
       - name: Full report
         working-directory: ${{runner.workspace}}/build-clang-tidy
