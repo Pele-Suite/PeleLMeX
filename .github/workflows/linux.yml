@@ -225,7 +225,7 @@ jobs:
     - name: CMLM
       run: |
         # install CMLM (includes python dependencies needed for other scripts)
-        pip install -e git+https://github.com/NREL/cmlm.git@v${CMLM_VERSION}#egg=cmlm
+        pip install -e git+https://github.com/NatLabRockies/cmlm.git@v${CMLM_VERSION}#egg=cmlm
     - name: Build AMReX Tools
       env:
          AMREX_HOME: ${GITHUB_WORKSPACE}/Submodules/PelePhysics/Submodules/amrex
