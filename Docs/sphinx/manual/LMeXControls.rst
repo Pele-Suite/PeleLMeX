@@ -290,7 +290,7 @@ PeleLMeX algorithm
     peleLM.a.Schmidt = 0.7                 # [OPT, DEF = -1] Schmidt number for auxiliary variable. If unspecified or negative, assumed to diffuse with unity Lewis number.
 
     peleLM.user_defined_ext_sources = 0    # [OPT, DEF=0] Enable user defined source terms. Requires local ProblemSpecificFunctions.cpp.
-    peleLM.ext_sources_SDC = 0             # [OPT, DEF=0] Re-evaluate the user defined, spark and variance sources at t^{n+1,k} in each SDC iteration and use 0.5(S^n + S^{n+1,k}) (second order needs sdc_iterMax >= 2); spray, soot and radiation sources stay at S^n
+    peleLM.ext_sources_SDC = 0             # [OPT, DEF=0] Re-evaluate the user defined, spark and variance sources at t^{n+1,k} in each SDC iteration and use 0.5(S^n + S^{n+1,k}) (requires sdc_iterMax >= 2, otherwise ignored); spray, soot and radiation sources stay at S^n. modify_ext_sources is then also called at t^{n+1} with state_old = state_new = the t^{n+1,k} iterate, so user sources must depend only on the time and state passed in
     peleLM.add_variance_sources = 1        # [OPT, DEF=1] (only relevant for Manifold EOS) include production/dissipation for variances if present in model
 
 
