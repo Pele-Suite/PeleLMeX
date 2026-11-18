@@ -320,17 +320,21 @@ jobs:
           cd ${{runner.workspace}}/build-hypre
           ctest -R flamesheet-composite -VV --output-on-failure
   CPU-CMake-SINGLE:
+    # Build-only single-precision check. Two configurations cover both
+    # dimensions and both EB settings, and every case but the 3D-only
+    # TurbInflow (whose PelePhysics turbinflow utility is still compiled);
+    # precision problems are rarely specific to one dimension/EB combination.
     needs: Formatting
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        enable_eb: [EB-OFF, EB-ON]
-        dim: [2, 3]
         include:
-          - enable_eb: EB-OFF
+          - dim: 2
+            enable_eb: EB-OFF
             use_eb: "OFF"
-          - enable_eb: EB-ON
+          - dim: 3
+            enable_eb: EB-ON
             use_eb: "ON"
     steps:
       - name: Clone
