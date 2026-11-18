@@ -392,47 +392,132 @@ PeleLM::addScalarVarianceSources(const TimeStamp a_timestamp)
 }
 
 // Calculate additional external sources (soot, radiation, user defined, etc.)
+// at t^n. With ext_sources_SDC, also keep S^n and its frozen part in diffData
+// for the SDC re-evaluations.
 void
 PeleLM::getExternalSources(
   const int is_initIter,
   const PeleLM::TimeStamp a_timestamp_old,
-  const PeleLM::TimeStamp a_timestamp_new)
+  const PeleLM::TimeStamp a_timestamp_new,
+  const std::unique_ptr<AdvanceDiffData>& diffData)
 {
-  amrex::ignore_unused(is_initIter);
-
-  if (m_n_sparks > 0) {
-    addSpark(a_timestamp_old);
+  if (!m_ext_sources_SDC) {
+    assembleExternalSources(
+      is_initIter, a_timestamp_old, a_timestamp_new, nullptr);
+    return;
   }
 
+  auto& frozen = diffData->extSrc_frozen;
+  // m_extSource is zero on entry: snapshot the frozen part on its own
+  if (addFrozenExternalSources(is_initIter, a_timestamp_old)) {
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      auto& ext = *m_extSource[lev];
+      frozen.emplace_back(
+        grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
+        *m_factory[lev]);
+      amrex::MultiFab::Copy(frozen[lev], ext, 0, 0, NVAR, ext.nGrowVect());
+      ext.setVal(0.0);
+    }
+  }
+  assembleExternalSources(
+    is_initIter, a_timestamp_old, a_timestamp_new, &frozen);
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    const auto& ext = *m_extSource[lev];
+    diffData->extSrc_n.emplace_back(
+      grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
+      *m_factory[lev]);
+    amrex::MultiFab::Copy(
+      diffData->extSrc_n[lev], ext, 0, 0, NVAR, ext.nGrowVect());
+    // Filled by the first updateExternalSourcesSDC
+    diffData->extSrc_np1.emplace_back(
+      grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
+      *m_factory[lev]);
+  }
+}
+
+// Spray advances its own particles (MKD), soot integrates its source over dt
+// internally and radiation needs a global solve, so these are only evaluated
+// once per step, from t^n. Returns whether any of them is active.
+bool
+PeleLM::addFrozenExternalSources(
+  const int is_initIter, const PeleLM::TimeStamp a_timestamp)
+{
+  amrex::ignore_unused(is_initIter, a_timestamp);
+  bool added = false;
 #ifdef PELE_USE_SPRAY
   if (is_initIter == 0) {
     SprayMKD(m_cur_time, m_dt);
+    added = added || do_spray_particles;
   }
 #endif
 #ifdef PELE_USE_SOOT
   if (do_soot_solve) {
-    computeSootSource(a_timestamp_old, m_dt);
+    computeSootSource(a_timestamp, m_dt);
+    added = true;
   }
 #endif
 #ifdef PELE_USE_RADIATION
   if (do_rad_solve) {
     BL_PROFILE_VAR("PeleLM::advance::rad", PLM_RAD);
-    computeRadSource(a_timestamp_old);
+    computeRadSource(a_timestamp);
     BL_PROFILE_VAR_STOP(PLM_RAD);
+    added = true;
   }
 #endif
+  return added;
+}
 
-  addScalarVarianceSources(a_timestamp_old);
+// Add the external sources evaluated from the a_timestamp_eval state into
+// m_extSource. a_frozen: nullptr computes the frozen sources, otherwise its
+// (possibly empty) stored snapshot is added instead.
+void
+PeleLM::assembleExternalSources(
+  const int is_initIter,
+  const PeleLM::TimeStamp a_timestamp_eval,
+  const PeleLM::TimeStamp a_timestamp_new,
+  const amrex::Vector<amrex::MultiFab>* a_frozen)
+{
+  if (m_n_sparks > 0) {
+    addSpark(a_timestamp_eval);
+  }
+  if (a_frozen == nullptr) {
+    addFrozenExternalSources(is_initIter, a_timestamp_eval);
+  } else if (!a_frozen->empty()) {
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      amrex::MultiFab::Add(
+        *m_extSource[lev], (*a_frozen)[lev], 0, 0, NVAR,
+        m_extSource[lev]->nGrowVect());
+    }
+  }
+  addScalarVarianceSources(a_timestamp_eval);
 
-  // User defined external sources
   if (m_user_defined_ext_sources) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      auto* ldata_p_old = getLevelDataPtr(lev, a_timestamp_old);
+      auto* ldata_p_eval = getLevelDataPtr(lev, a_timestamp_eval);
       auto* ldata_p_new = getLevelDataPtr(lev, a_timestamp_new);
-      auto& ext_src = m_extSource[lev];
       ProblemSpecificFunctions::modify_ext_sources(
-        getTime(lev, a_timestamp_old), m_dt, ldata_p_old->state,
-        ldata_p_new->state, ext_src, geom[lev].data(), prob_parm_d);
+        getTime(lev, a_timestamp_eval), m_dt, ldata_p_eval->state,
+        ldata_p_new->state, m_extSource[lev], geom[lev].data(), prob_parm_d);
     }
+  }
+}
+
+// ext_sources_SDC: S^{n+1,k} from the new state into diffData->extSrc_np1,
+// and m_extSource <- 0.5 (S^n + S^{n+1,k})
+void
+PeleLM::updateExternalSourcesSDC(
+  const std::unique_ptr<AdvanceDiffData>& diffData)
+{
+  BL_PROFILE("PeleLMeX::updateExternalSourcesSDC()");
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_extSource[lev]->setVal(0.0);
+  }
+  assembleExternalSources(0, AmrNewTime, AmrNewTime, &diffData->extSrc_frozen);
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    auto& ext = *m_extSource[lev];
+    std::swap(ext, diffData->extSrc_np1[lev]);
+    amrex::MultiFab::LinComb(
+      ext, 0.5, diffData->extSrc_n[lev], 0, 0.5, diffData->extSrc_np1[lev], 0,
+      0, NVAR, ext.nGrowVect());
   }
 }
