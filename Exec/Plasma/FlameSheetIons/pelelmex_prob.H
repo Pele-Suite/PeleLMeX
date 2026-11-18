@@ -91,7 +91,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     massfrac[E_ID] = 0.0;
     amrex::Real sum = 0.0;
     for (int n = 0; n < NUM_SPECIES; n++) {
-      massfrac[n] = amrex::max(0.0, massfrac[n]);
+      massfrac[n] = amrex::max(amrex::Real(0.0), massfrac[n]);
       if (n != N2_ID)
         sum += massfrac[n];
     }

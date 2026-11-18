@@ -417,7 +417,7 @@ initElecNeutral(
   massfrac[E_ID] = 0.0;
   amrex::Real sum = 0.0;
   for (int n = 0; n < NUM_SPECIES; ++n) {
-    massfrac[n] = std::max(0.0, massfrac[n]);
+    massfrac[n] = std::max(amrex::Real(0.0), massfrac[n]);
     if (n != N2_ID)
       sum += massfrac[n];
   }
