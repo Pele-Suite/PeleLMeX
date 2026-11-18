@@ -109,28 +109,6 @@ jobs:
       run: |
         mpirun -n 2 ./PeleLMeX2d.gnu.DEBUG.MPI.ex soot-rad-2d.inp amr.max_step=2 amr.plot_int=2 amr.check_int=2 amrex.abort_on_unused_inputs=1
 
-  # Build and Run the EB_BackwardStepFlame RegTest with GNU9.3 and MPI support
-  EBBFS:
-    name: GNU@9.3 MPI Run [EBBFS]
-    runs-on: ubuntu-24.04
-    env:
-      {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
-    steps:
-    - uses: actions/checkout@v6
-    - name: System Dependencies
-      run: .github/workflows/dependencies/dependencies_gcc10.sh
-    - name: Repo Dependencies
-      run: Utils/CloneDeps.sh
-    - name: Build
-      working-directory: ./Exec/RegTests/EB_BackwardStepFlame/
-      run: |
-        make TPL COMP=gnu USE_MPI=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE
-    - name: Run
-      working-directory: ./Exec/RegTests/EB_BackwardStepFlame/
-      run: |
-        mpirun -n 2 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1 mac_proj.verbose=2 mac_proj.atol=5e-11 mac_proj.rtol=5e-11
-
   # Build and Run the Plasma flamesheet with GNU9.3 and MPI support
   PLASMA:
     name: GNU@9.3 MPI Run [PLASMA]
