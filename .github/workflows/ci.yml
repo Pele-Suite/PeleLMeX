@@ -11,6 +11,11 @@ concurrency:
   group: ${{github.ref}}-${{github.head_ref}}-ci
   cancel-in-progress: true
 
+# Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   Formatting:
     runs-on: ubuntu-24.04
@@ -38,7 +43,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
       - name: Install Ccache
@@ -57,7 +61,6 @@ jobs:
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          set -eu -o pipefail
           ccache -z
           make -j ${{env.NPROCS}} DIM=2 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: FlameSheet ccache report
@@ -70,14 +73,7 @@ jobs:
         run: ./PeleLMeX2d.gnu.DEBUG.drm19.ex flamesheet-drm19-2d.inp amr.max_step=1 amr.plot_int=-1 amr.check_int=-1
       - name: FlameSheet debug report
         working-directory: ./Exec/RegTests/FlameSheet
-        run: |
-          egrep "Warning:|Error:|warning:|error:" build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|Submodules/AMReX-Hydro|GNUmakefile|ThirdParty" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > warnings.txt
-          cat warnings.txt
-          export return=$(tail -n 1 warnings.txt | awk '{print $2}')
-          exit ${return}
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -90,25 +86,16 @@ jobs:
         dim: [2, 3]
         include:
           - os: macos-latest
-            install_deps: brew install open-mpi automake ccache
-            comp: llvm
             procs: $(sysctl -n hw.ncpu)
             ccache_cache: /Users/runner/Library/Caches/ccache
             reference_comparison: ON
           - os: ubuntu-24.04
-            #Note mpich on ubuntu-24.04 does not run mpiexec correctly so we are using openmpi
-            install_deps:
-              sudo apt-get update
-              sudo apt-get install -y libopenmpi-dev openmpi-bin
-            comp: gnu
             procs: $(nproc)
             ccache_cache: ~/.cache/ccache
             reference_comparison: OFF
           - build_type: Release
-            ctest_args: -LE no-ci
             ccache_size: 250M
           - build_type: Debug
-            ctest_args: -LE no-ci
             ccache_size: 500M
           - enable_eb: EB-OFF
             use_eb: "OFF"
@@ -119,6 +106,7 @@ jobs:
             build_type: Debug
     env:
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
+      CTEST_ARGS: -LE no-ci
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -133,9 +121,7 @@ jobs:
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
-          cmake -E make_directory ${{runner.workspace}}/deps
           # Keep the helper outside the work tree: the reference comparison
           # checks out development, which may not have it.
           cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
@@ -145,6 +131,7 @@ jobs:
       - name: Dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
+          # OpenMPI: mpich's mpiexec does not work on ubuntu-24.04
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
           python -m pip install --upgrade pip
@@ -189,8 +176,7 @@ jobs:
         run: |
           ccache -z
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi \
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
         run: |
           ccache -s
@@ -198,18 +184,10 @@ jobs:
       - name: Report
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          egrep "Warning:|Error:|warning:|error:" ${{runner.workspace}}/build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|Submodules/AMReX-Hydro" \
-            | egrep -v "ld: warning:" | egrep -v "lto-wrapper: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > ${{runner.workspace}}/build-output-warnings.txt
-          cat ${{runner.workspace}}/build-output-warnings.txt
-          export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
-          exit ${return}
+          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
-        run: |
-          cd ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}; \
-          ctest ${{matrix.ctest_args}} -VV --output-on-failure; \
-          if [ $? -ne 0 ]; then exit 1; fi \
+        working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
+        run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
@@ -245,7 +223,7 @@ jobs:
           # The reference build only produces plotfiles for the comparison:
           # build just the executables its tests run.
           BUILD_DIR=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference
-          TARGETS=$(python3 ${{runner.temp}}/ctest_targets.py ${BUILD_DIR} ${{matrix.ctest_args}}) \
+          TARGETS=$(python3 ${{runner.temp}}/ctest_targets.py ${BUILD_DIR} ${CTEST_ARGS}) \
             || { echo "::warning::could not list the test targets, building all"; TARGETS=""; }
           echo "Building: ${TARGETS:-all targets}"
           cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
@@ -255,7 +233,7 @@ jobs:
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference
         run : |
-          ctest ${{matrix.ctest_args}} -VV --output-on-failure
+          ctest ${CTEST_ARGS} -VV --output-on-failure
   CPU-CMake-Hypre:
     # AMReX's composite (all AMR levels) hypre/AlgMG solvers: PeleLMeX built
     # with hypre, running the regression tests that need it
@@ -325,8 +303,7 @@ jobs:
         run: |
           ccache -z
           cmake --build ${{runner.workspace}}/build-hypre --target PeleLMeX-FlameSheet \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+            --parallel ${{env.NPROCS}}
           ccache -s
       - name: Test
         run: |
@@ -359,9 +336,7 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=50M" >> $GITHUB_ENV
-          cmake -E make_directory ${{runner.workspace}}/deps
+          echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           sudo apt-get update
@@ -397,8 +372,7 @@ jobs:
         run: |
           ccache -z
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.enable_eb}}-single \
-            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt; \
-          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+            --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
         run: |
           ccache -s
@@ -406,18 +380,7 @@ jobs:
       - name: Report
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          egrep "Warning:|Error:|warning:|error:" ${{runner.workspace}}/build-output.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|Submodules/AMReX-Hydro" \
-            | egrep -v "ld: warning:" | egrep -v "lto-wrapper: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > ${{runner.workspace}}/build-output-warnings.txt
-          cat ${{runner.workspace}}/build-output-warnings.txt
-          export return=$(tail -n 1 ${{runner.workspace}}/build-output-warnings.txt | awk '{print $2}')
-          exit ${return}
-      #- name: Test
-      #  run: |
-      #    cd ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.enable_eb}}-single; \
-      #    ctest -LE no-ci -VV --output-on-failure; \
-      #    if [ $? -ne 0 ]; then exit 1; fi
+          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -442,7 +405,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=300M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -455,7 +417,7 @@ jobs:
               cuda-nvml-dev-12-6 cuda-nvtx-12-6 \
               libcurand-dev-12-6 cuda-cupti-dev-12-6 \
               libcusolver-dev-12-6 libcusparse-dev-12-6 \
-              libcublas-dev-12-6 libcurand-dev-12-6 libnvjitlink-12-6
+              libcublas-dev-12-6 libnvjitlink-12-6
       - name: Install Ccache
         run: |
           wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
@@ -505,7 +467,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -532,11 +493,7 @@ jobs:
       - name: Configure
         run: |
           source /etc/profile.d/rocm.sh
-          which clang
-          which clang++
-          which hipcc
           hipcc --version
-          hipconfig --full
           cmake -B${{runner.workspace}}/build-hip \
           -DCMAKE_BUILD_TYPE:STRING=Release \
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -576,7 +533,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
           echo "CCACHE_DEPEND=1" >> $GITHUB_ENV
       - name: Dependencies
@@ -644,7 +600,6 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
           echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_LOGFILE=${{github.workspace}}/ccache.log.txt" >> $GITHUB_ENV
           echo "CCACHE_EXTRAFILES=${{github.workspace}}/.clang-tidy" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           # clang-tidy-cache skips files whose preprocessed source, flags and
@@ -695,11 +650,10 @@ jobs:
       - name: Check
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
-          #set -eu -o pipefail
           mkdir -p ${CTCACHE_DIR}
           touch ${{runner.temp}}/ctcache-start
-          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt
-          build_status=${PIPESTATUS[0]}
+          build_status=0
+          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
           # Hits refresh an entry's mtime: drop the ones this run did not use
           # (and older clang-tidy versions) so the cache does not grow. Only
           # after a complete build: a failed one never reached some files.
@@ -707,14 +661,8 @@ jobs:
             find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/ctcache-start -delete
             find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
           fi
-          egrep "Warning:|Error:|warning:|error:" clang-tidy-full-report.txt \
-            | egrep -v "Submodules/amrex|Submodules/sundials|Submodules/AMReX-Hydro" \
-            | egrep -v "ld: warning:" | sort | uniq \
-            | awk 'BEGIN{i=0}{print $0}{i++}END{print "Warnings: "i}' > clang-tidy-warnings.txt
       - name: Ccache Report
         run: |
-          ls ~/.cache
-          ls ~/.cache/ccache
           du -hs ~/.cache/ccache
           du -hs ~/.cache/ctcache
           # Entries are named by the rest of their sha1 digest (38 hex
@@ -728,9 +676,7 @@ jobs:
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
-          cat clang-tidy-warnings.txt
-          export return=$(tail -n 1 clang-tidy-warnings.txt | awk '{print $2}')
-          exit ${return}
+          ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
     runs-on: ubuntu-24.04
