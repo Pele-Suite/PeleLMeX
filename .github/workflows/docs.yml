@@ -34,7 +34,7 @@ jobs:
         working-directory: ${{runner.workspace}}/build-docs
         shell: bash
         run: |
-           echo "::add-matcher::.github/problem-matchers/sphinx.json"
+           echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/sphinx.json"
            cmake --build ${{runner.workspace}}/build-docs 2>&1 | tee -a build-output.txt
            touch ${{runner.workspace}}/build-docs/html/manual/html/.nojekyll
       - name: Deploy

@@ -60,7 +60,7 @@ jobs:
       - name: FlameSheet debug make
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           ccache -z
           make -j ${{env.NPROCS}} DIM=2 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: FlameSheet ccache report
@@ -183,7 +183,7 @@ jobs:
           du -hs ${{matrix.ccache_cache}}
       - name: Report
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
@@ -379,7 +379,7 @@ jobs:
           du -hs ~/.cache/ccache
       - name: Report
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
 
   GPU-Nvidia:
@@ -511,7 +511,7 @@ jobs:
           ${{github.workspace}}
       - name: Build
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           source /etc/profile.d/rocm.sh
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
@@ -682,7 +682,7 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
-          echo "::add-matcher::.github/problem-matchers/gcc.json"
+          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
