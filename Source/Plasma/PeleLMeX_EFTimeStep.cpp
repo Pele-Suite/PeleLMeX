@@ -4,7 +4,6 @@ amrex::Real
 PeleLM::estEFIonsDt(const TimeStamp a_time)
 {
   amrex::Real estdt = 1.0e200;
-  constexpr amrex::Real small = 1.0e-8;
 
   auto bcRecPhiV = fetchBCRecArray(PHIV, 1);
 

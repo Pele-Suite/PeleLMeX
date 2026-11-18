@@ -181,7 +181,7 @@ MLGMRESSolver::one_restart(
     amrex::MultiFab::Copy(KspBase[0][lev], res[lev], 0, 0, m_nComp, 0);
   }
 
-  int k_end;
+  int k_end = m_krylovSize - 1;
   amrex::Real resNorm = resNorm_0;
 
   for (int k = 0; k < m_krylovSize; ++k) {

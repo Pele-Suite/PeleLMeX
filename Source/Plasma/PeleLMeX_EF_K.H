@@ -51,6 +51,7 @@ getKappaE(
         (phiV(i, j, k + 1) - phiV(i, j, k - 1)) * dxinv[2]);
     amrex::Real Enorm = std::sqrt(EnormSq);
     amrex::Real redE = Enorm / Ngas * 1e21; // Td conversion
+    amrex::ignore_unused(redE);             // Not used by the linear fit below
 
     amrex::Real C = (T(i, j, k) - 298.0) / (2140.0 - 298.0);
 
@@ -164,7 +165,7 @@ ef_edge_state_2ndO_extdir(
   int domhi,
   amrex::Array4<amrex::Real const> const& state,
   amrex::Array4<amrex::Real const> const& effvel,
-  const amrex::Box& box) noexcept
+  const amrex::Box& /*box*/) noexcept
 {
   // Default behavior: id_l -1 in dir
   // Handle the BCs
@@ -331,7 +332,7 @@ addLorentzForce(
   int k,
   amrex::GpuArray<int, 3> const bxlo,
   amrex::GpuArray<int, 3> const bxhi,
-  const amrex::Real& time,
+  const amrex::Real& /*time*/,
   amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const dx,
   amrex::GpuArray<amrex::Real, NUM_SPECIES> const a_zk,
   amrex::Array4<const amrex::Real> const& rhoY,
