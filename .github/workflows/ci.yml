@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   Formatting:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
     - name: Clone
       uses: actions/checkout@v6
@@ -604,8 +604,8 @@ jobs:
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           # clang-tidy-cache skips files whose preprocessed source, flags and
           # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL
-          # store each file's diagnostics and exit code and replay them on a
-          # hit, so the report below is the same as a full run. Keyed on the
+          # store each file's diagnostics (clang-tidy's stdout) and exit code
+          # and replay them on a hit; stderr is not replayed. Keyed on the
           # clang-tidy version, which the hash does not include. Comments are
           # kept in the hash so that NOLINT edits invalidate the entry.
           echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
@@ -661,6 +661,10 @@ jobs:
             find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/ctcache-start -delete
             find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
           fi
+          # Fail on a failed build: a replayed cache hit restores the exit
+          # code but not clang-tidy's stderr, so the warning count alone can
+          # miss it.
+          exit ${build_status}
       - name: Ccache Report
         run: |
           du -hs ~/.cache/ccache
@@ -726,7 +730,7 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone
         uses: actions/checkout@v6
