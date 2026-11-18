@@ -234,7 +234,12 @@ PeleLM::Setup()
   initProgressVariable();
 
   // Initialize turbulence injection
+#ifdef PELELMEX_HAS_STATE_INFLOW
+  // The scalar fields (state inflow) are only read when asked for
+  turb_inflow.init(Geom(0), /*load_scalars=*/true);
+#else
   turb_inflow.init(Geom(0));
+#endif
   initStateInflow();
   if (m_do_turbulent_forcing) {
     turb_forcing.init(Geom(0).data());
