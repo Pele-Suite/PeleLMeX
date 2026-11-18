@@ -70,30 +70,30 @@ PeleLM::estEFIonsDt(const TimeStamp a_time)
     auto const& mob_cc_ma = ldata_p->mob_cc.const_arrays();
     auto const& uDrMax_ma = driftVelMax_cc.arrays();
 
-    // Get cell centered max effective velocities across
-    // all dimension/ions
+    // Get the cell centered max over dimensions/ions of the effective
+    // velocity divided by the cell size in that direction
     amrex::ParallelFor(
       ldata_p->state,
-      [state_ma, efield_const_ma, mob_cc_ma,
-       uDrMax_ma] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+      [state_ma, efield_const_ma, mob_cc_ma, uDrMax_ma,
+       dxinv] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
         amrex::Array4<amrex::Real const> vel(state_ma[box_no], VELX);
-        amrex::Real maxVel = 0.0;
+        amrex::Real maxVelDx = 0.0;
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
           for (int n = 0; n < NUM_IONS; ++n) {
             amrex::Real ueff =
               vel(i, j, k, idim) + mob_cc_ma[box_no](i, j, k, n) *
                                      efield_const_ma[box_no](i, j, k, idim);
-            maxVel = amrex::max<amrex::Real>(maxVel, std::abs(ueff));
+            maxVelDx =
+              amrex::max<amrex::Real>(maxVelDx, std::abs(ueff) * dxinv[idim]);
           }
         }
-        uDrMax_ma[box_no](i, j, k) = maxVel;
+        uDrMax_ma[box_no](i, j, k) = maxVelDx;
       });
     amrex::Gpu::streamSynchronize();
-    const auto dx = Geom(lev).CellSizeArray();
     const amrex::Real cfl_lcl = m_cfl;
     estdt_lev = amrex::ReduceMin(
       driftVelMax_cc, 0,
-      [dx, cfl_lcl] AMREX_GPU_HOST_DEVICE(
+      [cfl_lcl] AMREX_GPU_HOST_DEVICE(
         amrex::Box const& bx,
         amrex::Array4<amrex::Real const> const& ueffm) noexcept -> amrex::Real {
         const auto lo = amrex::lbound(bx);
@@ -111,7 +111,7 @@ PeleLM::estEFIonsDt(const TimeStamp a_time)
             }
           }
         }
-        return dx[0] / velmax * cfl_lcl;
+        return cfl_lcl / velmax;
       });
 
     // Min across levels
