@@ -27,19 +27,49 @@ jobs:
           python3 -m pip install --user numpy
           python3 -m pip install --user argparse
           python3 -m pip install --user matplotlib
-    - name: LMeX Reference
+    # The reference plotfile only depends on the development commit and on the
+    # runner image (compiler, MPI), so it is cached under those and the
+    # reference is built only when development has moved or the image changed.
+    - name: Resolve Reference
+      id: ref
       run: |
-              mkdir buildRef
+          REF_SHA=$(git ls-remote https://github.com/Pele-Suite/PeleLMeX.git refs/heads/development | cut -f1)
+          KEY_PREFIX="unitTest-ref-DodecaneLu-${ImageOS}-${ImageVersion}-gcc$(g++ -dumpfullversion)-"
+          echo "Reference development commit: ${REF_SHA}"
+          echo "key-prefix=${KEY_PREFIX}" >> $GITHUB_OUTPUT
+          echo "key=${KEY_PREFIX}${REF_SHA}" >> $GITHUB_OUTPUT
+    - name: Restore Reference Plotfile
+      id: ref-cache
+      uses: actions/cache/restore@v5
+      with:
+        path: buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu/pltEvaluate
+        key: ${{ steps.ref.outputs.key }}
+    - name: LMeX Reference
+      if: steps.ref-cache.outputs.cache-hit != 'true'
+      run: |
+              mkdir -p buildRef
               git clone --recursive --single-branch --shallow-submodules -b development https://github.com/Pele-Suite/PeleLMeX.git buildRef/PeleLMeX
     - name: Build Reference PeleLMeX
+      if: steps.ref-cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
           make -j2 TPL COMP=gnu DEBUG=FALSE
           make -j2 COMP=gnu DEBUG=FALSE
     - name: Run Reference Case
+      id: ref-run
+      if: steps.ref-cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
           ./PeleLMeX3d.gnu.MPI.ex inputs.3d
+          # Key the plotfile on the commit actually built, in case development
+          # moved between the ls-remote and the clone.
+          echo "key=${{ steps.ref.outputs.key-prefix }}$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+    - name: Save Reference Plotfile
+      if: steps.ref-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu/pltEvaluate
+        key: ${{ steps.ref-run.outputs.key }}
     - name: Reset Environment Variables
       run: |
               echo "AMREX_HOME=${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex" >> $GITHUB_ENV
