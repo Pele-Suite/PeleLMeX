@@ -130,6 +130,10 @@ jobs:
         make -j $(nproc)
     - name: GenerateTurbFile
       working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+      # PelePhysics tool, not PeleLMeX code: the pinned version fails
+      # -Wshadow. Drop this once the submodule includes PelePhysics' fix.
+      env:
+        XTRA_CXXFLAGS: ""
       run: |
         ./gen_hit_ic.py -k0 4 -N 32 -Nk 256
         make -j $(nproc) COMP=gnu

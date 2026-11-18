@@ -666,6 +666,7 @@ jobs:
           # miss it.
           exit ${build_status}
       - name: Ccache Report
+        if: ${{ !cancelled() }}
         run: |
           du -hs ~/.cache/ccache
           du -hs ~/.cache/ctcache
@@ -674,9 +675,11 @@ jobs:
           echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           ccache -s
       - name: Full report
+        if: ${{ !cancelled() }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: cat clang-tidy-full-report.txt
       - name: Short report
+        if: ${{ !cancelled() }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           echo "::add-matcher::.github/problem-matchers/gcc.json"
