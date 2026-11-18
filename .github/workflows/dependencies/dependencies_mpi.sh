@@ -5,13 +5,12 @@
 # License: BSD-3-Clause-LBNL
 # Authors: Axel Huebl
 
+# OpenMPI for the GNUmake jobs; they build with the runner's default g++.
+
 set -eu -o pipefail
 
-sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 sudo apt-get update
 
 sudo apt-get install -y --no-install-recommends \
-    build-essential    \
-    gcc-10 \
-    libopenmpi-dev     \
+    libopenmpi-dev \
     openmpi-bin

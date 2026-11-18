@@ -22,7 +22,7 @@ jobs:
           submodules: recursive
     - name: System Dependencies
       run: |
-          .github/workflows/dependencies/dependencies_gcc10.sh
+          .github/workflows/dependencies/dependencies_mpi.sh
           sudo apt-get install -y python3-setuptools
           python3 -m pip install --user numpy
           python3 -m pip install --user argparse

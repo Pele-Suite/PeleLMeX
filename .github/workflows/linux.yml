@@ -18,85 +18,41 @@ env:
   XTRA_CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"
 
 jobs:
-  # Build and Run the EB_FlowPastCylinder RegTest with GNU9.3 and MPI support
-  #FPC2D:
-  #  name: GNU@9.3 MPI Run [FPC2DDBG]
-  #  runs-on: ubuntu-24.04
-  #  env:
-  #    {CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"}
-  #  steps:
-  #  - uses: actions/checkout@v6
-  #  - name: System Dependencies
-  #    run: .github/workflows/dependencies/dependencies_gcc10.sh
-  #  - name: Repo Dependencies
-  #    run: Utils/CloneDeps.sh
-  #  - name: Build
-  #    env:
-  #       AMREX_HOME: ${GITHUB_WORKSPACE}/build/amrex
-  #       PELE_PHYSICS_HOME: ${GITHUB_WORKSPACE}/build/PelePhysics
-  #       PELE_HOME: ${GITHUB_WORKSPACE}
-  #       AMREX_HYDRO_HOME: ${GITHUB_WORKSPACE}/build/AMReX-Hydro
-  #       SUNDIALS_HOME : ${GITHUB_WORKSPACE}/build/sundials
-  #    working-directory: ./Exec/RegTests/EB_FlowPastCylinder/
-  #    run: |
-  #      make TPL COMP=gnu USE_MPI=TRUE DEBUG=TRUE
-  #      make -j 2 COMP=gnu USE_MPI=TRUE DEBUG=TRUE
-  #  - name: Run
-  #    working-directory: ./Exec/RegTests/EB_FlowPastCylinder/
-  #    run: |
-  #      ./PeleLMeX2d.gnu.DEBUG.MPI.ex input.2d-regt amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.fpe_trap_invalid=1 amrex.fpe_trap_zero=1 amrex.fpe_trap_overflow=1
-  #      ./PeleLMeX2d.gnu.DEBUG.MPI.ex input.2d-regt_WallBump amr.max_step=2 amr.plot_int=-1 amr.check_int=-1
-
-  #      make -j 2 COMP=gnu USE_MPI=TRUE
-  #  - name: RunDNS
-  #    working-directory: ./Exec/RegTests/HITDecay/
-  #    run: |
-  #      ./PeleLMeX3d.gnu.MPI.ex input.3d amr.max_step=10 amr.plot_int=-1 amr.check_int=-1
-  #  - name: RunLES_Smago
-  #    working-directory: ./Exec/RegTests/HITDecay/
-  #    run: |
-  #      ./PeleLMeX3d.gnu.MPI.ex input.3d_les amr.max_step=10 amr.plot_int=-1 amr.check_int=-1
-  #  - name: RunLES_WALE
-  #    working-directory: ./Exec/RegTests/HITDecay/
-  #    run: |
-  #      ./PeleLMeX3d.gnu.MPI.ex input.3d_les peleLM.les_model="WALE" amr.max_step=10 amr.plot_int=-1 amr.check_int=-1
-
-  # Build and Run the EB_PipeFlow RegTest with GNU9.3 and MPI support
+  # Build and Run the EB_PipeFlow RegTest with GNU and MPI
   EBPF3D:
-    name: GNU@9.3 MPI Run [EBPF3D]
+    name: GNU MPI Run [EBPF3D]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: recursive
     - name: System Dependencies
-      run: .github/workflows/dependencies/dependencies_gcc10.sh
-    - name: Repo Dependencies
-      run: Utils/CloneDeps.sh
+      run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: Build
       working-directory: ./Exec/RegTests/EB_PipeFlow/
       run: |
         make TPL COMP=gnu USE_MPI=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE
     - name: Run
       working-directory: ./Exec/RegTests/EB_PipeFlow/
       run: |
         mpirun -n 2 ./PeleLMeX3d.gnu.MPI.ex input.3d-regt amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1 amr.n_cell=128 32 32
 
-  # Build and Run the SootRadTest RegTest with GNU9.3 and MPI support
+  # Build and Run the SootRadTest RegTest with GNU and MPI
   SOOTRAD:
-    name: GNU@9.3 MPI Run [SootRadTest]
+    name: GNU MPI Run [SootRadTest]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
-    - name: Repo Dependencies
-      run: |
-        Utils/CloneDeps.sh
+      with:
+        submodules: recursive
     - name: System Dependencies
-      run: .github/workflows/dependencies/dependencies_gcc10.sh
+      run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: Build Release
       working-directory: ./Exec/RegTests/SootRadTest/
       run: |
-        make TPL COMP=gnu USE_MPI=TRUE TINY_PROFILE=FALSE
-        make -j 2 COMP=gnu USE_MPI=TRUE TINY_PROFILE=FALSE
+        make TPL COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE
     - name: Run Release
       working-directory: ./Exec/RegTests/SootRadTest/
       run: |
@@ -104,79 +60,79 @@ jobs:
     - name: Build Debug
       working-directory: ./Exec/RegTests/SootRadTest/
       run: |
-        make TPL COMP=gnu USE_MPI=TRUE DEBUG=TRUE TINY_PROFILE=FALSE
-        make -j 2 COMP=gnu USE_MPI=TRUE DEBUG=TRUE TINY_PROFILE=FALSE
+        make TPL COMP=gnu USE_MPI=TRUE DEBUG=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE DEBUG=TRUE
     - name: Run Debug
       working-directory: ./Exec/RegTests/SootRadTest/
       run: |
         mpirun -n 2 ./PeleLMeX2d.gnu.DEBUG.MPI.ex soot-rad-2d.inp amr.max_step=2 amr.plot_int=2 amr.check_int=2 amrex.abort_on_unused_inputs=1
 
-  # Build and Run the EB_BackwardStepFlame RegTest with GNU9.3 and MPI support
+  # Build and Run the EB_BackwardStepFlame RegTest with GNU and MPI
   EBBFS:
-    name: GNU@9.3 MPI Run [EBBFS]
+    name: GNU MPI Run [EBBFS]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: recursive
     - name: System Dependencies
-      run: .github/workflows/dependencies/dependencies_gcc10.sh
-    - name: Repo Dependencies
-      run: Utils/CloneDeps.sh
+      run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: Build
       working-directory: ./Exec/RegTests/EB_BackwardStepFlame/
       run: |
         make TPL COMP=gnu USE_MPI=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE
     - name: Run
       working-directory: ./Exec/RegTests/EB_BackwardStepFlame/
       run: |
         mpirun -n 2 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1 mac_proj.verbose=2 mac_proj.atol=5e-11 mac_proj.rtol=5e-11
 
-  # Build and Run the Plasma flamesheet with GNU9.3 and MPI support
+  # Build and Run the Plasma flamesheet with GNU and MPI
   PLASMA:
-    name: GNU@9.3 MPI Run [PLASMA]
+    name: GNU MPI Run [PLASMA]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: recursive
     - name: System Dependencies
-      run: .github/workflows/dependencies/dependencies_gcc10.sh
-    - name: Repo Dependencies
-      run: Utils/CloneDeps.sh
+      run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: Build
       working-directory: ./Exec/Plasma/FlameSheetIons
       run: |
         make TPL COMP=gnu USE_MPI=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE
     - name: Run
       working-directory: ./Exec/Plasma/FlameSheetIons
       run: |
         mpirun -n 2 ./PeleLMeX2d.gnu.MPI.PLASMA.ex input.2d-regt amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
 
-  # Build and Run the TurbInflow RegTest in DEBUG with GNU9.3 and MPI support
+  # Build and Run the TurbInflow RegTest in DEBUG with GNU and MPI
   TI3D:
-    name: GNU@9.3 MPI Run [TI3DDBG]
+    name: GNU MPI Run [TI3DDBG]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: recursive
     - name: System Dependencies
       run: |
-        .github/workflows/dependencies/dependencies_gcc10.sh
+        .github/workflows/dependencies/dependencies_mpi.sh
          sudo apt-get install -y python3-setuptools
          python3 -m pip install --user scipy
          python3 -m pip install --user matplotlib
          python3 -m pip install --user numpy
-    - name: Repo Dependencies
-      run: Utils/CloneDeps.sh
     - name: Build AMReX Tools
       env:
          AMREX_HOME: ${GITHUB_WORKSPACE}/Submodules/PelePhysics/Submodules/amrex
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
-        make -j 2
+        make -j $(nproc)
     - name: GenerateTurbFile
       working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
       run: |
         ./gen_hit_ic.py -k0 4 -N 32 -Nk 256
-        make -j 2 COMP=gnu
+        make -j $(nproc) COMP=gnu
         ./PeleTurb3d.gnu.ex input hit_file=hit_ic_4_32.dat input_ncell=32 amrex.abort_on_unused_inputs=1
         mkdir ${GITHUB_WORKSPACE}/Exec/RegTests/TurbInflow/TurbFileHIT
         cp -r TurbTEST ${GITHUB_WORKSPACE}/Exec/RegTests/TurbInflow/TurbFileHIT
@@ -184,7 +140,7 @@ jobs:
       working-directory: ./Exec/RegTests/TurbInflow/
       run: |
         make TPL COMP=gnu USE_MPI=TRUE DEBUG=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE DEBUG=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE DEBUG=TRUE
     - name: Run
       working-directory: ./Exec/RegTests/TurbInflow/
       run: |
@@ -233,7 +189,7 @@ jobs:
       working-directory: ./Exec/RegTests/PeriodicCases/
       run: |
         make TPL DIM=3 COMP=gnu USE_MPI=TRUE
-        make -j 2 DIM=3 COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) DIM=3 COMP=gnu USE_MPI=TRUE
     - name: Periodic Vortex for Inflow
       working-directory: ./Exec/RegTests/PeriodicCases/
       run: |
@@ -249,24 +205,25 @@ jobs:
         mpirun -n 2 ./PeleLMeX3d.gnu.MPI.ex input.3d_CoVo_PlaneInput amr.max_step=80 amrex.abort_on_unused_inputs=0
         mpirun -n 2 ./PeleLMeX3d.gnu.MPI.ex input.3d_CoVo_PltInput amr.max_step=120 amrex.abort_on_unused_inputs=0
 
-  # Build and Run the SprayTest RegTest with GNU9.3 and MPI support
+  # Build and Run the SprayTest RegTest with GNU and MPI
   SPRAY:
-    name: GNU@9.3 MPI Run [SPRAY]
+    name: GNU MPI Run [SPRAY]
     runs-on: ubuntu-24.04
     env:
       CMLM_VERSION: 0.0.1
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: recursive
     - name: System Dependencies
       run: |
-         .github/workflows/dependencies/dependencies_gcc10.sh
+         .github/workflows/dependencies/dependencies_mpi.sh
     - name: Python
       uses: actions/setup-python@v6
       with:
         python-version: '3.11'
-    - name: Repo Dependencies
+    - name: CMLM
       run: |
-        Utils/CloneDeps.sh
         # install CMLM (includes python dependencies needed for other scripts)
         pip install -e git+https://github.com/NREL/cmlm.git@v${CMLM_VERSION}#egg=cmlm
     - name: Build AMReX Tools
@@ -274,12 +231,12 @@ jobs:
          AMREX_HOME: ${GITHUB_WORKSPACE}/Submodules/PelePhysics/Submodules/amrex
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
-        make
+        make -j $(nproc)
     - name: Build PeleLMeX for Convergence
       working-directory: ./Exec/RegTests/SprayTest/
       run: |
         make TPL COMP=gnu USE_MPI=TRUE
-        make -j 2 COMP=gnu USE_MPI=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE
     - name: Run Convergence
       working-directory: ./Exec/RegTests/SprayTest/
       run: |
