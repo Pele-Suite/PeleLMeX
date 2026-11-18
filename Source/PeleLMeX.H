@@ -272,6 +272,12 @@ public:
     amrex::Vector<amrex::MultiFab> DT; // Diffusion term of T (soret flux)
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
       soret_fluxes; // Soret flux correction
+
+    // ext_sources_SDC only: external sources at t^n and t^(n+1,k), and the
+    // part of S^n held frozen over the step (spray, soot, radiation)
+    amrex::Vector<amrex::MultiFab> extSrc_n;
+    amrex::Vector<amrex::MultiFab> extSrc_np1;
+    amrex::Vector<amrex::MultiFab> extSrc_frozen;
   };
   /**
    * \brief Advance function data container for advection term
@@ -967,7 +973,20 @@ public:
   void getExternalSources(
     const int is_initIter,
     const PeleLM::TimeStamp a_timestamp_old,
-    const PeleLM::TimeStamp a_timestamp_new);
+    const PeleLM::TimeStamp a_timestamp_new,
+    const std::unique_ptr<AdvanceDiffData>& diffData);
+
+  bool addFrozenExternalSources(
+    const int is_initIter, const PeleLM::TimeStamp a_timestamp);
+
+  void assembleExternalSources(
+    const int is_initIter,
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Vector<amrex::MultiFab>* a_frozen);
+
+  void
+  updateExternalSourcesSDC(const std::unique_ptr<AdvanceDiffData>& diffData);
 
   //-----------------------------------------------------------------------------
   // EOS
