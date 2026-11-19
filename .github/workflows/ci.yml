@@ -616,7 +616,6 @@ jobs:
       # Unlike the build jobs, this cache is saved on PRs too: a cold
       # clang-tidy run takes hours, and the cache is small.
       CCACHE_COMPRESSLEVEL: 10
-      CCACHE_EXTRAFILES: ${{github.workspace}}/.clang-tidy
       # clang-tidy-cache skips files whose preprocessed source, flags and
       # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL store
       # each file's diagnostics (clang-tidy's stdout) and exit code and replay
