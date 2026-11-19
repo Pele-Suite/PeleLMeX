@@ -2,19 +2,35 @@ name: PeleLMeX-CI
 
 on:
   workflow_dispatch:
+  schedule:
+    # Twice a week, so the ccaches are refreshed before GitHub evicts them
+    # after 7 days without access, with a margin for late scheduled starts.
+    - cron: '0 3 * * 1,4'
   push:
     branches: [development]
   pull_request:
     branches: [development]
 
 concurrency:
+  # Only PR runs cancel an older run: on development a cancelled run would
+  # not save its caches, so runs (pushes and scheduled) queue, one at a time
+  # (GitHub keeps only the newest pending one).
   group: ${{github.ref}}-${{github.head_ref}}-ci
-  cancel-in-progress: true
+  cancel-in-progress: ${{github.event_name == 'pull_request'}}
 
 # Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
 defaults:
   run:
     shell: bash
+
+env:
+  # Only development saves the ccaches (the scheduled runs keep them from
+  # being evicted); PRs restore development's. A PR's own runs would each
+  # store a full copy and push development's out of the 10 GB limit.
+  SAVE_CCACHE: ${{github.ref == 'refs/heads/development'}}
+  # Compress hard only when the cache is kept; a PR's new entries are
+  # discarded at the end of the job.
+  CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
 
 jobs:
   Formatting:
@@ -32,6 +48,9 @@ jobs:
   CPU-GNUmake:
     needs: Formatting
     runs-on: ubuntu-24.04
+    env:
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -41,39 +60,69 @@ jobs:
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
-      - name: Install Ccache
+      # Marks the start of the run for Trim Ccache and installs ccache on Linux
+      # (macOS gets it from brew in Dependencies), outside the checkout since
+      # it downloads into the current directory. Defined once here and reused
+      # (*install_ccache) by the other jobs.
+      - &install_ccache
+        name: Install Ccache
+        working-directory: ${{runner.temp}}
         run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
+          touch ${{runner.temp}}/ccache-start
+          if [ "${RUNNER_OS}" = Linux ]; then
+            wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
+            tar xvf ccache-4.8-linux-x86_64.tar.xz
+            sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
+          fi
+      # Restore only; the cache is saved at the end of the job, and only from
+      # development (SAVE_CCACHE). Reused (*restore_ccache) by the other build
+      # jobs, which each set COMPILER_CACHE_DIR and CACHE_KEY.
+      - &restore_ccache
+        name: Set Up Ccache
+        id: ccache
+        uses: actions/cache/restore@v5
         with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
+          path: ${{env.COMPILER_CACHE_DIR}}
+          key: ${{env.CACHE_KEY}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+               ${{env.CACHE_KEY}}-git-
       - name: FlameSheet debug make
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           ccache -z
           make -j ${{env.NPROCS}} DIM=2 KEEP_BUILDINFO_CPP=TRUE USE_CCACHE=TRUE COMP=gnu USE_MPI=FALSE DEBUG=TRUE 2>&1 | tee -a build-output.txt
       - name: FlameSheet ccache report
-        working-directory: ./Exec/RegTests/FlameSheet
-        run: |
-          ccache -s
-          du -hs ~/.cache/ccache
+        run: ccache -s
       - name: FlameSheet debug test
         working-directory: ./Exec/RegTests/FlameSheet
         run: ./PeleLMeX2d.gnu.DEBUG.drm19.ex flamesheet-drm19-2d.inp amr.max_step=1 amr.plot_int=-1 amr.check_int=-1
       - name: FlameSheet debug report
         working-directory: ./Exec/RegTests/FlameSheet
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh build-output.txt "GNUmakefile|ThirdParty"
+      # Drop the entries this run did not use (hits refresh an entry's mtime),
+      # so the saved cache is the current working set; only after a successful
+      # job (the default condition), since a failed one never reached some
+      # files. Reused (*trim_ccache, *save_ccache) by the other build jobs.
+      # COMPILER_CACHE_DIR and CACHE_KEY are not CCACHE_* names on purpose:
+      # ccache reads those (CCACHE_PATH is where it looks for the compiler).
+      - &trim_ccache
+        name: Trim Ccache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          # A plain assignment, so a missing marker fails the step (bash -e)
+          # rather than silently trimming nothing.
+          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
+          ccache -s
+      - &save_ccache
+        name: Save Ccache
+        if: env.SAVE_CCACHE == 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{env.COMPILER_CACHE_DIR}}
+          key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
     needs: Formatting
     runs-on: ${{matrix.os}}
@@ -105,7 +154,10 @@ jobs:
           - os: macos-latest
             build_type: Debug
     env:
-      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.event_name != 'push'}}
+      # Compare with development, except on development itself.
+      DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
+      COMPILER_CACHE_DIR: ${{matrix.ccache_cache}}
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}d-${{matrix.build_type}}-${{matrix.enable_eb}}
       CTEST_ARGS: -LE no-ci
     steps:
       - name: Clone
@@ -119,12 +171,7 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
-          # Keep the helper outside the work tree: the reference comparison
-          # checks out development, which may not have it.
-          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           if [ "${RUNNER_OS}" != "macOS" ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
           fi
@@ -143,20 +190,8 @@ jobs:
           brew install open-mpi automake ccache
           python -m pip install --upgrade pip
           pip install pynose numpy pandas
-      - name: Install Ccache
-        run: |
-          if [ "${RUNNER_OS}" != "macOS" ]; then
-            wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-            tar xvf ccache-4.8-linux-x86_64.tar.xz
-            sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-          fi
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ${{matrix.ccache_cache}}
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}d-${{matrix.build_type}}-${{matrix.enable_eb}}-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}d-${{matrix.build_type}}-${{matrix.enable_eb}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
@@ -178,19 +213,20 @@ jobs:
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
-        run: |
-          ccache -s
-          du -hs ${{matrix.ccache_cache}}
+        run: ccache -s
       - name: Report
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+        run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
+          # Development is checked out over this work tree, not into its own
+          # directory: ccache hashes absolute paths, so only the same paths hit
+          # this build's and development's cache entries. Keep the target
+          # helper, which development may not have.
+          cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           git remote add amrexcomb https://github.com/Pele-Suite/PeleLMeX.git
           git fetch amrexcomb development --depth=1
           git checkout amrexcomb/development
@@ -228,12 +264,13 @@ jobs:
           echo "Building: ${TARGETS:-all targets}"
           cmake --build ${BUILD_DIR} --parallel ${{env.NPROCS}} ${TARGETS:+--target ${TARGETS}}
           ccache -s
-          du -hs ${{matrix.ccache_cache}}
       - name: Test Reference and Compare
         if: env.DO_REF_COMPARE == 'true'
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}-reference
         run : |
           ctest ${CTEST_ARGS} -VV --output-on-failure
+      - *trim_ccache
+      - *save_ccache
   CPU-CMake-Hypre:
     # AMReX's composite (all AMR levels) hypre/AlgMG solvers: PeleLMeX built
     # with hypre, running the regression tests that need it
@@ -241,6 +278,8 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       HYPRE_VERSION: 2.32.0
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -249,26 +288,14 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
           echo "HYPRE_INSTALL=${{runner.workspace}}/hypre-install-${HYPRE_VERSION}" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
-      - name: Install Ccache
-        run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Cache Hypre
         id: cache-hypre
         uses: actions/cache@v5
@@ -309,6 +336,8 @@ jobs:
         run: |
           cd ${{runner.workspace}}/build-hypre
           ctest -R flamesheet-composite -VV --output-on-failure
+      - *trim_ccache
+      - *save_ccache
   CPU-CMake-SINGLE:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -322,6 +351,9 @@ jobs:
             use_eb: "OFF"
           - enable_eb: EB-ON
             use_eb: "ON"
+    env:
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}d-${{matrix.enable_eb}}-single
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -334,25 +366,13 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
-      - name: Install Ccache
-        run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}d-${{matrix.enable_eb}}-single-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}d-${{matrix.enable_eb}}-single-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           cmake -B${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.enable_eb}}-single \
@@ -374,13 +394,11 @@ jobs:
           cmake --build ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.enable_eb}}-single \
             --parallel ${{env.NPROCS}} 2>&1 | tee -a ${{runner.workspace}}/build-output.txt
       - name: Ccache Report
-        run: |
-          ccache -s
-          du -hs ~/.cache/ccache
+        run: ccache -s
       - name: Report
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+        run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
+      - *trim_ccache
+      - *save_ccache
 
   GPU-Nvidia:
     name: GPU-CUDA
@@ -395,6 +413,9 @@ jobs:
           - enable_eb: EB-ON
             use_eb: "ON"
       fail-fast: false
+    env:
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -403,33 +424,13 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=300M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt-get update
-          sudo apt-get install -y cuda-command-line-tools-12-6 \
-              cuda-compiler-12-6 cuda-minimal-build-12-6 \
-              cuda-nvml-dev-12-6 cuda-nvtx-12-6 \
-              libcurand-dev-12-6 cuda-cupti-dev-12-6 \
-              libcusolver-dev-12-6 libcusparse-dev-12-6 \
-              libcublas-dev-12-6 libnvjitlink-12-6
-      - name: Install Ccache
-        run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-
+          ${{github.workspace}}/Submodules/PelePhysics/.github/workflows/dependencies/dependencies_cuda.sh
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           export PATH=/usr/local/nvidia/bin:/usr/local/cuda-12.6/bin:${PATH}
@@ -450,13 +451,16 @@ jobs:
           ccache -z
           cmake --build build-cuda --parallel ${{env.NPROCS}}
       - name: Ccache Report
-        run: |
-          ccache -s
-          du -hs ~/.cache/ccache
+        run: ccache -s
+      - *trim_ccache
+      - *save_ccache
   GPU-AMD:
     name: GPU-HIP
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
+    env:
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -465,8 +469,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -478,18 +480,8 @@ jobs:
           echo 'export PATH=/opt/rocm/llvm/bin:/opt/rocm/bin:/opt/rocm/profiler/bin:/opt/rocm/opencl/bin:$PATH' | sudo tee -a /etc/profile.d/rocm.sh
           sudo apt-get update
           sudo apt-get install -y rocm-dev rocrand-dev rocprim-dev hiprand-dev rocsparse-dev
-      - name: Install Ccache
-        run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           source /etc/profile.d/rocm.sh
@@ -516,13 +508,16 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
       - name: Ccache Report
-        run: |
-          ccache -s
-          du -hs ~/.cache/ccache
+        run: ccache -s
+      - *trim_ccache
+      - *save_ccache
   GPU-Intel:
     name: GPU-SYCL
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
+    env:
+      COMPILER_CACHE_DIR: ~/.cache/ccache
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -531,8 +526,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
           echo "CCACHE_DEPEND=1" >> $GITHUB_ENV
       - name: Dependencies
@@ -543,18 +536,8 @@ jobs:
           echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
           sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-mkl-devel
-      - name: Install Ccache
-        run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
-      - name: Set Up Ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-${{github.workflow}}-${{github.job}}-git-${{github.sha}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-git-
+      - *install_ccache
+      - *restore_ccache
       - name: Configure
         run: |
           set +e
@@ -579,9 +562,9 @@ jobs:
           ccache -z
           cmake --build ${{runner.workspace}}/build-sycl --parallel ${{env.NPROCS}}
       - name: Ccache Report
-        run: |
-          ccache -s
-          du -hs ~/.cache/ccache
+        run: ccache -s
+      - *trim_ccache
+      - *save_ccache
   Lint-clang-tidy:
     needs: Formatting
     runs-on: ubuntu-24.04
@@ -594,41 +577,47 @@ jobs:
           - enable_eb: EB-ON
             use_eb: "ON"
       fail-fast: false
+    env:
+      CCACHE_MAXSIZE: 100M
+      # Unlike the build jobs, this cache is saved on PRs too: a cold
+      # clang-tidy run takes hours, and the cache is small.
+      CCACHE_COMPRESSLEVEL: 10
+      CCACHE_EXTRAFILES: ${{github.workspace}}/.clang-tidy
+      # clang-tidy-cache skips files whose preprocessed source, flags and
+      # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL store
+      # each file's diagnostics (clang-tidy's stdout) and exit code and replay
+      # them on a hit; stderr is not replayed. Comments are kept in the hash
+      # so that NOLINT edits invalidate the entry.
+      CTCACHE_SAVE_OUTPUT: 1
+      CTCACHE_SAVE_ALL: 1
+      CTCACHE_KEEP_COMMENTS: 1
     steps:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESS=1" >> $GITHUB_ENV
-          echo "CCACHE_COMPRESSLEVEL=10" >> $GITHUB_ENV
-          echo "CCACHE_EXTRAFILES=${{github.workspace}}/.clang-tidy" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
-          # clang-tidy-cache skips files whose preprocessed source, flags and
-          # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL
-          # store each file's diagnostics (clang-tidy's stdout) and exit code
-          # and replay them on a hit; stderr is not replayed. Keyed on the
-          # clang-tidy version, which the hash does not include. Comments are
-          # kept in the hash so that NOLINT edits invalidate the entry.
+          # Keyed on the clang-tidy version, which the ctcache hash does not include
           echo "CTCACHE_DIR=${HOME}/.cache/ctcache/$(clang-tidy --version | sha256sum | cut -c1-12)" >> $GITHUB_ENV
-          echo "CTCACHE_SAVE_OUTPUT=1" >> $GITHUB_ENV
-          echo "CTCACHE_SAVE_ALL=1" >> $GITHUB_ENV
-          echo "CTCACHE_KEEP_COMMENTS=1" >> $GITHUB_ENV
       - name: Clone
         uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Install Ccache
+      - *install_ccache
+      - name: Install ctcache
         run: |
-          wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-          tar xvf ccache-4.8-linux-x86_64.tar.xz
-          sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
           # ctcache 1.2.0; the module is a self-contained script
-          sudo curl -L https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
+          sudo curl -fsSL https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
           sudo chmod +x /usr/local/bin/clang-tidy-cache
+      # Restore and save separately: the combined actions/cache saves only
+      # when the whole job passes, so a run that finds warnings would throw
+      # away the cache it just filled.
       - name: Set Up Ccache
-        uses: actions/cache@v5
+        id: ccache
+        uses: actions/cache/restore@v5
         with:
-          path: ~/.cache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-${{github.sha}}
+          path: |
+            ~/.cache/ccache
+            ~/.cache/ctcache
+          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-
       # Debug (-O0): linting does not need optimisation, and clang 18's
@@ -674,6 +663,15 @@ jobs:
           # characters); the per-directory stats files are not counted.
           echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           ccache -s
+      # Saved on PRs too (see CCACHE_COMPRESSLEVEL above), whenever Check
+      # completed the build, before Short report can fail on warnings.
+      - name: Save Ccache
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/.cache/ctcache
+          key: ${{steps.ccache.outputs.cache-primary-key}}
       - name: Full report
         if: ${{ !cancelled() }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
@@ -681,11 +679,11 @@ jobs:
       - name: Short report
         if: ${{ !cancelled() }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
-        run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
-          ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
+        run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
+    # No cache to refresh: skipped on the scheduled runs.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - name: Clone
@@ -733,6 +731,8 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
+    # No cache to refresh: skipped on the scheduled runs.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Clone
