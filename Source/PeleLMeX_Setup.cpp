@@ -1043,15 +1043,15 @@ PeleLM::readParameters()
   pp.query("user_defined_ext_sources", m_user_defined_ext_sources);
   pp.query("ext_sources_SDC", m_ext_sources_SDC);
   if (m_ext_sources_SDC && m_incompressible != 0) {
-    amrex::Warning(
-      "peleLM.ext_sources_SDC ignored: no SDC iterations when incompressible");
+    amrex::Print() << "WARNING: peleLM.ext_sources_SDC ignored: no SDC "
+                      "iterations when incompressible\n";
     m_ext_sources_SDC = false;
   }
   if (m_ext_sources_SDC && m_nSDCmax < 2) {
     // With one SDC iteration the scalars only see S^n, while divU^{n+1}
     // and the velocity forcing would use S^{n+1}
-    amrex::Warning(
-      "peleLM.ext_sources_SDC ignored: it needs peleLM.sdc_iterMax >= 2");
+    amrex::Print() << "WARNING: peleLM.ext_sources_SDC ignored: it needs "
+                      "peleLM.sdc_iterMax >= 2\n";
     m_ext_sources_SDC = false;
   }
   pp.query("plot_extSource", m_plot_extSource);
