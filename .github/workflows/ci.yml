@@ -31,6 +31,10 @@ env:
   # Compress hard only when the cache is kept; a PR's new entries are
   # discarded at the end of the job.
   CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
+  # The scheduled runs only refresh the ccaches: they build (which also
+  # trims the caches to what is used) but skip the tests, which already
+  # ran on this commit.
+  RUN_TESTS: ${{github.event_name != 'schedule'}}
 
 jobs:
   Formatting:
@@ -71,6 +75,11 @@ jobs:
         working-directory: ${{runner.temp}}
         run: |
           touch ${{runner.temp}}/ccache-start
+          # Paths under the workspace are hashed relative to the compile's
+          # directory, so a build directory's name (e.g. the reference
+          # build's) does not stop it hitting another's entries. Set here as
+          # the runner context is not available in env:.
+          echo "CCACHE_BASEDIR=${{runner.workspace}}" >> $GITHUB_ENV
           if [ "${RUNNER_OS}" = Linux ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           fi
@@ -94,6 +103,7 @@ jobs:
       - name: FlameSheet ccache report
         run: ccache -s
       - name: FlameSheet debug test
+        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/FlameSheet
         run: ./PeleLMeX2d.gnu.DEBUG.drm19.ex flamesheet-drm19-2d.inp amr.max_step=1 amr.plot_int=-1 amr.check_int=-1
       - name: FlameSheet debug report
@@ -220,15 +230,16 @@ jobs:
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
+        if: env.RUN_TESTS == 'true'
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
         if: env.DO_REF_COMPARE == 'true'
         run : |
-          # Development is checked out over this work tree, not into its own
-          # directory: ccache hashes absolute paths, so only the same paths hit
-          # this build's and development's cache entries. Keep the target
-          # helper, which development may not have.
+          # Development is checked out over this work tree, so the reference
+          # build sits next to it exactly as development's own build does and,
+          # with CCACHE_BASEDIR, hits development's cache entries. Keep the
+          # target helper, which development may not have.
           cp ${{github.workspace}}/.github/scripts/ctest_targets.py ${{runner.temp}}/
           git remote add amrexcomb https://github.com/Pele-Suite/PeleLMeX.git
           git fetch amrexcomb development --depth=1
@@ -336,6 +347,7 @@ jobs:
             --parallel ${{env.NPROCS}}
           ccache -s
       - name: Test
+        if: env.RUN_TESTS == 'true'
         run: |
           cd ${{runner.workspace}}/build-hypre
           ctest -R flamesheet-composite -VV --output-on-failure
