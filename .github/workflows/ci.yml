@@ -228,6 +228,7 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_SAVE_GOLDS:BOOL=${{matrix.reference_comparison}} \
           -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
@@ -274,6 +275,7 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=ON \
           -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}  \
           -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build Reference Version
@@ -349,6 +351,7 @@ jobs:
           -DHYPRE_ROOT:PATH=${HYPRE_INSTALL} \
           -DCMAKE_PREFIX_PATH:PATH=${HYPRE_INSTALL} \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
@@ -409,6 +412,7 @@ jobs:
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
@@ -468,6 +472,7 @@ jobs:
             -DAMReX_CUDA_ERROR_CAPTURE_THIS:BOOL=ON \
             -DCMAKE_CUDA_ARCHITECTURES:STRING=80 \
             -DCMAKE_CUDA_COMPILER_LAUNCHER:STRING=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
             ${{github.workspace}}
       - name: Build
@@ -524,6 +529,7 @@ jobs:
           -DGPU_TARGETS:STRING=gfx90a \
           -DAMReX_GPU_RDC:BOOL=OFF \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
@@ -578,6 +584,7 @@ jobs:
             -DPELE_ENABLE_MPI:BOOL=OFF \
             -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
             -DPELE_ENABLE_SYCL:BOOL=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
             ${{github.workspace}}
       - name: Build
@@ -661,6 +668,7 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_CLANG_TIDY:BOOL=ON \
           "-DCLANG_TIDY_EXE:STRING=clang-tidy-cache;$(command -v clang-tidy)" \
+          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
           -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
