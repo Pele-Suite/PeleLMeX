@@ -162,23 +162,34 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      # Before setup-python: the script deletes the hosted tool cache, where
+      # setup-python installs Python.
+      - name: Free Disk Space
+        if: runner.os == 'Linux'
+        run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
+      - name: Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
-          if [ "${RUNNER_OS}" != "macOS" ]; then
-            ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
-          fi
       - name: Dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           # OpenMPI: mpich's mpiexec does not work on ubuntu-24.04
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
+          python -m pip install --upgrade pip
+          pip install pynose numpy pandas
+
       - name: Dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install open-mpi automake ccache
+          python -m pip install --upgrade pip
+          pip install pynose numpy pandas
       - *install_ccache
       - *restore_ccache
       - name: Configure
@@ -348,6 +359,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
+      - name: Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
