@@ -62,19 +62,17 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
-      # Marks the start of the run for Trim Ccache and installs ccache on Linux
-      # (macOS gets it from brew in Dependencies), outside the checkout since
-      # it downloads into the current directory. Defined once here and reused
-      # (*install_ccache) by the other jobs.
+      # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
+      # script on Linux (macOS gets it from brew in Dependencies), run outside
+      # the checkout since it downloads into the current directory. Defined
+      # once here and reused (*install_ccache) by the other jobs.
       - &install_ccache
         name: Install Ccache
         working-directory: ${{runner.temp}}
         run: |
           touch ${{runner.temp}}/ccache-start
           if [ "${RUNNER_OS}" = Linux ]; then
-            wget https://github.com/ccache/ccache/releases/download/v4.8/ccache-4.8-linux-x86_64.tar.xz
-            tar xvf ccache-4.8-linux-x86_64.tar.xz
-            sudo cp -f ccache-4.8-linux-x86_64/ccache /usr/local/bin/
+            ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           fi
       # Restore only; the cache is saved at the end of the job, and only from
       # development (SAVE_CCACHE). Reused (*restore_ccache) by the other build
@@ -164,10 +162,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
@@ -181,15 +175,10 @@ jobs:
           # OpenMPI: mpich's mpiexec does not work on ubuntu-24.04
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
-          python -m pip install --upgrade pip
-          pip install pynose numpy pandas
-
       - name: Dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install open-mpi automake ccache
-          python -m pip install --upgrade pip
-          pip install pynose numpy pandas
       - *install_ccache
       - *restore_ccache
       - name: Configure
@@ -359,10 +348,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
