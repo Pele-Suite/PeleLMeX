@@ -123,8 +123,6 @@ jobs:
          python3 -m pip install --user matplotlib
          python3 -m pip install --user numpy
     - name: Build AMReX Tools
-      env:
-         AMREX_HOME: ${GITHUB_WORKSPACE}/Submodules/PelePhysics/Submodules/amrex
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
         make -j $(nproc)
@@ -231,8 +229,6 @@ jobs:
         # install CMLM (includes python dependencies needed for other scripts)
         pip install -e git+https://github.com/NatLabRockies/cmlm.git@v${CMLM_VERSION}#egg=cmlm
     - name: Build AMReX Tools
-      env:
-         AMREX_HOME: ${GITHUB_WORKSPACE}/Submodules/PelePhysics/Submodules/amrex
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
         make -j $(nproc)

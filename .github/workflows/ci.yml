@@ -49,6 +49,7 @@ jobs:
     needs: Formatting
     runs-on: ubuntu-24.04
     env:
+      CCACHE_MAXSIZE: 100M
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
@@ -60,7 +61,6 @@ jobs:
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=100M" >> $GITHUB_ENV
           make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
       # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
       # script on Linux (macOS gets it from brew in Dependencies), run outside
@@ -154,6 +154,7 @@ jobs:
     env:
       # Compare with development, except on development itself.
       DO_REF_COMPARE: ${{matrix.reference_comparison == 'ON' && github.ref != 'refs/heads/development'}}
+      CCACHE_MAXSIZE: ${{matrix.ccache_size}}
       COMPILER_CACHE_DIR: ${{matrix.ccache_cache}}
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.os}}-${{matrix.dim}}d-${{matrix.build_type}}-${{matrix.enable_eb}}
       CTEST_ARGS: -LE no-ci
@@ -174,7 +175,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=${{matrix.procs}}" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=${{matrix.ccache_size}}" >> $GITHUB_ENV
       - name: Dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
@@ -186,6 +186,9 @@ jobs:
 
       - name: Dependencies (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: |
           brew install open-mpi automake ccache
           python -m pip install --upgrade pip
@@ -278,6 +281,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       HYPRE_VERSION: 2.32.0
+      CCACHE_MAXSIZE: 250M
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
@@ -288,7 +292,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
           echo "HYPRE_INSTALL=${{runner.workspace}}/hypre-install-${HYPRE_VERSION}" >> $GITHUB_ENV
       - name: Dependencies
         run: |
@@ -352,6 +355,7 @@ jobs:
           - enable_eb: EB-ON
             use_eb: "ON"
     env:
+      CCACHE_MAXSIZE: 250M
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}d-${{matrix.enable_eb}}-single
     steps:
@@ -359,14 +363,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=250M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           sudo apt-get update
@@ -414,6 +413,7 @@ jobs:
             use_eb: "ON"
       fail-fast: false
     env:
+      CCACHE_MAXSIZE: 300M
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
     steps:
@@ -424,7 +424,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=300M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -459,6 +458,7 @@ jobs:
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
     env:
+      CCACHE_MAXSIZE: 200M
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
@@ -469,7 +469,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
@@ -516,6 +515,8 @@ jobs:
     needs: [Formatting, CPU-GNUmake]
     runs-on: ubuntu-24.04
     env:
+      CCACHE_MAXSIZE: 200M
+      CCACHE_DEPEND: 1
       COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
@@ -526,8 +527,6 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "CCACHE_MAXSIZE=200M" >> $GITHUB_ENV
-          echo "CCACHE_DEPEND=1" >> $GITHUB_ENV
       - name: Dependencies
         run: |
           ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/ubuntu_free_disk_space.sh
