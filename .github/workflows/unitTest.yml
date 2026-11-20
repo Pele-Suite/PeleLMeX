@@ -16,19 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  Detect-Changes:
-    # A called workflow can only narrow the caller's token permissions, so
-    # grant here what its filter job needs.
-    permissions:
-      contents: read
-      pull-requests: read
-    uses: ./.github/workflows/detect-changes.yml
-
   # Build the RegTests/UnitTest
   UT_FS:
     name: UnitTest_FS
-    needs: Detect-Changes
-    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -69,22 +59,3 @@ jobs:
           cp ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile/fcompare.gnu.ex .
           ./PeleLMeX3d.gnu.MPI.ex inputs.3d
           ./fcompare.gnu.ex --abort_if_not_all_found pltEvaluate ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu/pltEvaluate
-
-  # The one check for branch protection to require in the unit tests. A job skipped
-  # by its own `if:` (docs-only changes) does not expand its matrix, so its
-  # per-entry checks never report and a PR requiring them waits forever;
-  # skipped jobs pass here. It also fails when Detect-Changes fails, which
-  # would otherwise skip every build.
-  UnitTest-Status:
-    needs: [Detect-Changes, UT_FS]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check the job results
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "${RESULTS}"
-          for r in ${RESULTS}; do
-            [ "$r" = success ] || [ "$r" = skipped ] || exit 1
-          done
