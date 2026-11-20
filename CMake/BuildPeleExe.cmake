@@ -99,6 +99,41 @@ function(build_pele_exe pele_exe_name pele_physics_lib_name)
         ${SRC_DIR}/PeleLMeX_Radiation.cpp)
   endif()
 
+  if(PELELM_ENABLE_PLASMA)
+    set(PLASMA_DIR ${SRC_DIR}/Plasma)
+    target_compile_definitions(${pele_exe_name} PRIVATE PELE_USE_PLASMA)
+    target_include_directories(${pele_exe_name} PRIVATE ${PLASMA_DIR})
+    target_include_directories(${pele_exe_name} PRIVATE ${PLASMA_DIR}/GMRES)
+    target_include_directories(${pele_exe_name} PRIVATE ${PLASMA_DIR}/LinOps)
+    target_sources(${pele_exe_name}
+      PRIVATE
+        ${PLASMA_DIR}/PeleLMeX_EF.H
+        ${PLASMA_DIR}/PeleLMeX_EF_K.H
+        ${PLASMA_DIR}/PeleLMeX_EF_Constants.H
+        ${PLASMA_DIR}/PeleLMeX_EFDeriveFunc.H
+        ${PLASMA_DIR}/PeleLMeX_EOS_Extension.H
+        ${PLASMA_DIR}/PeleLMeX_EFDeriveFunc.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFIonDrift.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFNLSolve.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFPoisson.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFReactions.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFTimeStep.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFTransport.cpp
+        ${PLASMA_DIR}/PeleLMeX_EFUtils.cpp
+        ${PLASMA_DIR}/GMRES/MLGMRES.H
+        ${PLASMA_DIR}/GMRES/MLGMRES.cpp
+        ${PLASMA_DIR}/LinOps/PrecondOp.H
+        ${PLASMA_DIR}/LinOps/PrecondOp.cpp
+        ${PLASMA_DIR}/LinOps/AMReX_MLCellABecCecLap.H
+        ${PLASMA_DIR}/LinOps/AMReX_MLCellABecCecLap.cpp
+        ${PLASMA_DIR}/LinOps/AMReX_MLCellABecCecLap_K.H
+        ${PLASMA_DIR}/LinOps/AMReX_MLCellABecCecLap_${PELE_DIM}D_K.H
+        ${PLASMA_DIR}/LinOps/AMReX_MLABecCecLaplacian.H
+        ${PLASMA_DIR}/LinOps/AMReX_MLABecCecLaplacian.cpp
+        ${PLASMA_DIR}/LinOps/AMReX_MLABecCecLap_K.H
+        ${PLASMA_DIR}/LinOps/AMReX_MLABecCecLap_${PELE_DIM}D_K.H)
+  endif()
+
   if (PELELM_NUM_ODE GREATER 0)
     target_compile_definitions(${pele_exe_name} PRIVATE NUM_ODE=${PELELM_NUM_ODE})
   endif()

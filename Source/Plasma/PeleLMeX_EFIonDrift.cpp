@@ -78,16 +78,16 @@ PeleLM::ionDriftVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
 
     // Assemble the ions drift velocity
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      auto const& mob_h_ma = mobH_ec[idim].const_arrays();
+      auto const& mob_ec_ma = mobH_ec[idim].const_arrays();
       auto const& gp_o_ma = gphiVOld[lev][idim].const_arrays();
       auto const& gp_n_ma = gphiVNew[lev][idim].const_arrays();
       auto const& Ud_Sp_ma = advData->uDrift[lev][idim].arrays();
       amrex::ParallelFor(
         mobH_ec[idim], amrex::IntVect(0), NUM_IONS,
-        [mob_h_ma, gp_o_ma, gp_n_ma, Ud_Sp_ma] AMREX_GPU_DEVICE(
+        [mob_ec_ma, gp_o_ma, gp_n_ma, Ud_Sp_ma] AMREX_GPU_DEVICE(
           int box_no, int i, int j, int k, int n) noexcept {
           Ud_Sp_ma[box_no](i, j, k, n) =
-            mob_h_ma[box_no](i, j, k, n) * -0.5 *
+            mob_ec_ma[box_no](i, j, k, n) * -0.5 *
             (gp_o_ma[box_no](i, j, k) + gp_n_ma[box_no](i, j, k));
         });
       // Shift outside (idim/lev)?
@@ -151,8 +151,8 @@ PeleLM::ionDriftVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
         GetArrOfPtrs(advData->uDrift[lev]), amrex::IntVect(1), dummy,
         {GetArrOfPtrs(advData->uDrift[lev - 1])}, {dummy},
         {GetArrOfPtrs(advData->uDrift[lev])}, {dummy}, 0, 0, NUM_IONS,
-        geom[lev - 1], geom[lev - 1], cbndyFuncArr, 0, fbndyFuncArr, 0, rr,
-        mapper, bcrecArr, 0);
+        geom[lev - 1], geom[lev], cbndyFuncArr, 0, fbndyFuncArr, 0, rr, mapper,
+        bcrecArr, 0);
     } else {
       AMREX_D_TERM(
         advData->uDrift[lev][0].FillBoundary(geom[lev].periodicity());

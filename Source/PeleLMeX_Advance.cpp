@@ -34,6 +34,12 @@ PeleLM::Advance(const int is_initIter)
   // Copy old <- new state
   copyStateNewToOld(1);
   copyPressNewToOld();
+
+  // The old state now holds the current solution: stamp it with the current
+  // time so that boundary fills during the dt estimate use the right time
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_t_old[lev] = m_cur_time;
+  }
   //----------------------------------------------------------------
 
   //----------------------------------------------------------------
@@ -48,7 +54,6 @@ PeleLM::Advance(const int is_initIter)
 
   // Update time vectors
   for (int lev = 0; lev <= finest_level; ++lev) {
-    m_t_old[lev] = m_cur_time;
     m_t_new[lev] = m_cur_time + m_dt;
   }
   //----------------------------------------------------------------

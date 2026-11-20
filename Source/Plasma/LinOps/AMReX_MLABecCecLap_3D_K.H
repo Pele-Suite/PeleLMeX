@@ -915,17 +915,9 @@ abeccec_chkdiag(
             dhz * (getLeftCellUpwindCoeff(cZ(i, j, k, n), cZ(i, j, k + 1, n)) +
                    getRightCellUpwindCoeff(cZ(i, j, k, n), cZ(i, j, k + 1, n)));
 
-          // if ( fabs(offdiagdiff+offdiagadv) > fabs(diag) ) {
-          //    amrex::Print() << " Abort LinOp not diagonal dominant at: " << i
-          //    << " " << j << " " << k << "\n";
-          //   // amrex::Print() << j << " Val diag: " << diag << ",
-          //   offdiagdiff/adv: " << offdiagdiff << " " << offdiagadv << "\n";
-          //   // amrex::Print() << j << " Val diag: " << diag << ", left/right:
-          //   " << left << "  " << right << "\n";
-          //   // amrex::Print() << j << " " << fabs(diag) << " " <<
-          //   fabs(offdiagdiff+offdiagadv) << "\n";
-          //   // amrex::Abort("MLABecCec is not diagonal dominant !!!");
-          // }
+          if (fabs(offdiagdiff + offdiagadv) > fabs(diag)) {
+            amrex::Abort("LinOp not diagonal dominant");
+          }
         }
       }
     }
@@ -977,8 +969,8 @@ abeccec_getdiag(
 AMREX_GPU_HOST_DEVICE AMREX_INLINE void
 abeccec_getnetfcoeff(
   Box const& box,
-  Real alpha,
-  Array4<Real const> const& a,
+  Real /*alpha*/,
+  Array4<Real const> const& /*a*/,
   Real dhxsq,
   Real dhysq,
   Real dhzsq,
