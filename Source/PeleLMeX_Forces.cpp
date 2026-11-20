@@ -127,12 +127,6 @@ PeleLM::getVelForces(
       const auto& rhoY_arr = (m_incompressible != 0)
                                ? DummyFab.array()
                                : ldata_p->state.const_array(mfi, FIRSTSPEC);
-      const auto& rhoh_arr = (m_incompressible != 0)
-                               ? DummyFab.array()
-                               : ldata_p->state.const_array(mfi, RHOH);
-      const auto& temp_arr = (m_incompressible != 0)
-                               ? DummyFab.array()
-                               : ldata_p->state.const_array(mfi, TEMP);
       const auto& phiV_arr = ldata_p->state.const_array(mfi, PHIV);
       const auto& ne_arr = ldata_p->state.const_array(mfi, NE);
       addLorentzVelForces(lev, bx, time, force_arr, rhoY_arr, phiV_arr, ne_arr);
