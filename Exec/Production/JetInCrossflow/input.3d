@@ -1,60 +1,62 @@
 #----------------------DOMAIN DEFINITION------------------------
 geometry.is_periodic = 0 0 0               # For each dir, 0: non-perio, 1: periodic
 geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
-geometry.prob_lo     = 0.0 -0.0031 -0.0024        # x_lo y_lo (z_lo)
-geometry.prob_hi     = 0.0062 0.0031 0.0100        # x_hi y_hi (z_hi)
+geometry.prob_lo     = 0.0 -0.0381 -0.09525        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.127 0.0381 0.15875        # x_hi y_hi (z_hi)
 
 # >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
 # Interior, Inflow, Outflow, Symmetry,
 # SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
 peleLM.lo_bc = Inflow NoSlipWallAdiab Inflow
-peleLM.hi_bc = Inflow NoSlipWallAdiab Outflow
-
+peleLM.hi_bc = NoSlipWallAdiab NoSlipWallAdiab Outflow
 
 #-------------------------AMR CONTROL----------------------------
-amr.n_cell          = 32 32 64      # Level 0 number of cells in each direction   
-amr.v               = 1                # AMR verbose
-amr.max_level       = 2                # maximum level number allowed
+amr.n_cell          = 80 48 160        # Level 0 number of cells in each direction
+amr.v               = 2                # AMR verbose
+amr.max_level       = 4                # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2          # refinement ratio
-amr.regrid_int      = 2                # how often to regrid
+amr.regrid_int      = 6                # how often to regrid
 amr.n_error_buf     = 2 2 2 2          # number of buffer cells in error est
-amr.grid_eff        = 0.7              # what constitutes an efficient grid
-amr.blocking_factor = 8               # block factor in grid generation (min box size)
+amr.grid_eff        = 0.85              # what constitutes an efficient grid
+amr.blocking_factor = 16               # block factor in grid generation (min box size)
 amr.max_grid_size   = 64               # max box size
 
 
 #--------------------------- Problem -------------------------------
-prob.P_mean = 2431800.0
-prob.V_in = 1.1e2
-prob.jet_rad = 2.5e-4
-prob.jet_temp = 5.5e2
-prob.global_eq_ratio = 3.5e-1
-prob.ox_temp = 7.5e2
-prob.XO2 = 2.1e-1
-prob.XN2 = 7.9e-1
-prob.init_time = -1
-prob.pertmag_cf = 0.0
-prob.pertmag_jet = 0.0
-prob.double_jet = 1
-prob.jet_dir = 0
+prob.P_mean = 101325.0
+
+prob.cf_velocity = 19.1
+prob.cf_temp = 1236
+prob.cf_composition = O2:0.1291 N2:0.7611 CO2:0.0366 H2O:0.0732 OH:1.9629e-5
+prob.cf_composition_type = mole
 prob.cf_dir = 2
-prob.jet_purity = 0.995
-prob.bl_thickness = 2.0e-4
+
+prob.jet_velocity = 42.2
+prob.jet_temp = 300
+prob.jet_composition = H2:0.7 N2:0.18 HE:0.12
+prob.jet_composition_type = mole
+prob.jet_dir = 0
+prob.jet_rad = 0.0015875
+prob.jet_bl_thickness = -1.0
+prob.jet_init_time = 1.0e-6
+prob.jet_start_time = 0.0
+prob.double_jet = 0
 
 #-------------------------PeleLM CONTROL----------------------------
-peleLM.v = 3
+peleLM.v = 2
 peleLM.incompressible = 0
 peleLM.rho = 1.17
 peleLM.mu = 0.0
 peleLM.use_wbar = 1
 peleLM.sdc_iterMax = 1
 peleLM.advection_scheme = "Godunov_BDS"
+peleLM.deltaT_crashIfFailing = 0
 
-amr.plot_int = 10
-amr.check_int = 100
-amr.check_file = "chk_"
-amr.plot_file = "plt_"
-amr.max_step = 500
+amr.plot_int = 50
+amr.check_int = 200
+amr.check_file = chk
+amr.plot_file = plt
+amr.max_step = 50000
 amr.dt_shrink = 1e-2
 #amr.init_dt = 1e-1
 amr.stop_time = 0.02
@@ -65,31 +67,68 @@ amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
 
 # --------------- INPUTS TO CHEMISTRY REACTOR ---------------
 peleLM.chem_integrator = "ReactorNull"
-peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE   
+peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
 ode.rtol = 1.0e-6                     # Relative tolerance of the chemical solve
 ode.atol = 1.0e-5                     # Absolute tolerance factor applied on typical values
-cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction) 
-cvode.max_order  = 4                  # CVODE max BDF order. 
+cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                  # CVODE max BDF order.
 
 #--------------------REFINEMENT CONTROL------------------------
-amr.refinement_indicators = overYH2 diffYH2 diffRho
+amr.refinement_indicators = overYH2 diffYH2 diffRho diffT bottom_box
 
-amr.overYH2.max_level = 3
-amr.overYH2.value_greater = 0.99
+amr.overYH2.max_level = 4
+amr.overYH2.value_greater = 0.1
 amr.overYH2.field_name = Y(H2)
 
-amr.diffYH2.max_level = 3
-amr.diffYH2.adjacent_difference_greater = 0.01
+amr.diffYH2.max_level = 5
+amr.diffYH2.adjacent_difference_greater = 0.005
 amr.diffYH2.field_name = Y(H2)
 
 amr.diffRho.max_level = 1
 amr.diffRho.adjacent_difference_greater = 0.8
 amr.diffRho.field_name = density
 
-#amr.diffXvel.max_level = 3
-#amr.diffXvel.adjacent_difference_greater = 100
-#amr.diffXvel.field_name = x_velocity
+amr.diffT.max_level = 5
+amr.diffT.adjacent_difference_greater = 50
+amr.diffT.field_name = temp
+
+amr.bottom_box.max_level = 2
+amr.bottom_box.in_box_lo = 0.000 -0.04 -0.1
+amr.bottom_box.in_box_hi = 0.004 0.04 0.16
 
 #amrex.fpe_trap_invalid = 1
 #amrex.fpe_trap_zero = 1
 #amrex.fpe_trap_overflow = 1
+amrex.the_arena_is_managed = 0
+
+#-------------------DIAGNOSTIC CONTROL-----------------------
+peleLM.diagnostics = ynormalplt znormalplt
+peleLM.ynormalplt.type = DiagFramePlane
+peleLM.ynormalplt.normal = 1
+peleLM.ynormalplt.center = 0.0
+peleLM.ynormalplt.int    = 25
+peleLM.ynormalplt.interpolation = Linear
+peleLM.ynormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
+
+peleLM.znormalplt.type = DiagFramePlane
+peleLM.znormalplt.normal = 2
+peleLM.znormalplt.center = 0.008
+peleLM.znormalplt.int    = 25
+peleLM.znormalplt.interpolation = Linear
+peleLM.znormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
+
+peleLM.xnormalplt.type = DiagFramePlane
+peleLM.xnormalplt.normal = 0
+peleLM.xnormalplt.center = 0.008
+peleLM.xnormalplt.int    = 25
+peleLM.xnormalplt.interpolation = Linear
+peleLM.xnormalplt.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
+
+peleLM.do_temporals = 1                     # [OPT, DEF=0] Activate temporal diagnostics
+peleLM.temporal_dir = temporals             # [OPT, DEF="temporals"] Directory to store temporal diagnostics
+peleLM.temporal_int = 10                    # [OPT, DEF=5] Temporal freq.
+peleLM.do_extremas = 1                      # [OPT, DEF=0] Trigger extremas, if temporals activated
+peleLM.do_mass_balance = 1                  # [OPT, DEF=0] Compute mass balance, if temporals activated
+peleLM.do_species_balance = 1               # [OPT, DEF=0] Compute species mass balance, if temporals activated
+
+peleLM.base_output_prefix = output_nonreacting/
