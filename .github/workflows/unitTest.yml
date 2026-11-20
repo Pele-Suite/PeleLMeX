@@ -26,10 +26,13 @@ jobs:
       # submodules to development, so it still compares.
       DO_REF_COMPARE: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/development') }}
       # Both builds go through ccache, so the second one reuses the first
-      # one's objects within this run (no cache is kept between runs). Both
-      # compile with paths relative to Exec/UnitTests/DodecaneLu; NOHASHDIR
-      # keeps the different build directories (and -g's record of them) out
-      # of the hash.
+      # one's objects within this run (no cache is kept between runs).
+      # GNUmake passes absolute include paths; BASEDIR rewrites those under
+      # the workspace relative to the compile's directory, which is
+      # Exec/UnitTests/DodecaneLu in both trees, so the two command lines
+      # match. NOHASHDIR keeps the directory itself (and -g's record of it)
+      # out of the hash.
+      CCACHE_BASEDIR: ${{github.workspace}}
       CCACHE_NOHASHDIR: 1
       CCACHE_MAXSIZE: 1G
       # The CMake-built TPL (SUNDIALS) too: CMake reads these as the
