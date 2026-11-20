@@ -8,3 +8,9 @@ updates:
     allow:
       - dependency-name: "Submodules/AMReX-Hydro"
       - dependency-name: "Submodules/PelePhysics"
+  # The actions the workflows use. The third-party ones are pinned to a
+  # commit (a tag can be moved); Dependabot bumps the SHA and its comment.
+  - package-ecosystem: github-actions
+    schedule:
+        interval: "monthly"
+    directory: /
