@@ -14,7 +14,7 @@ concurrency:
 jobs:
   # Build and Run the EB_PipeFlow RegTest with GNU and MPI
   EBPF3D:
-    name: GNU MPI Run [EBPF3D]
+    name: GNU@9.3 MPI Run [EBPF3D]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -34,7 +34,7 @@ jobs:
 
   # Build and Run the SootRadTest RegTest with GNU and MPI
   SOOTRAD:
-    name: GNU MPI Run [SootRadTest]
+    name: GNU@9.3 MPI Run [SootRadTest]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -63,7 +63,7 @@ jobs:
 
   # Build and Run the EB_BackwardStepFlame RegTest with GNU and MPI
   EBBFS:
-    name: GNU MPI Run [EBBFS]
+    name: GNU@9.3 MPI Run [EBBFS]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -83,7 +83,7 @@ jobs:
 
   # Build and Run the Plasma flamesheet with GNU and MPI
   PLASMA:
-    name: GNU MPI Run [PLASMA]
+    name: GNU@9.3 MPI Run [PLASMA]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -103,7 +103,7 @@ jobs:
 
   # Build and Run the TurbInflow RegTest in DEBUG with GNU and MPI
   TI3D:
-    name: GNU MPI Run [TI3DDBG]
+    name: GNU@9.3 MPI Run [TI3DDBG]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -196,7 +196,7 @@ jobs:
 
   # Build and Run the SprayTest RegTest with GNU and MPI
   SPRAY:
-    name: GNU MPI Run [SPRAY]
+    name: GNU@9.3 MPI Run [SPRAY]
     runs-on: ubuntu-24.04
     env:
       CMLM_VERSION: 0.0.1
