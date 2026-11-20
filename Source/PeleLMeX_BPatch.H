@@ -11,7 +11,7 @@ class BPatch
 
 public:
   BPatch() = default;
-  ~BPatch() = default;
+  ~BPatch() { deallocate(); }
 
   BPatch(
     const std::string& patch_name,
