@@ -1,0 +1,67 @@
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 1 1 0              # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 0.0 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.01 0.01 0.01     # x_hi y_hi (z_hi)
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+peleLM.lo_bc = Interior Interior Inflow
+peleLM.hi_bc = Interior Interior Outflow
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 32 32 32          # Level 0 number of cells in each direction
+amr.v               = 1                 # AMR verbose
+amr.max_level       = 0                 # single level
+amr.blocking_factor = 8                 # block factor in grid generation
+amr.max_grid_size   = 16                # max box size
+
+#----------------------- PROBLEM PARAMETERS---------------------
+prob.T_mean = 298.0
+prob.P_mean = 101325.0
+prob.flowDir = 2
+prob.flowMag = 5
+
+#------------  INPUTS TO TURBULENT INFLOW  -----------------
+# State inflow: TurbFileHIT/TurbState is TurbTEST plus analytic temp, Y(O2)
+# and Y(N2) fields (state_inflow_test.py make), imposed on the inflow face on
+# top of bcnormal; density and rhoH follow from the EOS.  turb_scale_loc maps
+# the 2 pi file onto the 1 cm domain exactly.
+turbinflows = lowZ
+turbinflow.lowZ.turb_file      = TurbFileHIT/TurbState
+turbinflow.lowZ.dir            = 2
+turbinflow.lowZ.side           = low
+turbinflow.lowZ.turb_scale_loc = 628.3185307179586
+turbinflow.lowZ.turb_scale_vel = 0.5
+turbinflow.lowZ.turb_center    = 0.005 0.005
+turbinflow.lowZ.turb_conv_vel  = 5.
+turbinflow.lowZ.turb_nplane    = 32
+turbinflow.lowZ.verbose        = 1
+
+#--------------------REFINEMENT CONTROL------------------------
+peleLM.v = 1
+peleLM.incompressible = 0
+peleLM.sdc_iterMax = 1
+peleLM.floor_species = 0
+peleLM.num_divu_iter = 1
+peleLM.num_init_iter = 1
+
+#---------------------- INFLOW GHOST DUMP -----------------------
+# The inflow ghost layer, every step, scored by state_inflow_test.py check
+peleLM.diagnostics = ghostPlane
+peleLM.ghostPlane.type                   = DiagFramePlane
+peleLM.ghostPlane.file                   = ghostState_
+peleLM.ghostPlane.normal                 = 2
+peleLM.ghostPlane.center                 = -1.0
+peleLM.ghostPlane.dump_ghost_if_OOB      = 1
+peleLM.ghostPlane.dump_flat_3D_plotfile  = 1
+peleLM.ghostPlane.interpolation          = Linear
+peleLM.ghostPlane.int                    = 1
+peleLM.ghostPlane.field_names            = temp Y(O2) Y(N2) density
+
+#----------------------TIME STEPPING CONTROL--------------------
+amr.plot_int = -1
+amr.check_int = -1
+amr.max_step = 4
+amr.fixed_dt = 2.e-5
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+fabarray.mfiter_tile_size = 1024 1024 1024

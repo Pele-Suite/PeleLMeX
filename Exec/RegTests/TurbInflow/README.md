@@ -25,3 +25,16 @@ against interpolation in the file's Xi at the fine positions).
 `check_inflow_roundtrip.py` scores all of them (`--level` selects the AMR
 level of the ghost dump); the exact commands are in
 `.github/workflows/linux.yml`.
+
+### State inflow
+
+A turbulence file may carry scalar fields next to the velocity (`SCALARS_V1`
+trailer, written by the `TurbInflowGenerator` with `scalars="temp Y(O2) ..."`).
+PeleLMeX imposes `temp` and `Y(<species>)` on the face it feeds, on top of
+`bcnormal`, and recomputes density and rhoH from the EOS.
+`input.3d_StateInflow` injects `TurbFileHIT/TurbState`, i.e. `TurbTEST` plus
+analytic fields (`state_inflow_test.py make TurbFileHIT/TurbTEST
+TurbFileHIT/TurbState`), and `state_inflow_test.py check ghostState_` scores
+the dumped inflow ghost layers against them; with
+`geometry.mesh_mapping = TanhStretchMap` it checks the sampling at the
+physical positions (`--map tanh`).
