@@ -19,6 +19,11 @@ env:
 
 jobs:
   Detect-Changes:
+    # A called workflow can only narrow the caller's token permissions, so
+    # grant here what its filter job needs.
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/detect-changes.yml
 
   # Build and Run the EB_PipeFlow RegTest with GNU and MPI
@@ -275,3 +280,22 @@ jobs:
       working-directory: ./Exec/RegTests/SingleDropEvap
       run: |
         python Validate.py -b -c RungeJP8 -n 2 -r amr.max_step=1000
+
+  # The one check for branch protection to require in PeleLMeX_linux. A job skipped
+  # by its own `if:` (docs-only changes) does not expand its matrix, so its
+  # per-entry checks never report and a PR requiring them waits forever;
+  # skipped jobs pass here. It also fails when Detect-Changes fails, which
+  # would otherwise skip every build.
+  Linux-Status:
+    needs: [Detect-Changes, EBPF3D, SOOTRAD, EBBFS, PLASMA, TI3D, SPRAY]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "${RESULTS}"
+          for r in ${RESULTS}; do
+            [ "$r" = success ] || [ "$r" = skipped ] || exit 1
+          done

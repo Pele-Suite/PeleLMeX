@@ -5,7 +5,7 @@ on:
   schedule:
     # Twice a week, so the ccaches are refreshed before GitHub evicts them
     # after 7 days without access, with a margin for late scheduled starts.
-    # Jobs without a cache skip the scheduled runs (run-checks).
+    # Jobs without a cache (CodeQL, codespell) skip the scheduled runs.
     - cron: '0 3 * * 1,4'
   push:
     branches: [development]
@@ -36,14 +36,24 @@ env:
   # trims the caches to what is used) but skip the tests, which already
   # ran on this commit.
   RUN_TESTS: ${{github.event_name != 'schedule'}}
+  # The ccache directory the cache steps save and restore (ccache's default
+  # on Linux; CPU-CMake sets its own per OS).
+  COMPILER_CACHE_DIR: ~/.cache/ccache
 
 jobs:
   Detect-Changes:
+    # A called workflow can only narrow the caller's token permissions, so
+    # grant here what its filter job needs.
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/detect-changes.yml
 
   Formatting:
     needs: Detect-Changes
-    if: needs['Detect-Changes'].outputs['run-checks'] == 'true'
+    # Also on the scheduled runs (it takes seconds), so the build jobs that
+    # need it run there to refresh their caches.
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-latest
     steps:
     - name: Clone
@@ -57,24 +67,22 @@ jobs:
         clangFormatVersion: 20
   CPU-GNUmake:
     needs: [Detect-Changes, Formatting]
-    # !failure(): after Formatting, or without it on the scheduled runs,
-    # which skip it. The same condition gates every build job below.
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 100M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
+      # ccache for the CMake-built TPLs (SUNDIALS) too: CMake reads these as
+      # the default compiler launchers.
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Setup
-        working-directory: ./Exec/RegTests/FlameSheet
-        run: |
-          echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
+        run: echo "NPROCS=$(nproc)" >> $GITHUB_ENV
       # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
       # script on Linux (macOS gets it from brew in Dependencies), run outside
       # the checkout since it downloads into the current directory. Defined
@@ -94,7 +102,7 @@ jobs:
           fi
       # Restore only; the cache is saved at the end of the job, and only from
       # development (SAVE_CCACHE). Reused (*restore_ccache) by the other build
-      # jobs, which each set COMPILER_CACHE_DIR and CACHE_KEY.
+      # jobs, which each set CACHE_KEY.
       - &restore_ccache
         name: Set Up Ccache
         id: ccache
@@ -104,6 +112,9 @@ jobs:
           key: ${{env.CACHE_KEY}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
           restore-keys: |
                ${{env.CACHE_KEY}}-git-
+      - name: TPL
+        working-directory: ./Exec/RegTests/FlameSheet
+        run: make COMP=gnu USE_MPI=FALSE DEBUG=TRUE TPL
       - name: FlameSheet debug make
         working-directory: ./Exec/RegTests/FlameSheet
         run: |
@@ -142,7 +153,7 @@ jobs:
           key: ${{steps.ccache.outputs.cache-primary-key}}
   CPU-CMake:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -201,9 +212,6 @@ jobs:
           # OpenMPI: mpich's mpiexec does not work on ubuntu-24.04
           sudo apt-get update
           sudo apt-get install -y libopenmpi-dev openmpi-bin
-          python -m pip install --upgrade pip
-          pip install pynose numpy pandas
-
       - name: Dependencies (macOS)
         if: runner.os == 'macOS'
         env:
@@ -211,8 +219,10 @@ jobs:
           HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: |
           brew install open-mpi automake ccache
-          python -m pip install --upgrade pip
-          pip install pynose numpy pandas
+      - name: Python packages
+        # Only the tests use them.
+        if: env.RUN_TESTS == 'true'
+        run: pip install pynose numpy pandas
       - *install_ccache
       - *restore_ccache
       - name: Configure
@@ -301,12 +311,11 @@ jobs:
     # AMReX's composite (all AMR levels) hypre/AlgMG solvers: PeleLMeX built
     # with hypre, running the regression tests that need it
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       HYPRE_VERSION: 2.32.0
       CCACHE_MAXSIZE: 250M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -369,7 +378,7 @@ jobs:
       - *save_ccache
   CPU-CMake-SINGLE:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -383,7 +392,6 @@ jobs:
             use_eb: "ON"
     env:
       CCACHE_MAXSIZE: 250M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.dim}}d-${{matrix.enable_eb}}-single
     steps:
       - name: Clone
@@ -430,7 +438,7 @@ jobs:
   GPU-Nvidia:
     name: GPU-CUDA
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -443,7 +451,6 @@ jobs:
       fail-fast: false
     env:
       CCACHE_MAXSIZE: 300M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
     steps:
       - name: Clone
@@ -461,8 +468,9 @@ jobs:
       - *restore_ccache
       - name: Configure
         run: |
-          export PATH=/usr/local/nvidia/bin:/usr/local/cuda-12.6/bin:${PATH}
-          export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda-12.6/lib:${LD_LIBRARY_PATH}
+          # /usr/local/cuda points at whichever version dependencies_cuda.sh installed.
+          export PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+          export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
           cmake -Bbuild-cuda \
             -DCMAKE_BUILD_TYPE:STRING=Release \
             -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -486,11 +494,10 @@ jobs:
   GPU-AMD:
     name: GPU-HIP
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -545,12 +552,11 @@ jobs:
   GPU-Intel:
     name: GPU-SYCL
     needs: [Detect-Changes, Formatting, CPU-GNUmake]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     env:
       CCACHE_MAXSIZE: 200M
       CCACHE_DEPEND: 1
-      COMPILER_CACHE_DIR: ~/.cache/ccache
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -600,7 +606,7 @@ jobs:
       - *save_ccache
   Lint-clang-tidy:
     needs: [Detect-Changes, Formatting]
-    if: ${{ !failure() && !cancelled() && needs['Detect-Changes'].outputs['has-source-changes'] == 'true' }}
+    if: needs['Detect-Changes'].outputs['has-source-changes'] == 'true'
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -783,3 +789,24 @@ jobs:
           pip install codespell
       - name: Run codespell
         run: codespell
+
+  # The one check for branch protection to require in PeleLMeX-CI. A job skipped
+  # by its own `if:` (docs-only changes) does not expand its matrix, so its
+  # per-entry checks never report and a PR requiring them waits forever;
+  # skipped jobs pass here. It also fails when Detect-Changes fails, which
+  # would otherwise skip every build.
+  CI-Status:
+    needs: [Detect-Changes, Formatting, CPU-GNUmake, CPU-CMake, CPU-CMake-Hypre,
+            CPU-CMake-SINGLE, GPU-Nvidia, GPU-AMD, GPU-Intel, Lint-clang-tidy,
+            Lint-codeql, Lint-codespell]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "${RESULTS}"
+          for r in ${RESULTS}; do
+            [ "$r" = success ] || [ "$r" = skipped ] || exit 1
+          done
