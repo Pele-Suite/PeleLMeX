@@ -391,7 +391,7 @@ PeleLM::computeBGcharge(
     amrex::ParallelFor(
       ldataNLs_p->backgroundCharge, amrex::IntVect(0.0), NUM_SPECIES,
       [state_old_ma, adv_ma, dn_ma, dnp1_ma, dhat_ma, rhoYdot_ma, charge_ma,
-       dt_int, factor,
+       dt_int,
        zk =
          zk] AMREX_GPU_DEVICE(int box_no, int i, int j, int k, int n) noexcept {
         amrex::Array4<amrex::Real const> rhoYold(
@@ -1195,7 +1195,6 @@ PeleLM::jTimesV(
       update_scaling, update_precond);
 
     for (int lev = 0; lev <= finest_level; ++lev) {
-      auto ldataNLs_p = getLevelDataNLSolvePtr(lev);
       amrex::MultiFab::LinComb(
         *a_Jv[lev], 1.0, residPertPls[lev], 0, -1.0, residPertMns[lev], 0, 0, 2,
         0);

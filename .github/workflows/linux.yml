@@ -87,9 +87,10 @@ jobs:
       run: |
         mpirun -n 2 ./PeleLMeX2d.gnu.MPI.ex eb_bfs.inp amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1 mac_proj.verbose=2 mac_proj.atol=5e-11 mac_proj.rtol=5e-11
 
-  # Build and Run the Plasma flamesheet with GNU and MPI
+  # Build and Run the Plasma flamesheet in DEBUG with GNU and MPI
+  # on the CTest input (GNUmake build; the CMake regression test is in ci.yml)
   PLASMA:
-    name: GNU@9.3 MPI Run [PLASMA]
+    name: GNU@9.3 MPI Run [PLASMADBG]
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
@@ -100,12 +101,12 @@ jobs:
     - name: Build
       working-directory: ./Exec/Plasma/FlameSheetIons
       run: |
-        make TPL COMP=gnu USE_MPI=TRUE
-        make -j $(nproc) COMP=gnu USE_MPI=TRUE
+        make TPL COMP=gnu USE_MPI=TRUE DEBUG=TRUE
+        make -j $(nproc) COMP=gnu USE_MPI=TRUE DEBUG=TRUE
     - name: Run
       working-directory: ./Exec/Plasma/FlameSheetIons
       run: |
-        mpirun -n 2 ./PeleLMeX2d.gnu.MPI.PLASMA.ex input.2d-regt amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
+        mpirun -n 2 ./PeleLMeX2d.gnu.DEBUG.MPI.PLASMA.ex flamesheet-ions-2d.inp amr.max_step=2 amr.plot_int=-1 amr.check_int=-1 amrex.abort_on_unused_inputs=1
 
   # Build and Run the TurbInflow RegTest in DEBUG with GNU and MPI
   TI3D:

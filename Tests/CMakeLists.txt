@@ -35,10 +35,17 @@ endif()
 #=============================================================================
 
 macro(setup_test)
+    # Cases live in Exec/RegTests unless the caller passed EXEC_GROUP
+    # (e.g. Plasma for Exec/Plasma/<case>)
+    if(ATR_EXEC_GROUP)
+      set(TEST_EXEC_GROUP ${ATR_EXEC_GROUP})
+    else()
+      set(TEST_EXEC_GROUP RegTests)
+    endif()
     # Set variables for respective binary and source directories for the test
-    set(CURRENT_TEST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/Exec/RegTests/${TEST_EXE_DIR})
-    set(CURRENT_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/Exec/RegTests/${TEST_EXE_DIR}/${TEST_NAME})
-    set(CURRENT_TEST_EXE ${CMAKE_BINARY_DIR}/Exec/RegTests/${TEST_EXE_DIR}/${PROJECT_NAME}-${TEST_EXE_DIR})
+    set(CURRENT_TEST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR})
+    set(CURRENT_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR}/${TEST_NAME})
+    set(CURRENT_TEST_EXE ${CMAKE_BINARY_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR}/${PROJECT_NAME}-${TEST_EXE_DIR})
     # Gold files should be submodule organized by machine and compiler (these are output during configure)
     set(PLOT_GOLD ${GOLD_FILES_DIRECTORY}/${TEST_EXE_DIR}/${TEST_NAME}/plt00010)
     # Test plot is currently expected to be after 10 steps
@@ -110,7 +117,7 @@ endmacro(setup_test)
 
 # Standard regression test
 function(add_test_r TEST_NAME TEST_EXE_DIR)
-    cmake_parse_arguments(ATR "" "RESTART_STEP" "EXTRA_FILES" ${ARGN})
+    cmake_parse_arguments(ATR "" "RESTART_STEP;EXEC_GROUP" "EXTRA_FILES" ${ARGN})
 
     setup_test()
     set(RUNTIME_OPTIONS "amr.max_step=10 ${RUNTIME_OPTIONS}")
@@ -321,6 +328,7 @@ if(NOT PELE_ENABLE_EB)
   endif()
   if(PELE_DIM EQUAL 2)
     add_test_r(tripleflame-${PELE_DIM}d TripleFlame)
+    add_test_r(flamesheet-ions-${PELE_DIM}d FlameSheetIons EXEC_GROUP Plasma)
     add_test_rt(isothermal-soret IsothermalSoretChannel)
     add_test_mapped_pair(flamesheet-mapped-${PELE_DIM}d FlameSheet "2,1" 1e-8)
     if(PELE_ENABLE_HYPRE)
