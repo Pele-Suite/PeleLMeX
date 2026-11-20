@@ -11,6 +11,12 @@ concurrency:
   group: ${{ github.ref }}-${{ github.head_ref }}-PeleLMeX_linux
   cancel-in-progress: true
 
+# Strict warnings for every GNUmake build. AMReX's comps/gnu.mak assigns
+# CXXFLAGS, which overrides a CXXFLAGS environment variable; XTRA_CXXFLAGS is
+# appended to it (Tools/GNUMake/Make.defs).
+env:
+  XTRA_CXXFLAGS: "-Werror -Wshadow -Woverloaded-virtual -Wunreachable-code"
+
 jobs:
   # Build and Run the EB_PipeFlow RegTest with GNU and MPI
   EBPF3D:
@@ -119,6 +125,10 @@ jobs:
       run: make -j $(nproc) programs=fcompare
     - name: GenerateTurbFile
       working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
+      # PelePhysics tool, not PeleLMeX code: the pinned version fails
+      # -Wshadow. Drop this once the submodule includes PelePhysics' fix.
+      env:
+        XTRA_CXXFLAGS: ""
       run: |
         ./gen_hit_ic.py -k0 4 -N 32 -Nk 256
         make -j $(nproc) COMP=gnu
