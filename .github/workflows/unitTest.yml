@@ -38,8 +38,7 @@ jobs:
       run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: LMeX Reference
       run: |
-          mkdir buildRef
-          git clone --recursive --single-branch --shallow-submodules -b development https://github.com/Pele-Suite/PeleLMeX.git buildRef/PeleLMeX
+          git clone --depth 1 --recursive --single-branch --shallow-submodules -b development https://github.com/Pele-Suite/PeleLMeX.git buildRef/PeleLMeX
     - name: Build Reference PeleLMeX
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
@@ -58,7 +57,7 @@ jobs:
     - name: Build AMReX Tools
       working-directory: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
-          make -j $(nproc) VERBOSE=FALSE
+          make -j $(nproc) VERBOSE=FALSE programs=fcompare
     - name: Build PeleLMeX
       working-directory: ${{github.workspace}}/Exec/UnitTests/DodecaneLu
       run: |

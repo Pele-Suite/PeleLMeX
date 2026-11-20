@@ -5,7 +5,8 @@
 # License: BSD-3-Clause-LBNL
 # Authors: Axel Huebl
 
-# OpenMPI for the GNUmake jobs; they build with the runner's default g++.
+# OpenMPI (mpich's mpiexec does not work on ubuntu-24.04). The GNUmake jobs
+# build with the runner's default g++.
 
 set -eu -o pipefail
 

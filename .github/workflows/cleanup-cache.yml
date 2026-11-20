@@ -31,7 +31,6 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
-
           # For debugging, cat ${GITHUB_EVENT_PATH} to see the payload.
 
           if [[ $EVENT == "pull_request" ]]; then
@@ -64,7 +63,7 @@ jobs:
           # something like ccache-PeleLMeX-CI-
           keyprefix="ccache-${WORKFLOW_NAME}-"
 
-          cached_jobs=$(gh cache list -L 100 --ref $BRANCH --key "$keyprefix" --json key --jq '.[].key' | awk -F '-git-' '{print $1}' | sort | uniq)
+          cached_jobs=$(gh cache list -L 100 --ref $BRANCH --key "$keyprefix" --json key --jq '.[].key' | awk -F '-git-' '{print $1}' | sort -u)
 
           # cached_jobs is something like "ccache-PeleLMeX-CI-CPU-CMake-ubuntu-24.04-2d-Release-EB-OFF ccache-PeleLMeX-CI-CPU-GNUmake".
           for j in $cached_jobs

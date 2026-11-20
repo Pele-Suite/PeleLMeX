@@ -136,14 +136,11 @@ jobs:
     - name: System Dependencies
       run: |
         .github/workflows/dependencies/dependencies_mpi.sh
-         sudo apt-get install -y python3-setuptools
-         python3 -m pip install --user scipy
-         python3 -m pip install --user matplotlib
-         python3 -m pip install --user numpy
+        sudo apt-get install -y python3-setuptools
+        python3 -m pip install --user numpy scipy matplotlib
     - name: Build AMReX Tools
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
-      run: |
-        make -j $(nproc)
+      run: make -j $(nproc) programs=fcompare
     - name: GenerateTurbFile
       working-directory: ./Submodules/PelePhysics/Support/TurbInflowGenerator
       # PelePhysics tool, not PeleLMeX code: the pinned version fails
@@ -238,8 +235,7 @@ jobs:
       with:
         submodules: recursive
     - name: System Dependencies
-      run: |
-         .github/workflows/dependencies/dependencies_mpi.sh
+      run: .github/workflows/dependencies/dependencies_mpi.sh
     - name: Python
       uses: actions/setup-python@v6
       with:
@@ -250,8 +246,7 @@ jobs:
         pip install -e git+https://github.com/NatLabRockies/cmlm.git@v${CMLM_VERSION}#egg=cmlm
     - name: Build AMReX Tools
       working-directory: ./Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
-      run: |
-        make -j $(nproc)
+      run: make -j $(nproc) programs=fcompare
     - name: Build PeleLMeX for Convergence
       working-directory: ./Exec/RegTests/SprayTest/
       run: |

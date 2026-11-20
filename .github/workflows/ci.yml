@@ -72,10 +72,6 @@ jobs:
     env:
       CCACHE_MAXSIZE: 100M
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
-      # ccache for the CMake-built TPLs (SUNDIALS) too: CMake reads these as
-      # the default compiler launchers.
-      CMAKE_C_COMPILER_LAUNCHER: ccache
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -97,6 +93,11 @@ jobs:
           # build's) does not stop it hitting another's entries. Set here as
           # the runner context is not available in env:.
           echo "CCACHE_BASEDIR=${{runner.workspace}}" >> $GITHUB_ENV
+          # Every CMake configure after this, the TPLs' (SUNDIALS) included,
+          # compiles through ccache: CMake reads these as the default launchers.
+          for lang in C CXX CUDA; do
+            echo "CMAKE_${lang}_COMPILER_LAUNCHER=ccache" >> $GITHUB_ENV
+          done
           if [ "${RUNNER_OS}" = Linux ]; then
             ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
           fi
@@ -209,9 +210,7 @@ jobs:
       - name: Dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          # OpenMPI: mpich's mpiexec does not work on ubuntu-24.04
-          sudo apt-get update
-          sudo apt-get install -y libopenmpi-dev openmpi-bin
+          ${{github.workspace}}/.github/workflows/dependencies/dependencies_mpi.sh
       - name: Dependencies (macOS)
         if: runner.os == 'macOS'
         env:
@@ -238,8 +237,6 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_SAVE_GOLDS:BOOL=${{matrix.reference_comparison}} \
           -DPELE_SAVED_GOLDS_DIRECTORY=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}} \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
         run: |
@@ -285,8 +282,6 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=ON \
           -DPELE_REFERENCE_GOLDS_DIRECTORY:STRING=${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}  \
           -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build Reference Version
         if: env.DO_REF_COMPARE == 'true'
@@ -327,9 +322,7 @@ jobs:
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
           echo "HYPRE_INSTALL=${{runner.workspace}}/hypre-install-${HYPRE_VERSION}" >> $GITHUB_ENV
       - name: Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenmpi-dev openmpi-bin
+        run: ${{github.workspace}}/.github/workflows/dependencies/dependencies_mpi.sh
       - *install_ccache
       - *restore_ccache
       - name: Cache Hypre
@@ -360,8 +353,6 @@ jobs:
           -DHYPRE_ROOT:PATH=${HYPRE_INSTALL} \
           -DCMAKE_PREFIX_PATH:PATH=${HYPRE_INSTALL} \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
         run: |
@@ -402,9 +393,7 @@ jobs:
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
       - name: Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenmpi-dev openmpi-bin
+        run: ${{github.workspace}}/.github/workflows/dependencies/dependencies_mpi.sh
       - *install_ccache
       - *restore_ccache
       - name: Configure
@@ -420,8 +409,6 @@ jobs:
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
         run: |
@@ -479,9 +466,6 @@ jobs:
             -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
             -DAMReX_CUDA_ERROR_CAPTURE_THIS:BOOL=ON \
             -DCMAKE_CUDA_ARCHITECTURES:STRING=80 \
-            -DCMAKE_CUDA_COMPILER_LAUNCHER:STRING=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
             ${{github.workspace}}
       - name: Build
         run: |
@@ -536,12 +520,9 @@ jobs:
           -DGPU_TARGETS:STRING=gfx90a \
           -DAMReX_GPU_RDC:BOOL=OFF \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Build
         run: |
-          echo "::add-matcher::${{github.workspace}}/.github/problem-matchers/gcc.json"
           source /etc/profile.d/rocm.sh
           ccache -z
           cmake --build ${{runner.workspace}}/build-hip --parallel ${{env.NPROCS}}
@@ -590,8 +571,6 @@ jobs:
             -DPELE_ENABLE_MPI:BOOL=OFF \
             -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
             -DPELE_ENABLE_SYCL:BOOL=ON \
-            -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
             ${{github.workspace}}
       - name: Build
         run: |
@@ -673,8 +652,6 @@ jobs:
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
           -DPELE_ENABLE_CLANG_TIDY:BOOL=ON \
           "-DCLANG_TIDY_EXE:STRING=clang-tidy-cache;$(command -v clang-tidy)" \
-          -DCMAKE_C_COMPILER_LAUNCHER:STRING=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER:STRING=ccache \
           ${{github.workspace}}
       - name: Check
         working-directory: ${{runner.workspace}}/build-clang-tidy
@@ -785,7 +762,6 @@ jobs:
       - name: Dependencies
         run: |
           # Install Python packages
-          python -m pip install --upgrade pip
           pip install codespell
       - name: Run codespell
         run: codespell
