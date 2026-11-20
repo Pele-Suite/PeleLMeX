@@ -1,7 +1,8 @@
 name: unitTest
 
-# On push and PR: the PR's submodules. Nightly: the same test with every
-# submodule moved to its development branch.
+# On push and PR: the PR's submodules. Nightly: the same test with
+# AMReX-Hydro, PelePhysics and PelePhysics' AMReX moved to their development
+# branches.
 on:
   workflow_dispatch:
   push:
