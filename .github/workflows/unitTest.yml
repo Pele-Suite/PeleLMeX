@@ -32,7 +32,8 @@ jobs:
       # the workspace relative to the compile's directory, which is
       # Exec/UnitTests/DodecaneLu in both trees, so the two command lines
       # match. NOHASHDIR keeps the directory itself (and -g's record of it)
-      # out of the hash.
+      # out of the hash. ci.yml's Install Ccache needs neither: each of its
+      # jobs compiles one tree, from one directory.
       CCACHE_BASEDIR: ${{github.workspace}}
       CCACHE_NOHASHDIR: 1
       CCACHE_MAXSIZE: 1G
@@ -49,7 +50,11 @@ jobs:
     - name: Install Ccache
       # Outside the checkout: AMReX's script downloads into the current directory.
       working-directory: ${{runner.temp}}
-      run: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh
+      run: |
+          # AMReX's install script exits 0 even if the download fails, so
+          # check the result.
+          ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh > /dev/null
+          ccache --version | sed -n 1p
     - name: LMeX Reference
       if: env.DO_REF_COMPARE == 'true'
       run: |
