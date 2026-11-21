@@ -575,16 +575,20 @@ getGradMwmixGivengradYMwmix(
 // that the species fluxes vanish there once corrected to sum to zero.
 //
 // Before the correction the flux is
-//   F_k = -beta_k g_k + beta_k a_k c + S_k,   c = sum_j g_j / W_j,
-// where S_k is the Soret flux and the middle term is the Wbar flux, with
+//   F_k = -beta_k g_k + bw_k a_k c + S_k,   c = sum_j g_j / W_j,
+// where beta_k is the face coefficient of the species diffusion operator
+// (turbulent part and mesh-mapping scaling included), S_k is the Soret flux
+// and the middle term is the Wbar flux, with bw_k its face coefficient and
 // a_k = y_k Wbar_g^2 / Wbar_f (face y_k and Wbar_f as in addWbarTerm, ghost
 // Wbar_g as in getGradMwmixGivengradYMwmix).  Wbar couples the species, and
 // F_k = 0 for all k has no solution in general (the matrix is singular when
-// sum_j a_j / W_j = 1).  The correction F_k -= Y_k sum_j F_j (repair_flux, Y_k
-// arithmetic face average) cancels the fluxes iff F_k = Y_k Phi for some Phi:
-//   g_k = (S_k - Y_k Phi) / beta_k + a_k c.
+// sum_j a_j / W_j = 1).  The correction F_k -= Y_k sum_j F_j (repair_flux,
+// Y_k arithmetic face average) cancels the fluxes iff F_k = Y_k Phi for some
+// Phi:
+//   g_k = (S_k - Y_k Phi) / beta_k + (bw_k / beta_k) a_k c.
 // Closing with c = sum_j g_j / W_j and sum_k g_k = 0 (ghost mass fractions
-// still sum to one) gives a 2x2 system for (Phi, c).
+// still sum to one) gives a 2x2 system for (Phi, c).  Species with a zero
+// face coefficient (zero_visc) get g_k = 0 and drop out of the system.
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void
@@ -598,6 +602,7 @@ isothermalWallGradients(
   amrex::Array4<const amrex::Real> const& rhoY,
   amrex::Array4<const amrex::Real> const& rho,
   amrex::Array4<const amrex::Real> const& beta,
+  amrex::Array4<const amrex::Real> const& beta_wbar,
   amrex::Array4<const amrex::Real> const& soret,
   amrex::Real g[NUM_SPECIES],
   pele::physics::eos::EosParm<pele::physics::PhysicsType::eos_type> const*
@@ -640,29 +645,41 @@ isothermalWallGradients(
   amrex::Real imw[NUM_SPECIES] = {0.0};
   eos.inv_molecular_weight(imw);
 
-  amrex::Real A = 0.0; // sum a_k / W_k
-  amrex::Real B = 0.0; // sum a_k
+  amrex::Real A = 0.0; // sum a'_k / W_k, a'_k = (bw_k / beta_k) a_k
+  amrex::Real B = 0.0; // sum a'_k
   amrex::Real P = 0.0; // sum S_k / (beta_k W_k)
   amrex::Real Q = 0.0; // sum Y_k / (beta_k W_k)
   amrex::Real R = 0.0; // sum S_k / beta_k
   amrex::Real T = 0.0; // sum Y_k / beta_k
+  amrex::Real ap[NUM_SPECIES] = {0.0};
+  amrex::Real binv[NUM_SPECIES] = {0.0};
   const amrex::Real afac = wbar_g * wbar_g / wbar_f;
   for (int n = 0; n < NUM_SPECIES; ++n) {
+    if (beta(i, j, k, n) <= 0.0) {
+      continue;
+    }
     imw[n] *= 1000.0; // CGS -> MKS
-    const amrex::Real a_n = yw[n] * afac;
-    const amrex::Real binv = 1.0 / beta(i, j, k, n);
-    A += a_n * imw[n];
-    B += a_n;
-    P += soret(i, j, k, n) * binv * imw[n];
-    Q += yr[n] * binv * imw[n];
-    R += soret(i, j, k, n) * binv;
-    T += yr[n] * binv;
+    binv[n] = 1.0 / beta(i, j, k, n);
+    ap[n] = yw[n] * afac * beta_wbar(i, j, k, n) * binv[n];
+    A += ap[n] * imw[n];
+    B += ap[n];
+    P += soret(i, j, k, n) * binv[n] * imw[n];
+    Q += yr[n] * binv[n] * imw[n];
+    R += soret(i, j, k, n) * binv[n];
+    T += yr[n] * binv[n];
   }
-  const amrex::Real Phi = (P + (1.0 - A) * R / B) / (Q + (1.0 - A) * T / B);
-  const amrex::Real c = (Phi * T - R) / B;
+  // T = 0: no species diffuses through this face (all g_k stay 0).
+  // B = 0: no Wbar coupling, so c drops out and sum_k g_k = 0 gives Phi.
+  amrex::Real Phi = 0.0;
+  amrex::Real c = 0.0;
+  if (B > 0.0) {
+    Phi = (P + (1.0 - A) * R / B) / (Q + (1.0 - A) * T / B);
+    c = (Phi * T - R) / B;
+  } else if (T > 0.0) {
+    Phi = R / T;
+  }
   for (int n = 0; n < NUM_SPECIES; ++n) {
-    g[n] =
-      (soret(i, j, k, n) - yr[n] * Phi) / beta(i, j, k, n) + yw[n] * afac * c;
+    g[n] = (soret(i, j, k, n) - yr[n] * Phi) * binv[n] + ap[n] * c;
   }
 }
 

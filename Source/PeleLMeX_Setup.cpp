@@ -702,6 +702,7 @@ PeleLM::readParameters()
     (m_fixed_Le != 0 || m_fixed_Pr != 0)) {
     m_use_wbar = 0;
     m_use_soret = 0;
+    m_soret_boundary_override = 0;
     amrex::Print() << "WARNING: use_wbar and use_soret set to false because "
                       "fixed_Pr or fixed_Le is true \n";
   }

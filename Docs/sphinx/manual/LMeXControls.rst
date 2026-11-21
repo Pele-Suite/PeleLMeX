@@ -314,10 +314,10 @@ Transport coefficients and LES
     transport.use_soret = 0                # [OPT, DEF=0] Compute diffusion including the Soret effect (note, this option is inherited from PelePhysics)
 
 .. note::
-   When using the Soret effect, boundary condition corrections are needed at isothermal boundaries,
-   which are not fully supported. Currently a correction for all terms except the wbar term
-   is applied at isothermal domain boundaries (this is likely sufficient), while no corrections are applied
-   at isothermal embedded boundaries (so use caution for isothermal EBs with Soret diffusion active).
+   When using the Soret effect, boundary condition corrections are needed at isothermal boundaries.
+   At isothermal domain boundaries, the species wall gradients are set so that the Soret flux, and the
+   wbar flux when ``peleLM.use_wbar`` is on, cancel and no species mass crosses the wall. No corrections are
+   applied at isothermal embedded boundaries (so use caution for isothermal EBs with Soret diffusion active).
 
 
 .. _ssec:meshMappingParameters:

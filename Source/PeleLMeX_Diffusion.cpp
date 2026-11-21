@@ -504,18 +504,28 @@ PeleLM::correctIsothermalBoundary(
       }
     }
   }
+  const bool explicit_wbar = m_use_wbar != 0 && need_explicit_fluxes;
+  const bool use_wbar_lagged = m_use_wbar != 0 && !need_explicit_fluxes;
   for (int lev = 0; lev <= finest_level; ++lev) {
     auto* ldata_p = getLevelDataPtr(lev, a_time);
-    // Lets overwrite the boundaries with the fluxes for the inhomogeneous
-    // Neumann solve
-    // Get the edge centered diffusivities
-    amrex::MultiFab& ldata_beta_cc = ldata_p->diff_cc;
+    // Overwrite the boundaries with the gradients for the inhomogeneous
+    // Neumann solve. Use the face coefficients of the species diffusion
+    // operator (turbulent part and mesh-mapping scaling, as in DiffusionOp)
+    // so the imposed gradients cancel the Soret (and Wbar) fluxes exactly.
+    const amrex::MultiFab& ldata_beta_cc = ldata_p->diff_cc;
     const amrex::Box& domain = geom[lev].Domain();
     constexpr int doZeroVisc = 1;
-    constexpr int addTurbContribution = 0;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_ec = getDiffusivity(
-      lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, ldata_beta_cc,
-      addTurbContribution);
+      lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, ldata_beta_cc, 1);
+    scaleFaceDiffusivityMapped(lev, beta_ec);
+    // Face coefficients of the Wbar flux (as in addWbarTerm: no turbulent
+    // part)
+    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_wbar_ec;
+    if (explicit_wbar) {
+      beta_wbar_ec = getDiffusivity(
+        lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, ldata_beta_cc, 0);
+      scaleFaceDiffusivityMapped(lev, beta_wbar_ec);
+    }
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
@@ -528,20 +538,17 @@ PeleLM::correctIsothermalBoundary(
         const amrex::Box& ebx = mfi.nodaltilebox(idim);
         auto const& flux_soret = soretfluxes[lev][idim]->const_array(mfi);
         auto const& rhoD_ec = beta_ec[idim].const_array(mfi);
-        auto const& flux_wbar = (m_use_wbar != 0 && !need_explicit_fluxes)
-                                  ? a_wbarfluxes[lev][idim]->const_array(mfi)
-                                  : rhoD_ec;
+        auto const& rhoDw_ec =
+          explicit_wbar ? beta_wbar_ec[idim].const_array(mfi) : rhoD_ec;
+        auto const& flux_wbar =
+          use_wbar_lagged ? a_wbarfluxes[lev][idim]->const_array(mfi) : rhoD_ec;
         auto const& boundary_ar = a_spec_boundary[lev]->array(mfi);
         auto const& rhoY_arr = ldata_p->state.const_array(mfi, FIRSTSPEC);
         auto const& rho_arr = ldata_p->state.const_array(mfi, DENSITY);
-        const auto use_wbar = m_use_wbar;
         const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
         auto const* leosparm = eos_parms.device_parm();
         amrex::ParallelFor(
-          ebx, [bc_lo, bc_hi, idim, need_explicit_fluxes, edomain, flux_soret,
-                rhoD_ec, flux_wbar, boundary_ar, use_wbar, rhoY_arr, rho_arr,
-                use_harmonic_avg,
-                leosparm] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+          ebx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             int idx[3] = {i, j, k};
             const bool on_lo =
               (bc_lo == BoundaryCondition::BCNoSlipWallIsotherm ||
@@ -551,33 +558,34 @@ PeleLM::correctIsothermalBoundary(
               (bc_hi == BoundaryCondition::BCNoSlipWallIsotherm ||
                bc_hi == BoundaryCondition::BCSlipWallIsotherm) &&
               (idx[idim] >= edomain.bigEnd(idim));
-            if ((on_lo || on_hi) && use_wbar != 0 && need_explicit_fluxes) {
+            if (!on_lo && !on_hi) {
+              return;
+            }
+            if (on_lo) { // the ghost cell holds the boundary data
+              idx[idim] -= 1;
+            }
+            if (explicit_wbar) {
               // Wbar couples the species: solve for all the wall gradients
               // so the corrected species fluxes vanish (see
               // isothermalWallGradients)
-              int ig[3] = {i, j, k}; // ghost cell
-              if (on_lo) {
-                ig[idim] -= 1;
-              }
               amrex::Real g[NUM_SPECIES] = {0.0};
               isothermalWallGradients(
-                i, j, k, idim, ig, use_harmonic_avg, rhoY_arr, rho_arr, rhoD_ec,
-                flux_soret, g, leosparm);
+                i, j, k, idim, idx, use_harmonic_avg, rhoY_arr, rho_arr,
+                rhoD_ec, rhoDw_ec, flux_soret, g, leosparm);
               for (int n = 0; n < NUM_SPECIES; ++n) {
-                boundary_ar(ig[0], ig[1], ig[2], n) = g[n];
+                boundary_ar(idx[0], idx[1], idx[2], n) = g[n];
               }
-            } else if (on_lo || on_hi) {
-              if (on_lo) { // need to move -1 for lo boundary
-                idx[idim] -= 1;
-              }
+            } else {
+              // Each species flux cancels on its own: Soret plus the lagged
+              // Wbar flux when available
               for (int n = 0; n < NUM_SPECIES; ++n) {
-                boundary_ar(idx[0], idx[1], idx[2], n) = flux_soret(i, j, k, n);
-                // add lagged wbar flux
-                if (use_wbar != 0 && !need_explicit_fluxes) {
-                  boundary_ar(idx[0], idx[1], idx[2], n) +=
-                    flux_wbar(i, j, k, n);
+                amrex::Real f = flux_soret(i, j, k, n);
+                if (use_wbar_lagged) {
+                  f += flux_wbar(i, j, k, n);
                 }
-                boundary_ar(idx[0], idx[1], idx[2], n) /= rhoD_ec(i, j, k, n);
+                const amrex::Real b = rhoD_ec(i, j, k, n);
+                boundary_ar(idx[0], idx[1], idx[2], n) =
+                  (b > 0.0) ? f / b : 0.0;
               }
             }
           });
@@ -680,7 +688,7 @@ PeleLM::computeDifferentialDiffusionFluxes(
     getMCDiffusionOp(m_nAux)->computeDiffFluxes(
       a_auxfluxes, 0, GetVecOfConstPtrs(getAuxVect(a_time)), 0, {},
       GetVecOfConstPtrs(getAuxDiffusivityVect(a_time)), 0, bcRecAux, m_nAux,
-      do_avgDown, GetVecOfConstPtrs(spec_boundary));
+      do_avgDown, {});
   }
 #endif
 
