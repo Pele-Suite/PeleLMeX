@@ -1082,12 +1082,29 @@ PeleLM::readParameters()
   // External Sources
   // -----------------------------------------
   m_user_defined_ext_sources = false;
-  m_ext_sources_SDC = false; // TODO: add capability to update ext_srcs in SDC
   m_plot_extSource = false;
   m_add_variance_sources = true;
   pp.query("user_defined_ext_sources", m_user_defined_ext_sources);
   pp.query("plot_extSource", m_plot_extSource);
   pp.query("add_variance_sources", m_add_variance_sources);
+
+  // ext_sources_SDC defaults to on when there are sources it re-evaluates
+  // and SDC iterations to re-evaluate them in. With one SDC iteration the
+  // scalars only see S^n, while divU^{n+1} and the velocity forcing would
+  // use S^{n+1}.
+  bool has_sdc_sources = m_user_defined_ext_sources || m_n_sparks > 0;
+#ifdef USE_MANIFOLD_EOS
+  has_sdc_sources = has_sdc_sources || m_add_variance_sources;
+#endif
+  const bool sdc_capable = m_incompressible == 0 && m_nSDCmax >= 2;
+  m_ext_sources_SDC = sdc_capable && has_sdc_sources;
+  if (
+    pp.query("ext_sources_SDC", m_ext_sources_SDC) != 0 && m_ext_sources_SDC &&
+    !sdc_capable) {
+    amrex::Print() << "WARNING: peleLM.ext_sources_SDC ignored: it needs "
+                      "peleLM.sdc_iterMax >= 2 and a low Mach run\n";
+    m_ext_sources_SDC = false;
+  }
 }
 
 void

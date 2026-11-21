@@ -34,6 +34,12 @@ PeleLM::Advance(const int is_initIter)
   // Copy old <- new state
   copyStateNewToOld(1);
   copyPressNewToOld();
+
+  // The old state now holds the current solution: stamp it with the current
+  // time so that boundary fills during the dt estimate use the right time
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_t_old[lev] = m_cur_time;
+  }
   //----------------------------------------------------------------
 
   //----------------------------------------------------------------
@@ -48,7 +54,6 @@ PeleLM::Advance(const int is_initIter)
 
   // Update time vectors
   for (int lev = 0; lev <= finest_level; ++lev) {
-    m_t_old[lev] = m_cur_time;
     m_t_new[lev] = m_cur_time + m_dt;
   }
   //----------------------------------------------------------------
@@ -134,7 +139,7 @@ PeleLM::Advance(const int is_initIter)
   //----------------------------------------------------------------
 
   // External sources (soot, radiation, user defined, etc.)
-  getExternalSources(is_initIter, AmrOldTime, AmrNewTime);
+  getExternalSources(is_initIter, AmrOldTime, AmrNewTime, diffData);
 
   if (m_incompressible == 0) {
     floorSpecies(AmrOldTime);
@@ -149,6 +154,23 @@ PeleLM::Advance(const int is_initIter)
     computeDifferentialDiffusionTerms(AmrOldTime, diffData, 0, fluxfact);
     BL_PROFILE_VAR_STOP(PLM_DIFF);
     //----------------------------------------------------------------
+
+    // divU^n was assembled with the previous step's external sources;
+    // the trapezoidal source treatment needs it at S^n.
+    if (m_ext_sources_SDC && m_has_divu != 0) {
+      constexpr int is_initialization = 0;
+      constexpr int computeDiffusionTerm = 0; // Dn computed just above
+      constexpr int do_avgDown = 1;
+      calcDivU(
+        is_initialization, computeDiffusionTerm, do_avgDown, AmrOldTime,
+        diffData);
+      // S^{n+1,0} = S^n, so divU^{n+1,0} = divU^n for the first MAC solve
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        amrex::MultiFab::Copy(
+          m_leveldata_new[lev]->divu, m_leveldata_old[lev]->divu, 0, 0, 1,
+          m_leveldata_old[lev]->divu.nGrowVect());
+      }
+    }
   }
 
   // Initialize terms t^{np1,k} from t^{n}
@@ -216,6 +238,11 @@ PeleLM::Advance(const int is_initIter)
       clipSootMoments();
     }
 #endif
+
+    // S^{n+1} from the final state, for divU^{n+1} and the velocity forcing
+    if (m_ext_sources_SDC) {
+      updateExternalSourcesSDC(diffData);
+    }
 
     if (m_has_divu != 0) {
       constexpr int is_initialization = 0; // Not here
@@ -336,6 +363,15 @@ PeleLM::oneSDC(
     if (m_nAux > 0) {
       averageDownAux(AmrNewTime);
       fillPatchAux(AmrNewTime);
+    }
+
+    if (m_ext_sources_SDC) {
+      updateExternalSourcesSDC(diffData);
+#if NUM_ODE > 0
+      if (m_user_defined_ext_sources) {
+        predictODEQty();
+      }
+#endif
     }
 
     calcDiffusivity(AmrNewTime);

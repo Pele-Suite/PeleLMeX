@@ -722,8 +722,8 @@ abeccec_getdiag(
 AMREX_GPU_HOST_DEVICE AMREX_INLINE void
 abeccec_getnetfcoeff(
   Box const& box,
-  Real alpha,
-  Array4<Real const> const& a,
+  Real /*alpha*/,
+  Array4<Real const> const& /*a*/,
   Real dhxsq,
   Real dhysq,
   Real dhx,
