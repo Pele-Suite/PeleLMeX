@@ -381,6 +381,58 @@ Advection schemes
 
 Note that in the presence of EB, only the `Godunov_PLM` variant is currently available.
 
+.. _ssec:soretIsothermal:
+
+Soret diffusion at isothermal walls
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With the Soret effect active, the species diffusion flux normal to a wall reads, before the conservative correction,
+
+.. math::
+
+    \mathcal{F}_m = -\beta_m \frac{\partial Y_m}{\partial n}
+    - \beta_m \frac{Y_m}{\overline{W}} \frac{\partial \overline{W}}{\partial n}
+    + \mathcal{F}^{S}_m,
+    \qquad
+    \frac{\partial \overline{W}}{\partial n} = -\overline{W}^2 \sum_j \frac{1}{W_j}\frac{\partial Y_j}{\partial n},
+
+where :math:`\beta_m` is the face diffusion coefficient (including any turbulent contribution and mesh-mapping scaling used by the diffusion operator),
+the middle term is the :math:`\overline{W}` correction (``peleLM.use_wbar``) and :math:`\mathcal{F}^{S}_m \propto \partial T/\partial n` is the Soret flux.
+The fluxes are then corrected to sum to zero, :math:`\mathcal{F}_m \leftarrow \mathcal{F}_m - Y_m \sum_j \mathcal{F}_j`.
+An adiabatic wall has :math:`\partial T/\partial n = 0`, so a homogeneous Neumann condition on :math:`Y_m` gives zero species flux. At an isothermal wall
+:math:`\partial T/\partial n \neq 0`, and the Soret flux would carry species mass through the wall. `PeleLMeX` therefore imposes inhomogeneous
+Neumann conditions, :math:`g_m = \partial Y_m/\partial n`, chosen so that no species mass crosses isothermal domain boundaries.
+
+Without the :math:`\overline{W}` term, or when it is lagged (as in the implicit species solve, where the iteration-lagged :math:`\overline{W}` flux
+:math:`\mathcal{F}^{W}_m` is used), each species decouples and :math:`g_m = (\mathcal{F}^{S}_m + \mathcal{F}^{W}_m)/\beta_m`.
+
+When the :math:`\overline{W}` flux is evaluated explicitly from the same gradients, it couples all the species. Writing
+:math:`c = \sum_j g_j / W_j` and :math:`a_m = Y_m \overline{W}_g^2 / \overline{W}_f` (with :math:`\overline{W}_f` at the wall face and
+:math:`\overline{W}_g` in the ghost cell, as used to evaluate :math:`\partial \overline{W}/\partial n`), the flux is
+
+.. math::
+
+    \mathcal{F}_m = -\beta_m g_m + \beta_m a_m c + \mathcal{F}^{S}_m .
+
+Requiring :math:`\mathcal{F}_m = 0` for every species gives the system :math:`\mathrm{diag}(\beta)\,(I - a\,w^T)\,g = \mathcal{F}^{S}` with :math:`w_m = 1/W_m`,
+which is singular when :math:`\sum_m a_m / W_m = (\overline{W}_g/\overline{W}_f)^2 = 1`, i.e. near any wall where the mean molecular weight varies little.
+Instead, we use the conservative correction: the corrected fluxes all vanish if and only if :math:`\mathcal{F}_m = Y_m \Phi` for a single scalar :math:`\Phi`. Hence
+
+.. math::
+
+    g_m = \frac{\mathcal{F}^{S}_m - Y_m \Phi}{\beta_m} + a_m c ,
+
+and the two unknowns :math:`(\Phi, c)` follow from the definition of :math:`c` and from :math:`\sum_m g_m = 0` (the mass fractions still sum to one).
+With :math:`A = \sum_m a_m/W_m`, :math:`B = \sum_m a_m`, :math:`P = \sum_m \mathcal{F}^{S}_m/(\beta_m W_m)`, :math:`Q = \sum_m Y_m/(\beta_m W_m)`,
+:math:`R = \sum_m \mathcal{F}^{S}_m/\beta_m` and :math:`U = \sum_m Y_m/\beta_m`, this :math:`2\times2` system has the closed-form solution
+
+.. math::
+
+    \Phi = \frac{P + (1-A)R/B}{Q + (1-A)U/B}, \qquad c = \frac{\Phi U - R}{B},
+
+which is evaluated independently on each isothermal wall face. Species with a zero face coefficient are given :math:`g_m = 0` and drop out of the sums.
+No such correction is currently applied at isothermal embedded boundaries.
+
 AMR extension
 ^^^^^^^^^^^^^
 

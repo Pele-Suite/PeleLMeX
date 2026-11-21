@@ -316,7 +316,8 @@ Transport coefficients and LES
 .. note::
    When using the Soret effect, boundary condition corrections are needed at isothermal boundaries.
    At isothermal domain boundaries, the species wall gradients are set so that the Soret flux, and the
-   wbar flux when ``peleLM.use_wbar`` is on, cancel and no species mass crosses the wall. No corrections are
+   wbar flux when ``peleLM.use_wbar`` is on, cancel and no species mass crosses the wall (see
+   :ref:`ssec:soretIsothermal` for the formulation). No corrections are
    applied at isothermal embedded boundaries (so use caution for isothermal EBs with Soret diffusion active).
 
 
