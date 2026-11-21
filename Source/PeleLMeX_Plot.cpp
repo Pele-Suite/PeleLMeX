@@ -1364,6 +1364,12 @@ PeleLM::initLevelDataFromPlt(int a_lev, const std::string& a_dataPltFile)
   } else if (idT < 0) {
     amrex::Abort("Couldn't find temperature in pltfile");
   }
+#ifdef PELE_USE_PLASMA
+  if (inE < 0 || iPhiV < 0) {
+    amrex::Print() << "WARNING: nE and/or phiV not found in pltfile, "
+                      "missing fields are initialised to zero\n";
+  }
+#endif
   if (m_verbose > 0) {
     amrex::Print() << " " << nSpecPlt
                    << " species found in pltfile, starting with "
@@ -1463,12 +1469,17 @@ PeleLM::initLevelDataFromPlt(int a_lev, const std::string& a_dataPltFile)
     }
 
 #ifdef PELE_USE_PLASMA
-    // nE
-    pltData.fillPatchFromPlt(
-      source_plt_level, geom[a_lev], inE, NE, 1, ldata_p->state);
-    // phiV
-    pltData.fillPatchFromPlt(
-      source_plt_level, geom[a_lev], iPhiV, PHIV, 1, ldata_p->state);
+    // nE and phiV, zero when absent from the pltfile
+    const std::array<std::pair<int, int>, 2> plasmaFields{
+      {{inE, NE}, {iPhiV, PHIV}}};
+    for (const auto& [iPlt, comp] : plasmaFields) {
+      if (iPlt >= 0) {
+        pltData.fillPatchFromPlt(
+          source_plt_level, geom[a_lev], iPlt, comp, 1, ldata_p->state);
+      } else {
+        ldata_p->state.setVal(0.0, comp, 1, ldata_p->state.nGrow());
+      }
+    }
 #endif
 #ifdef PELE_USE_SOOT
     if (do_soot_solve) {
