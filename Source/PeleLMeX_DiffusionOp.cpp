@@ -789,12 +789,13 @@ DiffusionOp::diffuse_scalar(
 
       if (have_bcoeff != 0) {
         constexpr int doZeroVisc = 1;
+        constexpr int addTurbContrib = 1;
         amrex::Vector<amrex::BCRec> subBCRec = {
           a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp_solve};
         amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> bcoeff_ec =
           m_pelelm->getDiffusivity(
             lev, bcoeff_comp + comp, m_ncomp_solve, doZeroVisc, subBCRec,
-            *a_bcoeff[lev]);
+            *a_bcoeff[lev], addTurbContrib);
         m_scal_solve_op->setBCoeffs(
           lev, GetArrOfConstPtrs(bcoeff_ec),
           amrex::MLMG::Location::FaceCentroid);
@@ -1355,12 +1356,13 @@ DiffusionOp::computeDiffFluxes(
         boundary.emplace_back(phi[lev], amrex::make_alias, comp, m_ncomp);
       }
       constexpr int doZeroVisc = 1;
+      constexpr int addTurbContrib = 1;
       amrex::Vector<amrex::BCRec> subBCRec = {
         a_bcrec.begin() + comp, a_bcrec.begin() + comp + m_ncomp};
       amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> bcoeff_ec =
         m_pelelm->getDiffusivity(
           lev, bcoeff_comp + comp, m_ncomp, doZeroVisc, subBCRec,
-          *a_bcoeff[lev]);
+          *a_bcoeff[lev], addTurbContrib);
       laps.emplace_back(
         a_phi[lev]->boxArray(), a_phi[lev]->DistributionMap(), m_ncomp, 1,
         amrex::MFInfo(), a_phi[lev]->Factory());
