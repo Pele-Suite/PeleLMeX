@@ -570,6 +570,118 @@ getGradMwmixGivengradYMwmix(
   gradMwmix(i, j, k) *= -Mwmix(i, j, k) * Mwmix(i, j, k);
 }
 
+// Normal mass-fraction gradients g_k imposed on an isothermal wall face
+// (i,j,k) in direction dir when both the Soret and Wbar terms are on, such
+// that the species fluxes vanish there once corrected to sum to zero.
+//
+// Before the correction the flux is
+//   F_k = -beta_k g_k + bw_k a_k c + S_k,   c = sum_j g_j / W_j,
+// where beta_k is the face coefficient of the species diffusion operator
+// (turbulent part and mesh-mapping scaling included), S_k is the Soret flux
+// and the middle term is the Wbar flux, with bw_k its face coefficient and
+// a_k = y_k Wbar_g^2 / Wbar_f (face y_k and Wbar_f as in addWbarTerm, ghost
+// Wbar_g as in getGradMwmixGivengradYMwmix).  Wbar couples the species, and
+// F_k = 0 for all k has no solution in general (the matrix is singular when
+// sum_j a_j / W_j = 1).  The correction F_k -= Y_k sum_j F_j (repair_flux,
+// Y_k arithmetic face average) cancels the fluxes iff F_k = Y_k Phi for some
+// Phi:
+//   g_k = (S_k - Y_k Phi) / beta_k + (bw_k / beta_k) a_k c.
+// Closing with c = sum_j g_j / W_j and sum_k g_k = 0 (ghost mass fractions
+// still sum to one) gives a 2x2 system for (Phi, c).  Species with a zero
+// face coefficient (zero_visc) get g_k = 0 and drop out of the system.
+AMREX_GPU_DEVICE
+AMREX_FORCE_INLINE
+void
+isothermalWallGradients(
+  const int i,
+  const int j,
+  const int k,
+  const int dir,
+  const int ig[3],
+  const bool do_harmonic,
+  amrex::Array4<const amrex::Real> const& rhoY,
+  amrex::Array4<const amrex::Real> const& rho,
+  amrex::Array4<const amrex::Real> const& beta,
+  amrex::Array4<const amrex::Real> const& beta_wbar,
+  amrex::Array4<const amrex::Real> const& soret,
+  amrex::Real g[NUM_SPECIES],
+  pele::physics::eos::EosParm<pele::physics::PhysicsType::eos_type> const*
+    eosparm) noexcept
+{
+  auto eos = pele::physics::PhysicsType::eos(eosparm);
+  int il[3] = {i, j, k};
+  il[dir] -= 1;
+
+  amrex::Real yw[NUM_SPECIES] = {0.0}; // face Y as addWbarTerm sees it
+  amrex::Real yr[NUM_SPECIES] = {0.0}; // face Y as repair_flux sees it
+  amrex::Real yg[NUM_SPECIES] = {0.0}; // ghost cell Y
+  amrex::Real sum_w = 0.0;
+  amrex::Real sum_r = 0.0;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    const amrex::Real a = rhoY(il[0], il[1], il[2], n);
+    const amrex::Real b = rhoY(i, j, k, n);
+    yr[n] = 0.5 * (a + b);
+    if (do_harmonic) {
+      yw[n] = (a * b > 0.0) ? 2.0 * a * b / (a + b) : 0.0;
+    } else {
+      yw[n] = yr[n];
+    }
+    yg[n] = rhoY(ig[0], ig[1], ig[2], n);
+    sum_w += yw[n];
+    sum_r += yr[n];
+  }
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    yw[n] /= sum_w;
+    yr[n] /= sum_r;
+    yg[n] /= rho(ig[0], ig[1], ig[2]); // as getMwmixGivenRY
+  }
+  amrex::Real wbar_f = 0.0;
+  amrex::Real wbar_g = 0.0;
+  eos.Y2WBAR(yw, wbar_f);
+  eos.Y2WBAR(yg, wbar_g);
+  wbar_f *= 0.001; // CGS -> MKS
+  wbar_g *= 0.001;
+  amrex::Real imw[NUM_SPECIES] = {0.0};
+  eos.inv_molecular_weight(imw);
+
+  amrex::Real A = 0.0; // sum a'_k / W_k, a'_k = (bw_k / beta_k) a_k
+  amrex::Real B = 0.0; // sum a'_k
+  amrex::Real P = 0.0; // sum S_k / (beta_k W_k)
+  amrex::Real Q = 0.0; // sum Y_k / (beta_k W_k)
+  amrex::Real R = 0.0; // sum S_k / beta_k
+  amrex::Real T = 0.0; // sum Y_k / beta_k
+  amrex::Real ap[NUM_SPECIES] = {0.0};
+  amrex::Real binv[NUM_SPECIES] = {0.0};
+  const amrex::Real afac = wbar_g * wbar_g / wbar_f;
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    if (beta(i, j, k, n) <= 0.0) {
+      continue;
+    }
+    imw[n] *= 1000.0; // CGS -> MKS
+    binv[n] = 1.0 / beta(i, j, k, n);
+    ap[n] = yw[n] * afac * beta_wbar(i, j, k, n) * binv[n];
+    A += ap[n] * imw[n];
+    B += ap[n];
+    P += soret(i, j, k, n) * binv[n] * imw[n];
+    Q += yr[n] * binv[n] * imw[n];
+    R += soret(i, j, k, n) * binv[n];
+    T += yr[n] * binv[n];
+  }
+  // T = 0: no species diffuses through this face (all g_k stay 0).
+  // B = 0: no Wbar coupling, so c drops out and sum_k g_k = 0 gives Phi.
+  amrex::Real Phi = 0.0;
+  amrex::Real c = 0.0;
+  if (B > 0.0) {
+    Phi = (P + (1.0 - A) * R / B) / (Q + (1.0 - A) * T / B);
+    c = (Phi * T - R) / B;
+  } else if (T > 0.0) {
+    Phi = R / T;
+  }
+  for (int n = 0; n < NUM_SPECIES; ++n) {
+    g[n] = (soret(i, j, k, n) - yr[n] * Phi) * binv[n] + ap[n] * c;
+  }
+}
+
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 void

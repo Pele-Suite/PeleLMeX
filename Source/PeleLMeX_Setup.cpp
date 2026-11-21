@@ -145,8 +145,7 @@ PeleLM::Setup()
             << "    Using mixture-averaged transport with Soret effects \n";
           if (m_soret_boundary_override != 0) {
             amrex::Print() << "    Imposing inhomogeneous Neumann conditions "
-                              "for species on isothermal walls. WARNING: "
-                              "use_wbar disabled. \n";
+                              "for species on isothermal walls \n";
           }
         }
       } else {
@@ -653,23 +652,6 @@ PeleLM::readParameters()
   amrex::ParmParse pptrans("transport");
   pptrans.query("use_soret", m_use_soret);
   pp.query("use_wbar", m_use_wbar);
-  if (m_use_soret != 0) {
-    bool isothermal = false;
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      isothermal |=
-        (m_phys_bc.lo(idim) == BoundaryCondition::BCSlipWallIsotherm ||
-         m_phys_bc.lo(idim) == BoundaryCondition::BCNoSlipWallIsotherm ||
-         m_phys_bc.hi(idim) == BoundaryCondition::BCSlipWallIsotherm ||
-         m_phys_bc.hi(idim) == BoundaryCondition::BCNoSlipWallIsotherm);
-    }
-    if (isothermal) {
-      m_soret_boundary_override = 1;
-      m_use_wbar = 0;
-#if PELE_USE_PLASMA
-      amrex::Abort("Isothermal walls with Soret incompatible with plasma");
-#endif
-    }
-  }
   pp.query("unity_Le", m_unity_Le);
   pp.query("fixed_Le", m_fixed_Le);
   pp.query("fixed_Pr", m_fixed_Pr);
@@ -706,6 +688,22 @@ PeleLM::readParameters()
     m_use_soret = 0;
     amrex::Print() << "WARNING: use_wbar and use_soret set to false because "
                       "fixed_Pr or fixed_Le is true \n";
+  }
+  // Soret with isothermal domain walls: species get inhomogeneous Neumann
+  // conditions there (isothermalSpeciesBoundary)
+  if (m_use_soret != 0) {
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+      if (
+        isIsothermalWall(m_phys_bc.lo(idim)) ||
+        isIsothermalWall(m_phys_bc.hi(idim))) {
+        m_soret_boundary_override = 1;
+      }
+    }
+#ifdef PELE_USE_PLASMA
+    if (m_soret_boundary_override != 0) {
+      amrex::Abort("Isothermal walls with Soret incompatible with plasma");
+    }
+#endif
   }
 
   // Manifold EOS: invPrandtl needs to be 0 because H not used

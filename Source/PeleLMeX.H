@@ -624,13 +624,22 @@ public:
     const amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>>&
       a_auxfluxes);
 
-  void correctIsothermalBoundary(
+  /**
+   * \brief Species boundary data for the diffusion operators with Soret and
+   * isothermal domain walls: Y in the ghost cells, except on isothermal walls
+   * where they hold the normal gradients that cancel the wall species fluxes
+   * (inhomogeneous Neumann). Empty when there are no such walls.
+   * \param a_time state time
+   * \param a_soretfluxes Soret fluxes at a_time
+   * \param a_wbarfluxes lagged Wbar fluxes, or empty to use the Wbar flux of
+   *        the imposed gradients themselves (isothermalWallGradients)
+   */
+  amrex::Vector<amrex::MultiFab> isothermalSpeciesBoundary(
     const PeleLM::TimeStamp a_time,
-    const amrex::Vector<amrex::MultiFab*>& a_spec_boundary,
     const amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>>&
-      a_wbarfluxes,
+      a_soretfluxes,
     const amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>>&
-      a_soretfluxes);
+      a_wbarfluxes);
 
   /**
    * \brief Compute the explicit cell-centered diffusion term on all levels
