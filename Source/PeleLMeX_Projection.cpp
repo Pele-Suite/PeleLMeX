@@ -92,10 +92,10 @@ PeleLM::initialProjection()
   }
 
   // Get RHS cc: - divU (- \int{divU})
-  amrex::Real Sbar = 0.0;
   amrex::Vector<amrex::MultiFab> rhs_cc;
   if ((m_incompressible == 0) && (m_has_divu != 0)) {
     // Ensure integral of RHS is zero for closed chamber
+    amrex::Real Sbar = 0.0;
     if (m_closed_chamber != 0) {
       Sbar = MFSum(GetVecOfConstPtrs(getDivUVect(AmrNewTime)), 0);
       Sbar /= m_uncoveredVol; // Transform in Mean.
@@ -197,19 +197,11 @@ PeleLM::initialProjection()
     amrex::Gpu::streamSynchronize();
   }
 
-  // Set back press and gpress to zero and restore divu
-  // and rescale velocity if 2D-RZ
+  // Set back press and gpress to zero and rescale velocity if 2D-RZ
   for (int lev = 0; lev <= finest_level; ++lev) {
     auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
     ldata_p->press.setVal(0.0);
     ldata_p->gp.setVal(0.0);
-    if ((m_incompressible == 0) && (m_has_divu != 0)) {
-      m_leveldata_new[lev]->divu.mult(-1.0, 0, 1, rhs_cc[lev].nGrow());
-      // Restore divU integral
-      if (m_closed_chamber != 0) {
-        m_leveldata_new[lev]->divu.plus(Sbar, 0, 1);
-      }
-    }
 #if AMREX_SPACEDIM == 2
     if (geom[lev].IsRZ()) {
       unscaleProj_RZ(lev, *vel[lev]);
