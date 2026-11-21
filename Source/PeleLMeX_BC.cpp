@@ -267,12 +267,14 @@ PeleLM::setBoundaryConditions()
       }
     }
 #endif
-    // Used by fetchBCRecDummyArray for slab interpolation in interior-only
-    // contexts where domain BCs must not be applied
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      m_bcrec_dummy.setLo(idim, amrex::BCType::int_dir);
-      m_bcrec_dummy.setHi(idim, amrex::BCType::int_dir);
-    }
+  }
+
+  // Used by fetchBCRecDummyArray for slab interpolation in interior-only
+  // contexts where domain BCs must not be applied (also for incompressible
+  // runs, which can use recycling)
+  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+    m_bcrec_dummy.setLo(idim, amrex::BCType::int_dir);
+    m_bcrec_dummy.setHi(idim, amrex::BCType::int_dir);
   }
 }
 
