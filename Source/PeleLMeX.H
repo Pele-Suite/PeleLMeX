@@ -784,6 +784,13 @@ public:
    */
   void diffuseVelocity();
 
+  // Whether the -u extrho external momentum source is split between
+  // updateVelocity and the implicit velocity solve
+  [[nodiscard]] bool useImplicitExtRho() const
+  {
+    return m_ext_sources_SDC && m_incompressible == 0;
+  }
+
   /**
    * \brief Return LinOpBC for the scalar diffusion operator
    * \param a_side AMReX orientation
@@ -893,14 +900,16 @@ public:
     const amrex::Vector<amrex::MultiFab*>& a_divTau,
     const amrex::Vector<amrex::MultiFab*>& a_velForce,
     const int nGrowForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void getVelForces(
     const PeleLM::TimeStamp a_time,
     const int lev,
     amrex::MultiFab* a_divTau,
     amrex::MultiFab* a_velForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void addSpark(const PeleLM::TimeStamp a_time);
 
