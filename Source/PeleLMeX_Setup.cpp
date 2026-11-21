@@ -351,7 +351,7 @@ PeleLM::readParameters()
   pp.query("debug_check_compatibility", m_debug_check_compatibility);
   pp.query("debug_compatibility_tol", m_debug_compatibility_tol);
   pp.query("debug_divu_mismatch", m_debug_divu_mismatch);
-  if ((verbose != 0) && (m_closed_chamber != 0)) {
+  if ((m_verbose != 0) && (m_closed_chamber != 0)) {
     amrex::Print()
       << " Simulation performed with the closed chamber algorithm \n";
   }
@@ -1110,11 +1110,11 @@ PeleLM::checkSetupParams()
       "Update Submodules/PelePhysics, or drop geometry.mesh_mapping.");
 #endif
   }
-  if (turb_inflow.is_initialized() && (verbose != 0)) {
+  if (turb_inflow.is_initialized() && (m_verbose != 0)) {
     reportTurbInflowMaps();
   }
 
-  if (m_mesh_mapping && (m_use_inlet_from_plane != 0) && (verbose != 0)) {
+  if (m_mesh_mapping && (m_use_inlet_from_plane != 0) && (m_verbose != 0)) {
     const int dir = m_inlet_plane_dir;
     amrex::Print() << " Recycling source plane: physical position "
                    << m_inlet_plane_position << " -> Xi position "
@@ -1124,7 +1124,7 @@ PeleLM::checkSetupParams()
                    << ")\n";
   }
 
-  if (turb_inflow.is_initialized() && (verbose != 0)) {
+  if (turb_inflow.is_initialized() && (m_verbose != 0)) {
     reportTurbInflowResolution();
   }
 }
@@ -1551,14 +1551,14 @@ PeleLM::variablesSetup()
 
   if (max_level > 0 && !m_initial_grid_file.empty()) {
     readGridFile(m_initial_grid_file, m_initial_ba);
-    if (verbose > 0) {
+    if (m_verbose > 0) {
       amrex::Print() << "Read initial_ba. Size is " << m_initial_ba.size()
                      << "\n";
     }
   }
   if (max_level > 0 && !m_regrid_file.empty() && m_regrid_int > 0) {
     readGridFile(m_regrid_file, m_regrid_ba);
-    if (verbose > 0) {
+    if (m_verbose > 0) {
       amrex::Print() << "Read regrid_ba. Size is " << m_regrid_ba.size()
                      << "\n";
     }
