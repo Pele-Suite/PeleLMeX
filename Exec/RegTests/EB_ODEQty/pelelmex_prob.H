@@ -28,6 +28,7 @@ struct MyProbParm : public ProbParmDefault
   amrex::Real Y_AR_0 = 0.75;
   amrex::Real extRhoYCO2 = 0.0;
   amrex::Real extRhoYCO2_ts = 0.0;
+  amrex::Real extRhoYCO2_ramp = 0.0;
 };
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
@@ -252,9 +253,19 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
           amrex::Real src = 0.0;
 
           if (time >= prob_parm_d->extRhoYCO2_ts) {
+            // Switch on over extRhoYCO2_ramp with a smoothstep (a step
+            // when 0), so the source is smooth in time
+            amrex::Real ramp = 1.0;
+            if (prob_parm_d->extRhoYCO2_ramp > 0.0) {
+              const amrex::Real s = amrex::min(
+                (time - prob_parm_d->extRhoYCO2_ts) /
+                  prob_parm_d->extRhoYCO2_ramp,
+                amrex::Real(1.0));
+              ramp = s * s * (3.0 - 2.0 * s);
+            }
             amrex::Real CO2 =
               state_old_arr[box_no](i, j, k, FIRSTSPEC + CO2_ID);
-            src = prob_parm_d->extRhoYCO2 * CO2;
+            src = prob_parm_d->extRhoYCO2 * ramp * CO2;
           }
 
           ext_src_arr[box_no](i, j, k, FIRSTSPEC + CO2_ID) += src;

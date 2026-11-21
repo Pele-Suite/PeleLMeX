@@ -54,7 +54,9 @@ class CompTestCase(unittest.TestCase):
                 "ts": float(re.search(r"prob\.extRhoYCO2_ts\s*=\s*([\d\.]+)", content).group(1)),
                 "src_strength": float(re.search(r"prob\.extRhoYCO2\s*=\s*([\d\.]+)", content).group(1))
             }
-        ts, k = soln_params["ts"], soln_params["src_strength"]
+            ramp = re.search(r"prob\.extRhoYCO2_ramp\s*=\s*([\d\.eE+-]+)", content)
+            soln_params["ramp"] = float(ramp.group(1)) if ramp else 0.0
+        ts, k, w = soln_params["ts"], soln_params["src_strength"], soln_params["ramp"]
 
         # Density and species mass data
         data_rho = data["max_density"]
@@ -74,14 +76,21 @@ class CompTestCase(unittest.TestCase):
         data_Y["Sum(Y_m)"] = data_Y.sum(axis=1)
         data_moles = data_rhoY.div([molar_masses[comp] for comp in var_names], axis=1)
 
-        # Exact solutions
+        # Exact solutions: d(rhoY_CO2)/dt = k H(t) rhoY_CO2, with H the
+        # smoothstep switch-on over [ts, ts + w] (a step when w = 0), so
+        # rhoY_CO2 = CO2_0 exp(k int_0^t H)
+        tau = np.maximum(time - ts, 0.0)
+        if w > 0:
+            s = np.minimum(tau / w, 1.0)
+            int_H = w * (s**3 - 0.5 * s**4) + np.maximum(tau - w, 0.0)
+        else:
+            int_H = tau
         exact_rhoY = {
             "AR": AR_0,
             "N2": N2_0,
-            "CO2": CO2_0 * (1 - np.heaviside(time - ts, 0))
-                + CO2_0 * np.exp(k * (time - ts)) * np.heaviside(time - ts, 0)
+            "CO2": CO2_0 * np.exp(k * int_H)
         }
-        exact_density = rho_0 + CO2_0 * (np.exp(k * (time - ts)) - 1) * np.heaviside(time - ts, 0)
+        exact_density = rho_0 + CO2_0 * (np.exp(k * int_H) - 1)
         exact_Y = pd.DataFrame({
             key: exact_rhoY[key] / exact_density for key in var_names},
             index=data.index)
@@ -95,9 +104,11 @@ class CompTestCase(unittest.TestCase):
         max_error_moles = np.abs(data_moles - exact_moles).max()
 
         # Expected max errors ["AR", "N2", "CO2"]
-        expected_errors_moles = np.array([1e-15, 1e-15, 1.0])
-        expected_errors_massfrac = np.array([1.032e-02, 4.3e-03, 1.47e-02])
-        expected_error_rho = 4e-02
+        # (dt = 1e-3, sdc_iterMax = 2, ext_sources_SDC on: second order in
+        # dt; with ext_sources_SDC = 0 the errors are ~40x larger)
+        expected_errors_moles = np.array([1e-15, 1e-15, 4e-02])
+        expected_errors_massfrac = np.array([6e-04, 2.5e-04, 8e-04])
+        expected_error_rho = 1.8e-03
 
         # Perform tests using np.testing to make sure errors haven't increased
         np.testing.assert_array_less(

@@ -272,6 +272,12 @@ public:
     amrex::Vector<amrex::MultiFab> DT; // Diffusion term of T (soret flux)
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
       soret_fluxes; // Soret flux correction
+
+    // ext_sources_SDC only: external sources at t^n and t^(n+1,k), and the
+    // part of S^n held frozen over the step (spray, soot, radiation)
+    amrex::Vector<amrex::MultiFab> extSrc_n;
+    amrex::Vector<amrex::MultiFab> extSrc_np1;
+    amrex::Vector<amrex::MultiFab> extSrc_frozen;
   };
   /**
    * \brief Advance function data container for advection term
@@ -778,6 +784,24 @@ public:
    */
   void diffuseVelocity();
 
+  // Whether the -u extrho external momentum source is split Crank-Nicolson
+  // between updateVelocity and the implicit velocity solve: low Mach runs
+  // with a source that can add mass (user defined, spray, soot)
+  [[nodiscard]] bool useImplicitExtRho() const
+  {
+    if (m_incompressible != 0) {
+      return false;
+    }
+    bool mass_source = m_user_defined_ext_sources;
+#ifdef PELE_USE_SPRAY
+    mass_source = mass_source || do_spray_particles;
+#endif
+#ifdef PELE_USE_SOOT
+    mass_source = mass_source || do_soot_solve;
+#endif
+    return mass_source;
+  }
+
   /**
    * \brief Return LinOpBC for the scalar diffusion operator
    * \param a_side AMReX orientation
@@ -887,14 +911,16 @@ public:
     const amrex::Vector<amrex::MultiFab*>& a_divTau,
     const amrex::Vector<amrex::MultiFab*>& a_velForce,
     const int nGrowForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void getVelForces(
     const PeleLM::TimeStamp a_time,
     const int lev,
     amrex::MultiFab* a_divTau,
     amrex::MultiFab* a_velForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void addSpark(const PeleLM::TimeStamp a_time);
 
@@ -967,7 +993,20 @@ public:
   void getExternalSources(
     const int is_initIter,
     const PeleLM::TimeStamp a_timestamp_old,
-    const PeleLM::TimeStamp a_timestamp_new);
+    const PeleLM::TimeStamp a_timestamp_new,
+    const std::unique_ptr<AdvanceDiffData>& diffData);
+
+  bool addFrozenExternalSources(
+    const int is_initIter, const PeleLM::TimeStamp a_timestamp);
+
+  void assembleExternalSources(
+    const int is_initIter,
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Vector<amrex::MultiFab>* a_frozen);
+
+  void
+  updateExternalSourcesSDC(const std::unique_ptr<AdvanceDiffData>& diffData);
 
   //-----------------------------------------------------------------------------
   // EOS
