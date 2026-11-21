@@ -518,7 +518,6 @@ PeleLM::readParameters()
   pp.query("incompressible", m_incompressible);
   if (m_incompressible != 0) {
     m_has_divu = 0;
-    m_do_react = 0;
     pp.query("rho", m_rho);
     pp.query("mu", m_mu);
     AMREX_ASSERT_WITH_MESSAGE(
@@ -753,6 +752,9 @@ PeleLM::readParameters()
   // Reaction
   // -----------------------------------------
   pp.query("do_react", m_do_react);
+  if (m_incompressible != 0) {
+    m_do_react = 0; // no species, no reactor: ignore peleLM.do_react
+  }
   pp.query("use_typ_vals_chem", m_useTypValChem);
   pp.query("typical_values_reset_int", m_resetTypValInt);
   pp.query("typical_values_Ymin", m_typicalYvalMin);
