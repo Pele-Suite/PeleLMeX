@@ -4,22 +4,27 @@
 // Return velocity forces scaled by rhoInv
 // including grapP term if add_gradP = 1
 // including divTau if input amrex::Vector not empty
+// a_extRhoExplicit: fraction of the -u extrho external source term included
 void
 PeleLM::getVelForces(
   const TimeStamp a_time,
   const amrex::Vector<amrex::MultiFab*>& a_divTau,
   const amrex::Vector<amrex::MultiFab*>& a_velForce,
   const int nGrowForce,
-  const int add_gradP)
+  const int add_gradP,
+  const amrex::Real a_extRhoExplicit)
 {
   BL_PROFILE("PeleLMeX::getVelForces()");
   const int has_divTau = static_cast<int>(!a_divTau.empty());
 
   for (int lev = 0; lev <= finest_level; ++lev) {
     if (has_divTau != 0) {
-      getVelForces(a_time, lev, a_divTau[lev], a_velForce[lev], add_gradP);
+      getVelForces(
+        a_time, lev, a_divTau[lev], a_velForce[lev], add_gradP,
+        a_extRhoExplicit);
     } else {
-      getVelForces(a_time, lev, nullptr, a_velForce[lev], add_gradP);
+      getVelForces(
+        a_time, lev, nullptr, a_velForce[lev], add_gradP, a_extRhoExplicit);
     }
   }
 
@@ -35,7 +40,8 @@ PeleLM::getVelForces(
   const int lev,
   amrex::MultiFab* a_divTau,
   amrex::MultiFab* a_velForce,
-  const int add_gradP)
+  const int add_gradP,
+  const amrex::Real a_extRhoExplicit)
 {
 
   // Get level data
@@ -65,8 +71,8 @@ PeleLM::getVelForces(
   amrex::ParallelFor(
     *a_velForce,
     [state_ma, ext_ma, force_ma, grav, gp0, ps_dir, is_incomp, rho_incomp,
-     pseudo_gravity,
-     dV_control] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) {
+     pseudo_gravity, dV_control,
+     a_extRhoExplicit] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) {
       amrex::Array4<amrex::Real const> vel(state_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> extmom(ext_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
@@ -80,7 +86,8 @@ PeleLM::getVelForces(
       // background gp, pseudo grav, ext sources
       makeVelForce(
         i, j, k, is_incomp, rho_incomp, pseudo_gravity, ps_dir, grav, gp0,
-        dV_control, vel, rho, extmom, extrho, force_ma[box_no]);
+        dV_control, vel, rho, extmom, extrho, a_extRhoExplicit,
+        force_ma[box_no]);
     });
   amrex::Gpu::streamSynchronize();
 

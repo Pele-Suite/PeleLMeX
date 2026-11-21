@@ -745,6 +745,7 @@ makeVelForce(
   amrex::Array4<const amrex::Real> const& rho,
   amrex::Array4<const amrex::Real> const& extmom,
   amrex::Array4<const amrex::Real> const& extrho,
+  const amrex::Real extrho_explicit,
   amrex::Array4<amrex::Real> const& force) noexcept
 {
   // Switch between incompressible/low-Mach rhos
@@ -765,12 +766,14 @@ makeVelForce(
     force(i, j, k, pseudo_gravity_dir) += dV_control * rho_lcl;
   }
 
-  // rho Du/Dt = extmom - u extrho. Incompressible: no mass source (extrho
-  // only points at a placeholder).
+  // rho Du/Dt = extmom - u extrho; extrho_explicit is the fraction of the
+  // u extrho term kept explicit (the rest is in the velocity solve).
+  // Incompressible: no mass source (extrho only points at a placeholder).
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     force(i, j, k, idim) += extmom(i, j, k, idim);
     if (is_incomp == 0) {
-      force(i, j, k, idim) -= vel(i, j, k, idim) * extrho(i, j, k);
+      force(i, j, k, idim) -=
+        extrho_explicit * vel(i, j, k, idim) * extrho(i, j, k);
     }
   }
 }
