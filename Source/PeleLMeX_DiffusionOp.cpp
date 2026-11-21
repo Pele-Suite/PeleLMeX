@@ -639,7 +639,7 @@ DiffusionOp::diffuse_scalar(
   // Don't touch the ghost cells
   if (have_density == 0) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, 0, ncomp, 0);
+      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, phi_comp, ncomp, 0);
     }
   } else {
     for (int lev = 0; lev <= finest_level; ++lev) {
@@ -648,9 +648,9 @@ DiffusionOp::diffuse_scalar(
       auto const& a_rho_ma = a_density[lev]->const_arrays();
       amrex::ParallelFor(
         phi[lev], amrex::IntVect(0), ncomp,
-        [a_phi_ma, a_rho_ma, phi_ma] AMREX_GPU_DEVICE(
+        [a_phi_ma, a_rho_ma, phi_ma, phi_comp] AMREX_GPU_DEVICE(
           int box_no, int i, int j, int k, int n) noexcept {
-          a_phi_ma[box_no](i, j, k, n) =
+          a_phi_ma[box_no](i, j, k, phi_comp + n) =
             phi_ma[box_no](i, j, k, n) * a_rho_ma[box_no](i, j, k);
         });
     }
@@ -960,7 +960,7 @@ DiffusionOp::diffuse_scalar(
   // Don't touch the ghost cells
   if (have_density == 0) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, 0, ncomp, 0);
+      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, phi_comp, ncomp, 0);
     }
   } else {
     for (int lev = 0; lev <= finest_level; ++lev) {
@@ -969,9 +969,9 @@ DiffusionOp::diffuse_scalar(
       auto const& a_rho_ma = a_density[lev]->const_arrays();
       amrex::ParallelFor(
         phi[lev], amrex::IntVect(0), ncomp,
-        [a_phi_ma, a_rho_ma, phi_ma] AMREX_GPU_DEVICE(
+        [a_phi_ma, a_rho_ma, phi_ma, phi_comp] AMREX_GPU_DEVICE(
           int box_no, int i, int j, int k, int n) noexcept {
-          a_phi_ma[box_no](i, j, k, n) =
+          a_phi_ma[box_no](i, j, k, phi_comp + n) =
             phi_ma[box_no](i, j, k, n) * a_rho_ma[box_no](i, j, k);
         });
     }
