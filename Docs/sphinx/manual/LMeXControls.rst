@@ -281,10 +281,12 @@ PeleLMeX algorithm
     peleLM.spark1.energy = 1e-3            # [OPT] Energy deposited by the spark [J; J/m in 2D Cartesian]. Give energy or temp, not both
     peleLM.spark1.temp = 2000.0            # [OPT] Alternative to energy [K]: energy = sphere volume x <rho (h(temp) - h(T))> over the sphere at ignition. Only sets the energy; the kernel ends up hotter as the heated gas expands
     peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]. The energy is spread with a smoothed sphere of this radius
-    peleLM.spark1.width_cells = 1.0        # [OPT, DEF=1] Width of the spark's smoothed edge, in cells of the finest level holding the spark centre; 0 gives a top-hat. The injected energy is that of a sphere of the given radius whatever the width
+    peleLM.spark1.width_cells = 1.0        # [OPT, DEF=1] Width w of the smoothed cosine edge, 0.5(1 + sin((radius - r)/w)) over |radius - r| < pi/2 w, in cells of the finest level holding the spark centre; 0 gives a top-hat. The injected energy is that of a sphere of the given radius whatever the width
+    peleLM.spark1.width = 5e-4             # [OPT] Fixed physical half-width of the edge [m]; overrides width_cells
     peleLM.spark1.duration = 1e-3          # [OPT] Duration of the spark [s]
-    peleLM.spark1.ramp = 0.1               # [OPT, DEF=0.1] Fraction of the duration over which the power ramps up (and down) smoothly; 0 gives constant power
-    peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]
+    peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]: the middle of the switch-on ramp (the power ramps up linearly from 1 ramp half-width earlier)
+    peleLM.spark1.ramp_steps = 1.0         # [OPT, DEF=1] Half-width of the linear power ramps in steps (dt is shortened to land a step on each end of the ramps, so the trapezoidal source with ext_sources_SDC is exact), frozen from the step size just before the ramp; 0 switches sharply
+    peleLM.spark1.ramp_time = 1e-5         # [OPT] Fixed ramp half-width [s]; overrides ramp_steps
 
     peleLM.aux_vars = a b ...              # [OPT] Names of auxiliary variables
     peleLM.a.advect = 1                    # [OPT, DEF = 1] Flag whether this variable is advected

@@ -83,6 +83,11 @@ PeleLM::computeDt(const int is_init, const TimeStamp a_time)
     }
   }
 
+  // Freeze spark ramps given in steps and land steps on linear switch kinks
+  if (is_init == 0 && m_n_sparks > 0) {
+    estdt = limitDtForSparks(estdt);
+  }
+
   if (estdt < m_min_dt) {
     amrex::Print() << "\n";
     amrex::Print() << " ###################################### \n";

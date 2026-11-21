@@ -922,7 +922,18 @@ public:
     const int add_gradP,
     const amrex::Real a_extRhoExplicit = 1.0);
 
-  void addSpark(const PeleLM::TimeStamp a_time);
+  //! Add the spark power at the time of \p a_time (a point value: the
+  //! scalar update takes 0.5 (S^n + S^{n+1}) with ext_sources_SDC).
+  //! The t^n call of a regular step (\p a_is_initIter == 0) also freezes the
+  //! spark energy and accumulates the deposited-energy diagnostic.
+  void addSpark(const PeleLM::TimeStamp a_time, const int a_is_initIter = 0);
+
+  //! Freeze the spark ramp widths given in steps and shorten \p a_dt so a
+  //! step lands on each end of a compact (linear, cosine) power ramp.
+  amrex::Real limitDtForSparks(amrex::Real a_dt);
+
+  //! Spark \p n ramp half-width tau [s] (< 0 while not yet frozen)
+  [[nodiscard]] amrex::Real sparkTau(int n) const;
 
   //! Volume of spark \p n's sphere clipped to the physical domain
   //! (RZ-weighted): the volume its energy is normalised to.
@@ -2379,13 +2390,20 @@ public:
   amrex::Vector<amrex::Vector<amrex::Real>> m_spark_location;
   amrex::Vector<amrex::Real> m_spark_temp;
   amrex::Vector<amrex::Real> m_spark_radius;
-  // Width of the tanh edge of the spark kernel, in cells of the finest
-  // level holding the spark centre
+  // Edge half-width delta: in cells of the finest level holding the spark
+  // centre, or (when width > 0) a fixed physical width [m]
   amrex::Vector<amrex::Real> m_spark_width_cells;
+  amrex::Vector<amrex::Real> m_spark_width;
   // Clipped sphere volume (lazily computed, < 0 until then)
   amrex::Vector<amrex::Real> m_spark_volume;
-  // Fraction of the duration spent ramping the power up (and down)
-  amrex::Vector<amrex::Real> m_spark_ramp;
+  // Ramp half-width tau of the power switch on and off: a fixed time
+  // ramp_time [s], or ramp_steps x the step size frozen before the ramp
+  // (m_spark_tau, < 0 until then)
+  amrex::Vector<amrex::Real> m_spark_ramp_time;
+  amrex::Vector<amrex::Real> m_spark_ramp_steps;
+  amrex::Vector<amrex::Real> m_spark_tau;
+  // Energy deposited so far (trapezoidal, as the scalar update sees it)
+  amrex::Vector<amrex::Real> m_spark_deposited;
   // Spark energy, frozen at ignition (< 0 until then)
   amrex::Vector<amrex::Real> m_spark_energy;
 

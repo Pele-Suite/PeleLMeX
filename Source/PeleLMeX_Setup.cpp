@@ -554,7 +554,11 @@ PeleLM::readParameters()
     m_spark_width_cells.resize(m_n_sparks);
     m_spark_volume.resize(m_n_sparks, -1.0);
     m_spark_energy.resize(m_n_sparks, -1.0);
-    m_spark_ramp.resize(m_n_sparks);
+    m_spark_width.resize(m_n_sparks);
+    m_spark_ramp_time.resize(m_n_sparks);
+    m_spark_ramp_steps.resize(m_n_sparks);
+    m_spark_tau.resize(m_n_sparks, -1.0);
+    m_spark_deposited.resize(m_n_sparks, 0.0);
     if (m_n_sparks > 0) {
       m_spark_verbose = amrex::max<int>(m_verbose - 2, 0);
     }
@@ -585,12 +589,22 @@ PeleLM::readParameters()
         pps.get("temp", m_spark_temp[n]);
       }
       pps.get("radius", m_spark_radius[n]);
+      // Edge half-width: in cells of the grid resolving the spark, or a
+      // fixed physical width (takes precedence)
       m_spark_width_cells[n] = 1.0;
       pps.query("width_cells", m_spark_width_cells[n]);
-      m_spark_ramp[n] = 0.1;
-      pps.query("ramp", m_spark_ramp[n]);
-      if (m_spark_ramp[n] < 0.0 || m_spark_ramp[n] > 0.5) {
-        amrex::Abort(m_spark[n] + ": ramp must be in [0, 0.5]");
+      m_spark_width[n] = -1.0;
+      pps.query("width", m_spark_width[n]);
+      // Ramp half-width: in steps (frozen from the step size just before
+      // the ramp), or a fixed time (takes precedence)
+      m_spark_ramp_steps[n] = 1.0;
+      pps.query("ramp_steps", m_spark_ramp_steps[n]);
+      m_spark_ramp_time[n] = -1.0;
+      pps.query("ramp_time", m_spark_ramp_time[n]);
+      if (m_spark_ramp_time[n] >= 0.0) {
+        m_spark_tau[n] = m_spark_ramp_time[n];
+      } else if (m_spark_ramp_steps[n] < 0.0) {
+        amrex::Abort(m_spark[n] + ": ramp_steps must be >= 0");
       }
       if (m_spark_duration[n] <= 0.0) {
         amrex::Abort(m_spark[n] + ": duration must be > 0");
@@ -622,11 +636,18 @@ PeleLM::readParameters()
         }
         amrex::Print() << "Spark " << n << " radius: " << m_spark_radius[n]
                        << "\n";
-        amrex::Print() << "Spark " << n
-                       << " edge width [cells]: " << m_spark_width_cells[n]
-                       << "\n";
-        amrex::Print() << "Spark " << n << " ramp fraction: " << m_spark_ramp[n]
-                       << "\n";
+        amrex::Print() << "Spark " << n << " cosine edge, width ";
+        if (m_spark_width[n] > 0.0) {
+          amrex::Print() << m_spark_width[n] << " m\n";
+        } else {
+          amrex::Print() << m_spark_width_cells[n] << " cells\n";
+        }
+        amrex::Print() << "Spark " << n << " linear ramps, half-width ";
+        if (m_spark_ramp_time[n] >= 0.0) {
+          amrex::Print() << m_spark_ramp_time[n] << " s\n";
+        } else {
+          amrex::Print() << m_spark_ramp_steps[n] << " steps\n";
+        }
       }
     }
   }

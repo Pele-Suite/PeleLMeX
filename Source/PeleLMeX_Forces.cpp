@@ -170,22 +170,51 @@ PeleLM::getVelForces(
 }
 
 namespace {
-// Smoothed top-hat spark profile: 1 inside the radius, falling to 0 over a
-// tanh edge of width delta (a sharp top-hat when delta = 0).  Cut off where
-// it is below ~1e-7 so the source stays compact.
-constexpr amrex::Real spark_cutoff = 8.0;
+// Spark profiles: a cosine kernel edge in space and linear power ramps in
+// time.  Both are odd about the nominal edge / switch time with slope
+// 1/(2 w) there, so smoothing a top-hat with them keeps its zeroth and first
+// moments: the solution differs from the sharp-source one by O(w^2).  Both
+// are compact; the cosine edge is C1, and the linear ramp (C0) is integrated
+// exactly by the trapezoidal source once steps land on its kinks
+// (limitDtForSparks).
 
+// Smoothed top-hat spark kernel: 1 inside the radius, falling to 0 over an
+// edge (radius - r) / delta in [-pi/2, pi/2] as 0.5 (1 + sin) (a sharp
+// top-hat when delta = 0).
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
 spark_kernel(amrex::Real r, amrex::Real radius, amrex::Real delta) noexcept
 {
   if (delta <= 0.0) {
     return (r < radius) ? 1.0 : 0.0;
   }
-  const amrex::Real s = (r - radius) / delta;
-  if (s > spark_cutoff) {
+  const amrex::Real s = (radius - r) / delta;
+  const amrex::Real smax = 0.5 * amrex::Math::pi<amrex::Real>();
+  if (s <= -smax) {
     return 0.0;
   }
-  return 0.5 * (1.0 - std::tanh(s));
+  if (s >= smax) {
+    return 1.0;
+  }
+  return 0.5 * (1.0 + std::sin(s));
+}
+
+// Linear switch: 0 before t - tau, 1 after t + tau
+amrex::Real
+spark_ramp(amrex::Real t, amrex::Real tau)
+{
+  return amrex::Clamp(0.5 * (1.0 + t / tau), 0.0, 1.0);
+}
+
+// Power shape in time, normalised to integrate to t1 - t0: switched on at
+// t0 and off at t1 with linear ramps of half-width tau (sharp when tau = 0).
+amrex::Real
+spark_power_shape(
+  amrex::Real t, amrex::Real t0, amrex::Real t1, amrex::Real tau)
+{
+  if (tau <= 0.0) {
+    return (t >= t0 && t < t1) ? 1.0 : 0.0;
+  }
+  return spark_ramp(t - t0, tau) - spark_ramp(t - t1, tau);
 }
 
 // Physical distance from the centre of cell (i,j,k) to the spark location.
@@ -208,36 +237,6 @@ spark_distance(
   return std::sqrt(d2);
 }
 
-// Fraction of the spark energy released by normalised time tau in [0, 1]:
-// the integral of a power profile with cosine ramps of width r (fraction of
-// the duration) at each end and a plateau between, normalised to 1.  Each
-// step deposits the exact difference, so the total is the spark energy
-// whatever the step sizes.  r = 0 is a constant power (top-hat in time).
-amrex::Real
-spark_released_fraction(amrex::Real tau, amrex::Real r)
-{
-  if (tau <= 0.0) {
-    return 0.0;
-  }
-  if (tau >= 1.0) {
-    return 1.0;
-  }
-  if (r <= 0.0) {
-    return tau;
-  }
-  const amrex::Real amp = 1.0 / (1.0 - r);
-  const amrex::Real pi = amrex::Math::pi<amrex::Real>();
-  auto ramp = [=](amrex::Real s) {
-    return amp * 0.5 * (s - r / pi * std::sin(pi * s / r));
-  };
-  if (tau < r) {
-    return ramp(tau);
-  }
-  if (tau <= 1.0 - r) {
-    return amp * (0.5 * r + (tau - r));
-  }
-  return 1.0 - ramp(1.0 - tau);
-}
 } // namespace
 
 amrex::Real
@@ -298,27 +297,92 @@ PeleLM::sparkVolume(int n) const
   return vol * hy * hz;
 }
 
+amrex::Real
+PeleLM::sparkTau(int n) const
+{
+  return m_spark_tau[n];
+}
+
+amrex::Real
+PeleLM::limitDtForSparks(amrex::Real a_dt)
+{
+  amrex::Real dt = a_dt;
+  for (int n = 0; n < m_n_sparks; ++n) {
+    const amrex::Real t0 = m_spark_time[n];
+    const amrex::Real t1 = t0 + m_spark_duration[n];
+    // Freeze a ramp given in steps from the step size once the ramp is
+    // within two steps, so it does not follow dt while it is sampled.
+    if (m_spark_tau[n] < 0.0) {
+      const amrex::Real tau = m_spark_ramp_steps[n] * dt;
+      if (m_cur_time + 2.0 * dt >= t0 - tau) {
+        m_spark_tau[n] = tau;
+        if (m_cur_time > t0 - tau) {
+          amrex::Warning(
+            m_spark[n] + ": ramp frozen after it should have started; part "
+                         "of the switch-on is lost (start the spark later)");
+        }
+        if (m_spark_verbose > 0) {
+          amrex::Print() << m_spark[n] << " ramp half-width frozen at " << tau
+                         << " s\n";
+        }
+      }
+    }
+    // Land a step on each end of the linear ramps, where the power has a
+    // kink: the trapezoidal source is then exact
+    const amrex::Real tau = m_spark_tau[n];
+    if (tau <= 0.0) {
+      continue;
+    }
+    const amrex::Real kinks[4] = {t0 - tau, t0 + tau, t1 - tau, t1 + tau};
+    for (const amrex::Real kink : kinks) {
+      const amrex::Real left = kink - m_cur_time;
+      if (left <= 1.0e-10 * dt) {
+        continue; // passed (or landed on)
+      }
+      // Ensure ~O(dt) steps by checking a little in advance
+      if (2.0 * dt > left && left > dt) {
+        dt = 0.5 * left;
+      } else {
+        dt = amrex::min(dt, left);
+      }
+      break; // only the next kink matters
+    }
+  }
+  return dt;
+}
+
 void
-PeleLM::addSpark(const TimeStamp a_timestamp)
+PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
 {
   BL_PROFILE("PeleLM::addSpark()");
   const amrex::Real time = getTime(0, a_timestamp);
   const bool verb = m_spark_verbose > 1;
+  // The t^n evaluation of a regular step
+  const bool step_start = (a_timestamp == AmrOldTime) && (a_is_initIter == 0);
   for (int n = 0; n < m_n_sparks; ++n) {
-    // Fraction of the spark energy released during this step (smooth ramps
-    // in time, integrated exactly over the step).
-    const amrex::Real tau_a = (time - m_spark_time[n]) / m_spark_duration[n];
-    const amrex::Real tau_b =
-      (time + m_dt - m_spark_time[n]) / m_spark_duration[n];
-    if (tau_b <= 0.0 || tau_a >= 1.0) {
+    amrex::Real tau = m_spark_tau[n];
+    if (tau < 0.0) {
+      // Not frozen yet (dt not from computeDt): use this step's dt
+      tau = m_spark_ramp_steps[n] * m_dt;
+      if (step_start) {
+        m_spark_tau[n] = tau;
+      }
+    }
+    const amrex::Real t0 = m_spark_time[n];
+    const amrex::Real t1 = t0 + m_spark_duration[n];
+    const amrex::Real reach = tau;
+    // Power shape at this time (a point value)
+    const amrex::Real p = spark_power_shape(time, t0, t1, tau);
+    // A step starting here may still overlap the spark even if p(t^n) = 0:
+    // the energy must then be set (temperature input) and counted
+    const bool in_step =
+      step_start && time + m_dt > t0 - reach && time < t1 + reach;
+    if (p <= 0.0 && !in_step) {
       if (verb) {
         amrex::Print() << m_spark[n] << " not active \n";
       }
       continue;
     }
-    const amrex::Real step_frac =
-      spark_released_fraction(tau_b, m_spark_ramp[n]) -
-      spark_released_fraction(tau_a, m_spark_ramp[n]);
 
     if (m_spark_volume[n] < 0.0) {
       m_spark_volume[n] = sparkVolume(n);
@@ -362,7 +426,9 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
         break;
       }
     }
-    const amrex::Real delta = m_spark_width_cells[n] * dx_spark;
+    const amrex::Real delta = (m_spark_width[n] > 0.0)
+                                ? m_spark_width[n]
+                                : m_spark_width_cells[n] * dx_spark;
 
     // Spark energy given as a temperature: frozen at ignition as the energy
     // to take the gas inside the radius from its state then to the spark
@@ -435,7 +501,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
           m_spark[n] + ": gas inside the radius is already at or above the "
                        "spark temperature; no energy added");
       }
-      if (time > m_spark_time[n]) {
+      if (time > t0 - reach) {
         amrex::Warning(
           m_spark[n] + ": energy evaluated after the spark started (restart "
                        "during the spark?); it is based on the current state");
@@ -449,6 +515,25 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
       }
     }
     if (m_spark_energy[n] <= 0.0) {
+      continue;
+    }
+
+    // Deposited energy as the scalar update sees it: trapezoidal with
+    // ext_sources_SDC, else the t^n value over the step
+    if (step_start) {
+      const amrex::Real p_end =
+        m_ext_sources_SDC ? spark_power_shape(time + m_dt, t0, t1, tau) : p;
+      m_spark_deposited[n] +=
+        m_spark_energy[n] / m_spark_duration[n] * m_dt * 0.5 * (p + p_end);
+      if (time + m_dt >= t1 + reach && m_spark_verbose > 0) {
+        amrex::Print() << m_spark[n]
+                       << " deposited energy: " << m_spark_deposited[n]
+                       << ", target " << m_spark_energy[n] << ", rel. error "
+                       << m_spark_deposited[n] / m_spark_energy[n] - 1.0
+                       << "\n";
+      }
+    }
+    if (p <= 0.0) {
       continue;
     }
 
@@ -493,13 +578,12 @@ PeleLM::addSpark(const TimeStamp a_timestamp)
       amrex::Warning(m_spark[n] + " not resolved by any cell!");
       continue;
     }
-    // Source [W/m^3]: this step's energy / dt x kernel / kernel integral
+    // Source [W/m^3]: power at this time x kernel / kernel integral
     const amrex::Real coef =
-      m_spark_energy[n] * step_frac / (m_dt * kernel_sum);
+      m_spark_energy[n] / m_spark_duration[n] * p / kernel_sum;
     if (verb) {
       amrex::Print() << m_spark[n] << " active on level " << spark_lev
-                     << ", edge width " << delta
-                     << ", energy fraction this step " << step_frac
+                     << ", edge width " << delta << ", power fraction " << p
                      << ", sphere volume " << m_spark_volume[n]
                      << ", kernel integral " << kernel_sum << "\n";
     }
@@ -758,7 +842,7 @@ PeleLM::assembleExternalSources(
   const amrex::Vector<amrex::MultiFab>* a_frozen)
 {
   if (m_n_sparks > 0) {
-    addSpark(a_timestamp_eval);
+    addSpark(a_timestamp_eval, is_initIter);
   }
   if (a_frozen == nullptr) {
     addFrozenExternalSources(is_initIter, a_timestamp_eval);
