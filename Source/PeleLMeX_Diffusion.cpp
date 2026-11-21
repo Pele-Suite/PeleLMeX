@@ -656,6 +656,7 @@ PeleLM::computeDifferentialDiffusionFluxes(
       GetVecOfConstPtrs(getDensityVect(a_time)),
       GetVecOfConstPtrs(getDiffusivityVect(a_time)), 0, bcRecSpec, NUM_SPECIES,
       do_avgDown, GetVecOfConstPtrs(spec_boundary));
+#endif
 
   if (m_nAux > 0) {
     getMCDiffusionOp(m_nAux)->computeDiffFluxes(
@@ -663,7 +664,6 @@ PeleLM::computeDifferentialDiffusionFluxes(
       GetVecOfConstPtrs(getAuxDiffusivityVect(a_time)), 0, bcRecAux, m_nAux,
       do_avgDown, GetVecOfConstPtrs(spec_boundary));
   }
-#endif
 
   // Add the wbar term
   if (m_use_wbar != 0) {
@@ -1373,6 +1373,7 @@ PeleLM::differentialDiffusionUpdate(
         getDensityVect(AmrNewTime)), // this triggers proper scaling by density
       GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), 0, bcRecSpec,
       NUM_SPECIES, 0, m_dt, GetVecOfConstPtrs(spec_boundary));
+#endif
   if (m_nAux > 0) {
     // Solve for \widetilde{c^{np1,kp1}}
     // Don't need to provide acoeff, or density.
@@ -1382,7 +1383,6 @@ PeleLM::differentialDiffusionUpdate(
       0, {}, {}, GetVecOfConstPtrs(getAuxDiffusivityVect(AmrNewTime)), 0,
       bcRecAux, m_nAux, 0, m_dt, {});
   }
-#endif
 
   // Add lagged Wbar term
   // Computed in computeDifferentialDiffusionTerms at t^{n} if first SDC
