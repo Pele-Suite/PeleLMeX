@@ -1030,6 +1030,11 @@ DiffusionOp::computeDiffLap(
     amrex::Vector<amrex::MultiFab> laps;
     amrex::Vector<amrex::MultiFab> component;
 
+    // Allow for component specific LinOp BC
+    m_scal_apply_op->setDomainBC(
+      m_pelelm->getDiffusionLinOpBC(amrex::Orientation::low, a_bcrec[comp]),
+      m_pelelm->getDiffusionLinOpBC(amrex::Orientation::high, a_bcrec[comp]));
+
     for (int lev = 0; lev <= finest_level; ++lev) {
       laps.emplace_back(
         *a_laps[lev], amrex::make_alias, lap_comp + comp, m_ncomp);
