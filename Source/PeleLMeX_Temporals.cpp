@@ -1,6 +1,7 @@
 #include <PeleLMeX.H>
 #include <PeleLMeX_BPatch.H>
 #include <AMReX_REAL.H>
+#include <limits>
 
 using namespace amrex::literals;
 
@@ -853,12 +854,15 @@ PeleLM::openTempFile()
     tmpStateFile.precision(12);
     tmpStateFile << "iter,time,dt,kinEnergy,enstrophy,pressure,fuelConsumption,"
                     "heatRelease\n";
+    // Full precision for the balances: they are differences of large sums
+    constexpr int balance_precision =
+      std::numeric_limits<amrex::Real>::max_digits10;
     if (m_do_massBalance != 0) {
       tempFileName = m_temporal_dir + "/tempMass";
       tmpMassFile.open(
         tempFileName.c_str(),
         std::ios::out | std::ios::app | std::ios_base::binary);
-      tmpMassFile.precision(12);
+      tmpMassFile.precision(balance_precision);
       tmpMassFile << "iter,time,massNew,dmdt,netMassFlux,balance\n";
     }
     if (m_do_energyBalance != 0) {
@@ -866,7 +870,7 @@ PeleLM::openTempFile()
       tmpEnergyFile.open(
         tempFileName.c_str(),
         std::ios::out | std::ios::app | std::ios_base::binary);
-      tmpEnergyFile.precision(12);
+      tmpEnergyFile.precision(balance_precision);
       tmpEnergyFile << "iter,time,rhoHNew,drhoHdt,netRhoHFlux,balance\n";
     }
     if (m_do_speciesBalance != 0) {
@@ -874,7 +878,7 @@ PeleLM::openTempFile()
       tmpSpecFile.open(
         tempFileName.c_str(),
         std::ios::out | std::ios::app | std::ios_base::binary);
-      tmpSpecFile.precision(12);
+      tmpSpecFile.precision(balance_precision);
       tmpSpecFile << "iter,time";
       for (int n = 0; n < NUM_SPECIES; ++n) {
         tmpSpecFile << ",rhoYnew_" << PeleLM::stateVariableName(FIRSTSPEC + n);

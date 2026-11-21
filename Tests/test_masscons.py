@@ -3,6 +3,7 @@
 # Imports
 #
 # ========================================================================
+import io
 import os
 import numpy.testing as npt
 import pandas as pd
@@ -23,10 +24,20 @@ class ConsTestCase(unittest.TestCase):
         # Load the data
         fdir = os.path.abspath(".")
         fname = os.path.join(fdir, "temporals/tempMass")
-        cnames=['step','time','mass','dmdt','massFluxBal','balance']
-        df = pd.read_csv(fname, names=cnames, sep=r"\s+")
-        init_mass = df.mass[0]
-        npt.assert_allclose(df.mass, init_mass, rtol=1e-13)
+        # CSV with a header: iter,time,massNew,dmdt,netMassFlux,balance.
+        # The file is appended to, so a rerun or restart in the same
+        # directory adds another header: keep the last run only.
+        with open(fname) as f:
+            lines = f.readlines()
+        last = max(i for i, l in enumerate(lines) if l.startswith("iter,"))
+        df = pd.read_csv(io.StringIO("".join(lines[last:])))
+        self.assertGreater(len(df), 1)
+        self.assertFalse(df.massNew.isnull().any())
+        init_mass = df.massNew[0]
+        # Closed/periodic domains conserve mass to round-off. The domain sum
+        # over many cells and AMR levels jitters at ~1e-13 relative (no drift
+        # is observed), so 1e-12 still catches any real leak.
+        npt.assert_allclose(df.massNew, init_mass, rtol=1e-12)
 
 
 # ========================================================================
