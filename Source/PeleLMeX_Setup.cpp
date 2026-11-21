@@ -1934,7 +1934,7 @@ PeleLM::evaluateSetup()
     for (int n = 0; n < NUM_SPECIES; ++n) {
       var_names[n] = "rhoD(" + spec_names[n] + ")";
     }
-    var_names[NUM_SPECIES] = "Lamdba";
+    var_names[NUM_SPECIES] = "Lambda";
     var_names[NUM_SPECIES + 1] = "Mu";
     evaluate_lst.add(
       "transportCC", amrex::IndexType::TheCellType(), NUM_SPECIES + 2,
