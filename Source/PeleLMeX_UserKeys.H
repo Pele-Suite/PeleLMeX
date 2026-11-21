@@ -1,6 +1,8 @@
 #ifndef PELELM_USERKEYS_H
 #define PELELM_USERKEYS_H
 #include <AMReX_Array.H>
+#include <AMReX_Extension.H>
+#include <AMReX_GpuQualifiers.H>
 
 #include <string>
 #include <map>
@@ -33,6 +35,16 @@ struct BoundaryCondition
   const amrex::Array<std::string, 2> searchKey{"lo_bc", "hi_bc"};
 };
 const BoundaryCondition boundarycondition;
+
+/**
+ * \brief Whether a PeleLMeX physical BC is an isothermal wall
+ */
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE constexpr bool
+isIsothermalWall(const int a_bc) noexcept
+{
+  return a_bc == BoundaryCondition::BCSlipWallIsotherm ||
+         a_bc == BoundaryCondition::BCNoSlipWallIsotherm;
+}
 
 /**
   * \brief struct holding PeleLMeX NS solver options

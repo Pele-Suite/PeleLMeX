@@ -470,133 +470,128 @@ PeleLM::adjustSpeciesFluxes<pele::physics::eos::Manifold>(
   BL_PROFILE("PeleLM::adjustSpeciesFluxes()");
 }
 
-void
-PeleLM::correctIsothermalBoundary(
+amrex::Vector<amrex::MultiFab>
+PeleLM::isothermalSpeciesBoundary(
   const TimeStamp a_time,
-  const amrex::Vector<amrex::MultiFab*>& a_spec_boundary,
   const amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>>&
-    a_wbarfluxes,
+    a_soretfluxes,
   const amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>>&
-    a_soretfluxes)
+    a_wbarfluxes)
 {
-  BL_PROFILE("PeleLMeX::correctIsothermalBoundary()");
-  auto bcRecSpec = fetchBCRecArray(FIRSTSPEC, NUM_SPECIES);
-  const bool need_explicit_fluxes = a_soretfluxes.empty();
-
-  amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> soretfluxes(
-    finest_level + 1);
-  if (need_explicit_fluxes) { // need to fill the soret fluxes ourselves
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-        soretfluxes[lev][idim] = new amrex::MultiFab(
-          grids[lev], dmap[lev], NUM_SPECIES, 1, amrex::MFInfo(), Factory(lev));
-        soretfluxes[lev][idim]->setVal(0.0);
-      }
-    }
-    addSoretTerm(
-      soretfluxes, soretfluxes, GetVecOfConstPtrs(getTempVect(a_time)),
-      GetVecOfConstPtrs(getDiffusivityVect(a_time)));
-  } else { // have the lagged ones, alias to them
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-        soretfluxes[lev][idim] = new amrex::MultiFab(
-          *a_soretfluxes[lev][idim], amrex::make_alias, 0, NUM_SPECIES);
-      }
-    }
+  BL_PROFILE("PeleLMeX::isothermalSpeciesBoundary()");
+  amrex::Vector<amrex::MultiFab> spec_boundary;
+  if (m_soret_boundary_override == 0) {
+    return spec_boundary;
   }
-  const bool explicit_wbar = m_use_wbar != 0 && need_explicit_fluxes;
-  const bool use_wbar_lagged = m_use_wbar != 0 && !need_explicit_fluxes;
+
+  auto bcRecSpec = fetchBCRecArray(FIRSTSPEC, NUM_SPECIES);
+  // Wbar flux at the wall: lagged (given) or computed from the imposed
+  // gradients themselves, which couples the species
+  const bool wbar_lagged = m_use_wbar != 0 && !a_wbarfluxes.empty();
+  const bool wbar_coupled = m_use_wbar != 0 && a_wbarfluxes.empty();
+  const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
+  auto const* leosparm = eos_parms.device_parm();
+
+  spec_boundary.reserve(finest_level + 1);
   for (int lev = 0; lev <= finest_level; ++lev) {
     auto* ldata_p = getLevelDataPtr(lev, a_time);
-    // Overwrite the boundaries with the gradients for the inhomogeneous
-    // Neumann solve. Use the face coefficients of the species diffusion
-    // operator (turbulent part and mesh-mapping scaling, as in DiffusionOp)
-    // so the imposed gradients cancel the Soret (and Wbar) fluxes exactly.
+    // Y everywhere: Dirichlet boundaries read it, and the isothermal-wall
+    // ghost cells are overwritten below with normal gradients
+    auto& bnd = spec_boundary.emplace_back(
+      grids[lev], dmap[lev], NUM_SPECIES, 1, amrex::MFInfo(), Factory(lev));
+    auto const& sp_bound_ma = bnd.arrays();
+    auto const& state_ma = ldata_p->state.const_arrays();
+    amrex::ParallelFor(
+      bnd, bnd.nGrowVect(), NUM_SPECIES,
+      [sp_bound_ma, state_ma] AMREX_GPU_DEVICE(
+        int box_no, int i, int j, int k, int n) noexcept {
+        amrex::Array4<amrex::Real const> rhoY(state_ma[box_no], FIRSTSPEC);
+        amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
+        sp_bound_ma[box_no](i, j, k, n) = rhoY(i, j, k, n) / rho(i, j, k);
+      });
+    amrex::Gpu::streamSynchronize();
+
+    // Face coefficients of the species diffusion operator (turbulent part
+    // and mesh-mapping scaling, as in DiffusionOp), so the imposed gradients
+    // cancel the Soret (and Wbar) fluxes exactly
     const amrex::MultiFab& ldata_beta_cc = ldata_p->diff_cc;
     const amrex::Box& domain = geom[lev].Domain();
     constexpr int doZeroVisc = 1;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_ec = getDiffusivity(
       lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, ldata_beta_cc, 1);
     scaleFaceDiffusivityMapped(lev, beta_ec);
-    // Face coefficients of the Wbar flux (as in addWbarTerm: no turbulent
-    // part)
+    // The Wbar flux has no turbulent part (addWbarTerm): its coefficient
+    // only differs from beta_ec with LES
+    const bool separate_wbar_coeff = wbar_coupled && m_do_les;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> beta_wbar_ec;
-    if (explicit_wbar) {
+    if (separate_wbar_coeff) {
       beta_wbar_ec = getDiffusivity(
         lev, 0, NUM_SPECIES, doZeroVisc, bcRecSpec, ldata_beta_cc, 0);
       scaleFaceDiffusivityMapped(lev, beta_wbar_ec);
     }
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
     for (amrex::MFIter mfi(ldata_beta_cc, amrex::TilingIfNotGPU());
          mfi.isValid(); ++mfi) {
       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-        const auto bc_lo = m_phys_bc.lo(idim);
-        const auto bc_hi = m_phys_bc.hi(idim);
         const amrex::Box& edomain = amrex::surroundingNodes(domain, idim);
         const amrex::Box& ebx = mfi.nodaltilebox(idim);
-        auto const& flux_soret = soretfluxes[lev][idim]->const_array(mfi);
-        auto const& rhoD_ec = beta_ec[idim].const_array(mfi);
-        auto const& rhoDw_ec =
-          explicit_wbar ? beta_wbar_ec[idim].const_array(mfi) : rhoD_ec;
-        auto const& flux_wbar =
-          use_wbar_lagged ? a_wbarfluxes[lev][idim]->const_array(mfi) : rhoD_ec;
-        auto const& boundary_ar = a_spec_boundary[lev]->array(mfi);
-        auto const& rhoY_arr = ldata_p->state.const_array(mfi, FIRSTSPEC);
-        auto const& rho_arr = ldata_p->state.const_array(mfi, DENSITY);
-        const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
-        auto const* leosparm = eos_parms.device_parm();
-        amrex::ParallelFor(
-          ebx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
-            int idx[3] = {i, j, k};
-            const bool on_lo =
-              (bc_lo == BoundaryCondition::BCNoSlipWallIsotherm ||
-               bc_lo == BoundaryCondition::BCSlipWallIsotherm) &&
-              (idx[idim] <= edomain.smallEnd(idim));
-            const bool on_hi =
-              (bc_hi == BoundaryCondition::BCNoSlipWallIsotherm ||
-               bc_hi == BoundaryCondition::BCSlipWallIsotherm) &&
-              (idx[idim] >= edomain.bigEnd(idim));
-            if (!on_lo && !on_hi) {
-              return;
-            }
-            if (on_lo) { // the ghost cell holds the boundary data
-              idx[idim] -= 1;
-            }
-            if (explicit_wbar) {
-              // Wbar couples the species: solve for all the wall gradients
-              // so the corrected species fluxes vanish (see
-              // isothermalWallGradients)
-              amrex::Real g[NUM_SPECIES] = {0.0};
-              isothermalWallGradients(
-                i, j, k, idim, idx, use_harmonic_avg, rhoY_arr, rho_arr,
-                rhoD_ec, rhoDw_ec, flux_soret, g, leosparm);
-              for (int n = 0; n < NUM_SPECIES; ++n) {
-                boundary_ar(idx[0], idx[1], idx[2], n) = g[n];
-              }
-            } else {
-              // Each species flux cancels on its own: Soret plus the lagged
-              // Wbar flux when available
-              for (int n = 0; n < NUM_SPECIES; ++n) {
-                amrex::Real f = flux_soret(i, j, k, n);
-                if (use_wbar_lagged) {
-                  f += flux_wbar(i, j, k, n);
+        for (const bool lo : {true, false}) {
+          // Only the wall plane of tiles touching an isothermal wall
+          const int iface = lo ? edomain.smallEnd(idim) : edomain.bigEnd(idim);
+          if (
+            !isIsothermalWall(lo ? m_phys_bc.lo(idim) : m_phys_bc.hi(idim)) ||
+            iface < ebx.smallEnd(idim) || iface > ebx.bigEnd(idim)) {
+            continue;
+          }
+          amrex::Box fbx = ebx;
+          fbx.setSmall(idim, iface);
+          fbx.setBig(idim, iface);
+          const int ishift = lo ? -1 : 0; // ghost cell holding the data
+
+          auto const& flux_soret = a_soretfluxes[lev][idim]->const_array(mfi);
+          auto const& rhoD_ec = beta_ec[idim].const_array(mfi);
+          auto const& rhoDw_ec =
+            separate_wbar_coeff ? beta_wbar_ec[idim].const_array(mfi) : rhoD_ec;
+          auto const& flux_wbar =
+            wbar_lagged ? a_wbarfluxes[lev][idim]->const_array(mfi) : rhoD_ec;
+          auto const& boundary_ar = bnd.array(mfi);
+          auto const& rhoY_arr = ldata_p->state.const_array(mfi, FIRSTSPEC);
+          auto const& rho_arr = ldata_p->state.const_array(mfi, DENSITY);
+          amrex::ParallelFor(
+            fbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+              int ig[3] = {i, j, k};
+              ig[idim] += ishift;
+              if (wbar_coupled) {
+                // Wbar couples the species: solve for all the wall
+                // gradients so the corrected species fluxes vanish
+                amrex::Real g[NUM_SPECIES];
+                isothermalWallGradients(
+                  i, j, k, idim, ig, use_harmonic_avg, rhoY_arr, rho_arr,
+                  rhoD_ec, rhoDw_ec, flux_soret, g, leosparm);
+                for (int n = 0; n < NUM_SPECIES; ++n) {
+                  boundary_ar(ig[0], ig[1], ig[2], n) = g[n];
                 }
-                const amrex::Real b = rhoD_ec(i, j, k, n);
-                boundary_ar(idx[0], idx[1], idx[2], n) =
-                  (b > 0.0) ? f / b : 0.0;
+              } else {
+                // Each species flux cancels on its own: Soret plus the
+                // lagged Wbar flux when used
+                for (int n = 0; n < NUM_SPECIES; ++n) {
+                  amrex::Real f = flux_soret(i, j, k, n);
+                  if (wbar_lagged) {
+                    f += flux_wbar(i, j, k, n);
+                  }
+                  const amrex::Real b = rhoD_ec(i, j, k, n);
+                  boundary_ar(ig[0], ig[1], ig[2], n) = (b > 0.0) ? f / b : 0.0;
+                }
               }
-            }
-          });
+            });
+        }
       }
     }
   }
-  for (int lev = 0; lev <= finest_level; ++lev) {
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      delete soretfluxes[lev][idim];
-    }
-  }
+  return spec_boundary;
 }
 
 void
@@ -621,34 +616,37 @@ PeleLM::computeDifferentialDiffusionFluxes(
 
   //----------------------------------------------------------------
 
-  amrex::Vector<amrex::MultiFab> spec_boundary;
-  if (m_soret_boundary_override != 0) {
-    spec_boundary.reserve(finest_level + 1);
-    // this is the same regardless of lagged or not
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      spec_boundary.emplace_back(
-        grids[lev], dmap[lev], NUM_SPECIES, 1, amrex::MFInfo(), Factory(lev));
-      auto* ldata_p = getLevelDataPtr(lev, a_time);
-      // if we have a mix of Dirichlet and Isothermal walls, we need to give
-      // Dirichlet boundaries and divide by density since diffuse_scalar doesn't
-      // touch this boundary MF
-
-      auto const& sp_bound_ma = spec_boundary[lev].arrays();
-      auto const& state_ma = ldata_p->state.const_arrays();
-      amrex::ParallelFor(
-        spec_boundary[lev], spec_boundary[lev].nGrowVect(), NUM_SPECIES,
-        [sp_bound_ma, state_ma] AMREX_GPU_DEVICE(
-          int box_no, int i, int j, int k, int n) noexcept {
-          amrex::Array4<amrex::Real const> rhoY(state_ma[box_no], FIRSTSPEC);
-          amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
-          sp_bound_ma[box_no](i, j, k, n) = rhoY(i, j, k, n) / rho(i, j, k);
-        });
+  // Soret fluxes, computed once: they set the isothermal wall gradients and
+  // are added to the species fluxes below
+  amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> soret_tmp;
+  auto soretfluxes = a_soretfluxes;
+  if (m_use_soret != 0) {
+    if (soretfluxes.empty()) {
+      soret_tmp.resize(finest_level + 1);
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+          soret_tmp[lev][idim].define(
+            amrex::convert(
+              grids[lev], amrex::IntVect::TheDimensionVector(idim)),
+            dmap[lev], NUM_SPECIES, 0, amrex::MFInfo(), Factory(lev));
+        }
+      }
+      soretfluxes = GetVecOfArrOfPtrs(soret_tmp);
     }
-    amrex::Gpu::streamSynchronize();
-    // correct the boundary values, pass empty soret & wbar to trigger explicit
-    // calculation
-    correctIsothermalBoundary(a_time, GetVecOfPtrs(spec_boundary), {}, {});
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        soretfluxes[lev][idim]->setVal(0.0);
+      }
+    }
+    addSoretTerm(
+      soretfluxes, {}, GetVecOfConstPtrs(getTempVect(a_time)),
+      GetVecOfConstPtrs(getDiffusivityVect(a_time)));
   }
+  // Wbar at the walls is coupled to the imposed gradients (empty lagged
+  // fluxes)
+  amrex::Vector<amrex::MultiFab> spec_boundary =
+    isothermalSpeciesBoundary(a_time, soretfluxes, {});
+
   // Species fluxes
   // Get the species BCRec
   auto bcRecSpec = fetchBCRecArray(FIRSTSPEC, NUM_SPECIES);
@@ -694,33 +692,20 @@ PeleLM::computeDifferentialDiffusionFluxes(
 
   // Add the wbar term
   if (m_use_wbar != 0) {
-    const int need_wbar_fluxes = (a_wbarfluxes.empty()) ? 0 : 1;
-    if (need_wbar_fluxes == 0) {
-      addWbarTerm(
-        a_fluxes, {}, GetVecOfConstPtrs(getSpeciesVect(a_time)),
-        GetVecOfConstPtrs(getDensityVect(a_time)),
-        GetVecOfConstPtrs(getDiffusivityVect(a_time)),
-        GetVecOfConstPtrs(spec_boundary));
-    } else {
-      addWbarTerm(
-        a_fluxes, a_wbarfluxes, GetVecOfConstPtrs(getSpeciesVect(a_time)),
-        GetVecOfConstPtrs(getDensityVect(a_time)),
-        GetVecOfConstPtrs(getDiffusivityVect(a_time)),
-        GetVecOfConstPtrs(spec_boundary));
-    }
+    addWbarTerm(
+      a_fluxes, a_wbarfluxes, GetVecOfConstPtrs(getSpeciesVect(a_time)),
+      GetVecOfConstPtrs(getDensityVect(a_time)),
+      GetVecOfConstPtrs(getDiffusivityVect(a_time)),
+      GetVecOfConstPtrs(spec_boundary));
   }
 
   // Add the Soret term
   if (m_use_soret != 0) {
-    const int need_soret_fluxes = (a_soretfluxes.empty()) ? 0 : 1;
-    if (need_soret_fluxes == 0) {
-      addSoretTerm(
-        a_fluxes, {}, GetVecOfConstPtrs(getTempVect(a_time)),
-        GetVecOfConstPtrs(getDiffusivityVect(a_time)));
-    } else {
-      addSoretTerm(
-        a_fluxes, a_soretfluxes, GetVecOfConstPtrs(getTempVect(a_time)),
-        GetVecOfConstPtrs(getDiffusivityVect(a_time)));
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        amrex::MultiFab::Add(
+          *a_fluxes[lev][idim], *soretfluxes[lev][idim], 0, 0, NUM_SPECIES, 0);
+      }
     }
   }
 
@@ -852,13 +837,9 @@ PeleLM::addWbarTerm(
             const auto bc_lo = phys_bc.lo(idim);
             const auto bc_hi = phys_bc.hi(idim);
             const bool on_lo =
-              (bc_lo == BoundaryCondition::BCNoSlipWallIsotherm ||
-               bc_lo == BoundaryCondition::BCSlipWallIsotherm) &&
-              (idx[idim] < domain.smallEnd(idim));
+              isIsothermalWall(bc_lo) && (idx[idim] < domain.smallEnd(idim));
             const bool on_hi =
-              (bc_hi == BoundaryCondition::BCNoSlipWallIsotherm ||
-               bc_hi == BoundaryCondition::BCSlipWallIsotherm) &&
-              (idx[idim] > domain.bigEnd(idim));
+              isIsothermalWall(bc_hi) && (idx[idim] > domain.bigEnd(idim));
 
             if (on_lo || on_hi) {
               getGradMwmixGivengradYMwmix(
@@ -1321,38 +1302,10 @@ PeleLM::differentialDiffusionUpdate(
   // Get the species BCRec
   auto bcRecSpec = fetchBCRecArray(FIRSTSPEC, NUM_SPECIES);
   auto bcRecAux = fetchBCRecAuxArray(0, m_nAux);
-  amrex::Vector<amrex::MultiFab> spec_boundary;
-  if (m_soret_boundary_override != 0) {
-    spec_boundary.reserve(finest_level + 1);
-    // this is the same regardless of lagged or not
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
-      spec_boundary.emplace_back(
-        grids[lev], dmap[lev], NUM_SPECIES, 1, amrex::MFInfo(), Factory(lev));
-
-      // if we have a mix of Dirichlet and Isothermal walls, we need to give
-      // Dirichlet boundaries and divide by density since diffuse_scalar doesn't
-      // touch this boundary MF
-
-      auto const& sp_bound_ma = spec_boundary[lev].arrays();
-      auto const& state_ma = ldata_p->state.const_arrays();
-      amrex::ParallelFor(
-        spec_boundary[lev], spec_boundary[lev].nGrowVect(), NUM_SPECIES,
-        [sp_bound_ma, state_ma] AMREX_GPU_DEVICE(
-          int box_no, int i, int j, int k, int n) noexcept {
-          amrex::Array4<amrex::Real const> rhoY(state_ma[box_no], FIRSTSPEC);
-          amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
-          sp_bound_ma[box_no](i, j, k, n) = rhoY(i, j, k, n) / rho(i, j, k);
-        });
-    }
-    amrex::Gpu::streamSynchronize();
-
-    // correct boundary, we have lagged fluxes so lets use them
-    correctIsothermalBoundary(
-      AmrNewTime, GetVecOfPtrs(spec_boundary),
-      GetVecOfArrOfPtrs(diffData->wbar_fluxes),
-      GetVecOfArrOfPtrs(diffData->soret_fluxes));
-  }
+  // Isothermal walls: cancel the lagged Soret and Wbar fluxes
+  amrex::Vector<amrex::MultiFab> spec_boundary = isothermalSpeciesBoundary(
+    AmrNewTime, GetVecOfArrOfPtrs(diffData->soret_fluxes),
+    GetVecOfArrOfPtrs(diffData->wbar_fluxes));
 
 #ifdef PELE_USE_PLASMA
   // Solve for \widetilda{rhoY^{np1,kp1}}
@@ -2120,19 +2073,15 @@ PeleLM::getDiffusionLinOpBC(
         amrexbc == amrex::BCType::hoextrap ||
         amrexbc == amrex::BCType::reflect_even) {
         r[idim] = amrex::LinOpBCType::Neumann;
+        // Species (foextrap) on isothermal walls with Soret: the boundary
+        // data holds the normal gradients (isothermalSpeciesBoundary)
+        const auto phys_bc = (a_side == amrex::Orientation::low)
+                               ? m_phys_bc.lo(idim)
+                               : m_phys_bc.hi(idim);
         if (
-          m_use_soret != 0 &&
-          amrexbc == amrex::BCType::foextrap) { // should just catch
-                                                // density/species/forcing for
-                                                // isothermal walls
-          auto phys_bc = (a_side == amrex::Orientation::low)
-                           ? m_phys_bc.lo(idim)
-                           : m_phys_bc.hi(idim);
-          if (
-            phys_bc == BoundaryCondition::BCNoSlipWallIsotherm ||
-            phys_bc == BoundaryCondition::BCSlipWallIsotherm) {
-            r[idim] = amrex::LinOpBCType::inhomogNeumann;
-          }
+          m_soret_boundary_override != 0 &&
+          amrexbc == amrex::BCType::foextrap && isIsothermalWall(phys_bc)) {
+          r[idim] = amrex::LinOpBCType::inhomogNeumann;
         }
       } else if (amrexbc == amrex::BCType::reflect_odd) {
         r[idim] = amrex::LinOpBCType::reflect_odd;

@@ -611,7 +611,6 @@ isothermalWallGradients(
   auto eos = pele::physics::PhysicsType::eos(eosparm);
   int il[3] = {i, j, k};
   il[dir] -= 1;
-  const int ih[3] = {i, j, k};
 
   amrex::Real yw[NUM_SPECIES] = {0.0}; // face Y as addWbarTerm sees it
   amrex::Real yr[NUM_SPECIES] = {0.0}; // face Y as repair_flux sees it
@@ -620,7 +619,7 @@ isothermalWallGradients(
   amrex::Real sum_r = 0.0;
   for (int n = 0; n < NUM_SPECIES; ++n) {
     const amrex::Real a = rhoY(il[0], il[1], il[2], n);
-    const amrex::Real b = rhoY(ih[0], ih[1], ih[2], n);
+    const amrex::Real b = rhoY(i, j, k, n);
     yr[n] = 0.5 * (a + b);
     if (do_harmonic) {
       yw[n] = (a * b > 0.0) ? 2.0 * a * b / (a + b) : 0.0;
