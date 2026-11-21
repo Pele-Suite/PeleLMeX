@@ -1569,9 +1569,8 @@ void
 PeleLM::readGridFile(
   const std::string& grid_file, amrex::Vector<amrex::BoxArray>& input_ba)
 {
-#define STRIP                \
-  while (is.get() != '\n') { \
-  }
+  // Skip to the next line (also safe at EOF, where get() never sees '\n')
+#define STRIP is.ignore(std::numeric_limits<std::streamsize>::max(), '\n')
   std::ifstream is(grid_file.c_str(), std::ios::in);
   if (!is.good()) {
     amrex::FileOpenFailed(grid_file);
