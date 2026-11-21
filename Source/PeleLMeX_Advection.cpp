@@ -389,6 +389,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
     finest_level + 1);
   amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> fluxes_aux(
     finest_level + 1);
+  // Auxiliary face states, for the convective form of non-conservative ones
+  amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>> edgeState_aux(
+    finest_level + 1);
   for (int lev = 0; lev <= finest_level; ++lev) {
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
       fluxes[lev][idim].define(
@@ -400,6 +403,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
           amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(idim)),
           dmap[lev], m_nAux, 0, amrex::MFInfo(),
           Factory(lev)); // auxiliary fields
+        edgeState_aux[lev][idim].define(
+          amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(idim)),
+          dmap[lev], m_nAux, 0, amrex::MFInfo(), Factory(lev));
       }
     }
   }
@@ -414,16 +420,10 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
     // Define edge state: Density + Species + RhoH + Temp
     constexpr int nGrow = 0;
     amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> edgeState;
-    amrex::Array<amrex::MultiFab, AMREX_SPACEDIM> edgeState_aux;
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
       edgeState[idim].define(
         amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(idim)),
         dmap[lev], NUM_SPECIES + 3, nGrow, amrex::MFInfo(), Factory(lev));
-      if (m_nAux > 0) {
-        edgeState_aux[idim].define(
-          amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(idim)),
-          dmap[lev], m_nAux, nGrow, amrex::MFInfo(), Factory(lev));
-      }
     }
 
 #ifdef PELE_USE_PLASMA
@@ -576,9 +576,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
           , auto const& fy = fluxes_aux[lev][1].array(mfi, 0);
           , auto const& fz = fluxes_aux[lev][2].array(mfi, 0);)
         AMREX_D_TERM(
-          auto const& edgex = edgeState_aux[0].array(mfi, 0);
-          , auto const& edgey = edgeState_aux[1].array(mfi, 0);
-          , auto const& edgez = edgeState_aux[2].array(mfi, 0);)
+          auto const& edgex = edgeState_aux[lev][0].array(mfi, 0);
+          , auto const& edgey = edgeState_aux[lev][1].array(mfi, 0);
+          , auto const& edgez = edgeState_aux[lev][2].array(mfi, 0);)
         auto const& divu_arr = divu.const_array(mfi);
         auto const& aux_arr = ldata_p->auxiliaries.const_array(mfi, 0);
         auto const& force_arr = advData->Forcing_aux[lev].const_array(mfi, 0);
@@ -598,11 +598,13 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
           m_Godunov_ppm != 0, m_Godunov_ForceInTrans != 0, is_velocity,
           fluxes_are_area_weighted, m_advection_type, m_Godunov_ppm_limiter);
       }
-      // Zero out fluxes for non-advected auxiliaries
+      // Zero out fluxes, and the face states of the convective correction,
+      // for non-advected auxiliaries
       for (int n = 0; n < m_nAux; ++n) {
         if (m_aux_advect[n] == 0) {
           for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
             fluxes_aux[lev][idim].setVal(0.0, n, 1);
+            edgeState_aux[lev][idim].setVal(0.0, n, 1);
           }
         }
       }
@@ -812,6 +814,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
       EB_average_down_faces(
         GetArrOfConstPtrs(fluxes_aux[lev]), GetArrOfPtrs(fluxes_aux[lev - 1]),
         refRatio(lev - 1), geom[lev - 1]);
+      EB_average_down_faces(
+        GetArrOfConstPtrs(edgeState_aux[lev]),
+        GetArrOfPtrs(edgeState_aux[lev - 1]), refRatio(lev - 1), geom[lev - 1]);
     }
 #else
     average_down_faces(
@@ -821,6 +826,9 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
       average_down_faces(
         GetArrOfConstPtrs(fluxes_aux[lev]), GetArrOfPtrs(fluxes_aux[lev - 1]),
         refRatio(lev - 1), geom[lev - 1]);
+      average_down_faces(
+        GetArrOfConstPtrs(edgeState_aux[lev]),
+        GetArrOfPtrs(edgeState_aux[lev - 1]), refRatio(lev - 1), geom[lev - 1]);
     }
 #endif
   }
@@ -931,8 +939,8 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
       divTmp_aux.setVal(0.0);
       advFluxDivergence(
         lev, divTmp_aux, 0, divu, GetArrOfConstPtrs(fluxes_aux[lev]), 0,
-        GetArrOfConstPtrs(fluxes_aux[lev]), 0, m_nAux, AdvTypeAux_d.dataPtr(),
-        geom[lev], -1.0, fluxes_are_area_weighted);
+        GetArrOfConstPtrs(edgeState_aux[lev]), 0, m_nAux,
+        AdvTypeAux_d.dataPtr(), geom[lev], -1.0, fluxes_are_area_weighted);
 
       divTmp_aux.FillBoundary(geom[lev].periodicity());
 
@@ -956,8 +964,8 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
       advFluxDivergence(
         lev, advData->AofS_aux[lev], 0, divu,
         GetArrOfConstPtrs(fluxes_aux[lev]), 0,
-        GetArrOfConstPtrs(fluxes_aux[lev]), 0, m_nAux, AdvTypeAux_d.dataPtr(),
-        geom[lev], -1.0, fluxes_are_area_weighted);
+        GetArrOfConstPtrs(edgeState_aux[lev]), 0, m_nAux,
+        AdvTypeAux_d.dataPtr(), geom[lev], -1.0, fluxes_are_area_weighted);
     }
 #endif
 
