@@ -784,11 +784,22 @@ public:
    */
   void diffuseVelocity();
 
-  // Whether the -u extrho external momentum source is split between
-  // updateVelocity and the implicit velocity solve
+  // Whether the -u extrho external momentum source is split Crank-Nicolson
+  // between updateVelocity and the implicit velocity solve: low Mach runs
+  // with a source that can add mass (user defined, spray, soot)
   [[nodiscard]] bool useImplicitExtRho() const
   {
-    return m_ext_sources_SDC && m_incompressible == 0;
+    if (m_incompressible != 0) {
+      return false;
+    }
+    bool mass_source = m_user_defined_ext_sources;
+#ifdef PELE_USE_SPRAY
+    mass_source = mass_source || do_spray_particles;
+#endif
+#ifdef PELE_USE_SOOT
+    mass_source = mass_source || do_soot_solve;
+#endif
+    return mass_source;
   }
 
   /**
