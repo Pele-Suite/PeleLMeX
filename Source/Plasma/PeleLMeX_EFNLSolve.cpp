@@ -119,18 +119,17 @@ PeleLM::implicitNonLinearSolve(
     amrex::Real scaledResnE, scaledResphiV;
     getNLResidScaling(scaledResnE, scaledResphiV);
     amrex::Real max_nlres = amrex::max<amrex::Real>(scaledResnE, scaledResphiV);
-    if (max_nlres <= m_ef_newtonTol) {
-      if (ef_verbose) {
-        amrex::Print() << " No Newton iteration needed, exiting. \n";
-      }
-      return;
+    // Skip the Newton iterations if the initial state already satisfies the
+    // tolerance, but still do the post-Newton forcing and state update
+    int exit_newton = (max_nlres <= m_ef_newtonTol) ? 1 : 0;
+    if ((exit_newton != 0) && (ef_verbose != 0)) {
+      amrex::Print() << " No Newton iteration needed. \n";
     }
 
     // -----------------
     // Newton iteration
-    int exit_newton = 0;
     int NK_ite = 0;
-    do {
+    while (exit_newton == 0) {
       NK_ite += 1;
 
       // Verbose
@@ -176,7 +175,7 @@ PeleLM::implicitNonLinearSolve(
 
       // Exit condition
       exit_newton = testExitNewton(NK_ite, max_nlres, newtonDir_Norm);
-    } while (!exit_newton);
+    }
     NK_tot_count += NK_ite;
 
     // -----------------
@@ -207,7 +206,7 @@ PeleLM::implicitNonLinearSolve(
     amrex::Real run_time = amrex::ParallelDescriptor::second() - strt_time;
     amrex::ParallelDescriptor::ReduceRealMax(
       run_time, amrex::ParallelDescriptor::IOProcessorNumber());
-    if (!m_ef_use_PETSC_direct) {
+    if ((m_ef_use_PETSC_direct == 0) && (NK_tot_count > 0)) {
       amrex::Real avgGMRES = (float)GMRES_tot_count / (float)NK_tot_count;
       amrex::Print() << "  [" << sdcIter << "] dt: " << a_dt
                      << " - Avg GMRES/Newton: " << avgGMRES << "\n";
