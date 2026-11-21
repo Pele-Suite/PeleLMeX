@@ -34,10 +34,10 @@ class ConsTestCase(unittest.TestCase):
         self.assertGreater(len(df), 1)
         self.assertFalse(df.massNew.isnull().any())
         init_mass = df.massNew[0]
-        # Closed/periodic domains conserve mass to round-off. The domain sum
-        # over many cells and AMR levels jitters at ~1e-13 relative (no drift
-        # is observed), so 1e-12 still catches any real leak.
-        npt.assert_allclose(df.massNew, init_mass, rtol=1e-12)
+        # Closed/periodic domains conserve mass to round-off, and MFSum sums
+        # each box with Kahan compensation, so the domain total holds to a
+        # few ulps (CPU; measured on the CI cases on 1 and 4 ranks).
+        npt.assert_allclose(df.massNew, init_mass, rtol=1e-15)
 
 
 # ========================================================================
