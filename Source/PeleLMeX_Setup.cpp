@@ -485,10 +485,10 @@ PeleLM::readParameters()
       m_phiV_bcpol.setLo(idim, 0);
     } else if (lo_bc_char[idim] == "Anode") { // Pos. elec = 1
       m_phiV_bcpol.setLo(idim, 1);
-      AMREX_ASSERT(m_phiV_bc.lo(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.lo(idim) == 1);
     } else if (lo_bc_char[idim] == "Cathode") { // Neg. elec = 2
       m_phiV_bcpol.setLo(idim, 2);
-      AMREX_ASSERT(m_phiV_bc.lo(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.lo(idim) == 1);
     } else {
       amrex::Abort(
         "Wrong PhiV polarity. Should be : Neutral, Anode or Cathode");
@@ -497,10 +497,10 @@ PeleLM::readParameters()
       m_phiV_bcpol.setHi(idim, 0);
     } else if (hi_bc_char[idim] == "Anode") { // Pos. elec = 1
       m_phiV_bcpol.setHi(idim, 1);
-      AMREX_ASSERT(m_phiV_bc.hi(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.hi(idim) == 1);
     } else if (hi_bc_char[idim] == "Cathode") { // Neg. elec = 2
       m_phiV_bcpol.setHi(idim, 2);
-      AMREX_ASSERT(m_phiV_bc.hi(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.hi(idim) == 1);
     } else {
       amrex::Abort(
         "Wrong PhiV polarity. Should be : Neutral, Anode or Cathode");
@@ -520,9 +520,9 @@ PeleLM::readParameters()
     m_has_divu = 0;
     pp.query("rho", m_rho);
     pp.query("mu", m_mu);
-    AMREX_ASSERT_WITH_MESSAGE(
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       m_rho > 0.0, "peleLM.rho is needed when running incompressible");
-    AMREX_ASSERT_WITH_MESSAGE(
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       m_mu > 0.0, "peleLM.mu is needed when running incompressible");
   }
   amrex::Vector<amrex::Real> grav(AMREX_SPACEDIM, 0);
@@ -979,13 +979,13 @@ PeleLM::readParameters()
   ppef.query("JFNK_maxNewton", m_ef_maxNewtonIter);
   ppef.query("JFNK_lambda", m_ef_lambda_jfnk);
   ppef.query("JFNK_diffType", m_ef_diffT_jfnk);
-  AMREX_ASSERT(m_ef_diffT_jfnk == 1 || m_ef_diffT_jfnk == 2);
+  AMREX_ALWAYS_ASSERT(m_ef_diffT_jfnk == 1 || m_ef_diffT_jfnk == 2);
   ppef.query("GMRES_rel_tol", m_ef_GMRES_reltol);
   ppef.query("GMRES_abs_tol", m_ef_GMRES_abstol);
   ppef.query("PC_approx", m_ef_PC_approx);
   ppef.query("PC_damping", m_ABecCecOmega);
   ppef.query("advection_scheme_order", m_nEAdvOrder);
-  AMREX_ASSERT(m_nEAdvOrder == 1 || m_nEAdvOrder == 2);
+  AMREX_ALWAYS_ASSERT(m_nEAdvOrder == 1 || m_nEAdvOrder == 2);
 
   ppef.query("tabulated_Ke", m_electronKappaTab);
   ppef.query("fixed_Ke", m_fixedKappaE);
@@ -1380,7 +1380,8 @@ PeleLM::readIOParameters()
 #ifdef AMREX_USE_HDF5
   pp.query("use_hdf5_plt", m_write_hdf5_pltfile);
 #endif
-  AMREX_ASSERT(m_regrid_interp_method == 0 || m_regrid_interp_method == 1);
+  AMREX_ALWAYS_ASSERT(
+    m_regrid_interp_method == 0 || m_regrid_interp_method == 1);
 }
 
 void
