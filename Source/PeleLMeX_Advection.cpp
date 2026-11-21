@@ -882,8 +882,8 @@ PeleLM::computeScalarAdvTerms(const std::unique_ptr<AdvanceAdvData>& advData)
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      // The convective form needs the divergence umac satisfies: mac_divu
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
     if (m_mesh_mapping) {
       amrex::MultiFab::Multiply(
@@ -1160,8 +1160,8 @@ PeleLM::computePassiveAdvTerms(
     if (m_incompressible != 0) {
       divu.setVal(0.0);
     } else {
-      const amrex::Real time = getTime(lev, AmrOldTime);
-      fillpatch_divu(lev, time, divu, m_nGrowdivu);
+      // The convective form needs the divergence umac satisfies: mac_divu
+      amrex::MultiFab::Copy(divu, advData->mac_divu[lev], 0, 0, 1, m_nGrowdivu);
     }
     // Fluxes are J.u~.q: the non-conservative correction needs J.divU
     if (m_mesh_mapping) {
