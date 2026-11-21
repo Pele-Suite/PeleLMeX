@@ -145,8 +145,7 @@ PeleLM::Setup()
             << "    Using mixture-averaged transport with Soret effects \n";
           if (m_soret_boundary_override != 0) {
             amrex::Print() << "    Imposing inhomogeneous Neumann conditions "
-                              "for species on isothermal walls. WARNING: "
-                              "use_wbar disabled. \n";
+                              "for species on isothermal walls \n";
           }
         }
       } else {
@@ -664,7 +663,6 @@ PeleLM::readParameters()
     }
     if (isothermal) {
       m_soret_boundary_override = 1;
-      m_use_wbar = 0;
 #if PELE_USE_PLASMA
       amrex::Abort("Isothermal walls with Soret incompatible with plasma");
 #endif

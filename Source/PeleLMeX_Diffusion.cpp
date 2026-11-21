@@ -532,11 +532,16 @@ PeleLM::correctIsothermalBoundary(
                                   ? a_wbarfluxes[lev][idim]->const_array(mfi)
                                   : rhoD_ec;
         auto const& boundary_ar = a_spec_boundary[lev]->array(mfi);
+        auto const& rhoY_arr = ldata_p->state.const_array(mfi, FIRSTSPEC);
+        auto const& rho_arr = ldata_p->state.const_array(mfi, DENSITY);
         const auto use_wbar = m_use_wbar;
+        const bool use_harmonic_avg = m_harm_avg_cen2edge != 0;
+        auto const* leosparm = eos_parms.device_parm();
         amrex::ParallelFor(
           ebx, [bc_lo, bc_hi, idim, need_explicit_fluxes, edomain, flux_soret,
-                rhoD_ec, flux_wbar, boundary_ar,
-                use_wbar] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+                rhoD_ec, flux_wbar, boundary_ar, use_wbar, rhoY_arr, rho_arr,
+                use_harmonic_avg,
+                leosparm] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
             int idx[3] = {i, j, k};
             const bool on_lo =
               (bc_lo == BoundaryCondition::BCNoSlipWallIsotherm ||
@@ -546,7 +551,22 @@ PeleLM::correctIsothermalBoundary(
               (bc_hi == BoundaryCondition::BCNoSlipWallIsotherm ||
                bc_hi == BoundaryCondition::BCSlipWallIsotherm) &&
               (idx[idim] >= edomain.bigEnd(idim));
-            if (on_lo || on_hi) {
+            if ((on_lo || on_hi) && use_wbar != 0 && need_explicit_fluxes) {
+              // Wbar couples the species: solve for all the wall gradients
+              // so the corrected species fluxes vanish (see
+              // isothermalWallGradients)
+              int ig[3] = {i, j, k}; // ghost cell
+              if (on_lo) {
+                ig[idim] -= 1;
+              }
+              amrex::Real g[NUM_SPECIES] = {0.0};
+              isothermalWallGradients(
+                i, j, k, idim, ig, use_harmonic_avg, rhoY_arr, rho_arr, rhoD_ec,
+                flux_soret, g, leosparm);
+              for (int n = 0; n < NUM_SPECIES; ++n) {
+                boundary_ar(ig[0], ig[1], ig[2], n) = g[n];
+              }
+            } else if (on_lo || on_hi) {
               if (on_lo) { // need to move -1 for lo boundary
                 idx[idim] -= 1;
               }
@@ -564,7 +584,6 @@ PeleLM::correctIsothermalBoundary(
       }
     }
   }
-  // TODO: wbar fluxes disabled for this case - boundary system becomes complex
   for (int lev = 0; lev <= finest_level; ++lev) {
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
       delete soretfluxes[lev][idim];
@@ -819,8 +838,6 @@ PeleLM::addWbarTerm(
         if (have_boundary != 0) { // need to impose gradWbar on boundary for
           // computeGradient
           // for dirichlet boundaries, we'll overwrite inhomog neumann ones
-          // NOTE: for now, this is skipped since wbar disabled for
-          // isothermal/soret
           Wbar_boundary_ma[box_no](i, j, k) = Wbar_ma[box_no](i, j, k);
           const int idx[3] = {i, j, k};
           for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
