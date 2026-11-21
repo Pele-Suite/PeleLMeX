@@ -1326,7 +1326,7 @@ getTurbViscSigma(
       gtg(idim, jdim) = 0.0;
       for (int ldim = 0; ldim < AMREX_SPACEDIM; ++ldim) {
         gtg(idim, jdim) +=
-          (velgrad(i, j, k, idim * AMREX_SPACEDIM + ldim) *
+          (velgrad(i, j, k, ldim * AMREX_SPACEDIM + idim) *
            velgrad(i, j, k, ldim * AMREX_SPACEDIM + jdim));
       }
     }
