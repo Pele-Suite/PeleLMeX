@@ -77,16 +77,18 @@ PeleLM::getVelForces(
       amrex::Array4<amrex::Real const> extmom(ext_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
       amrex::Array4<amrex::Real const> extrho(ext_ma[box_no], DENSITY);
-      // overwrite if incompressible, just to point to something
+      // Incompressible: no density in the state and no mass source, so
+      // point rho/extrho at something and drop the -u extrho term
+      amrex::Real extRhoExplicit = a_extRhoExplicit;
       if (is_incomp != 0) {
         rho = vel;
         extrho = extmom;
+        extRhoExplicit = 0.0;
       }
       // background gp, pseudo grav, ext sources
       makeVelForce(
         i, j, k, is_incomp, rho_incomp, pseudo_gravity, ps_dir, grav, gp0,
-        dV_control, vel, rho, extmom, extrho, a_extRhoExplicit,
-        force_ma[box_no]);
+        dV_control, vel, rho, extmom, extrho, extRhoExplicit, force_ma[box_no]);
     });
   amrex::Gpu::streamSynchronize();
 
