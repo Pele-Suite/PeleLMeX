@@ -2237,12 +2237,12 @@ PeleLM::fillFromRecyclingPlane(amrex::MultiFab& a_vel, int vel_comp, int lev)
     if (need_lo) {
       auto bndryBox = amrex::Box(domain).grow(planeDir, nGrowDest);
       bndryBox.setBig(planeDir, domain.smallEnd(planeDir) - 1);
-      a_vel.setVal(0.0, bndryBox, 0, AMREX_SPACEDIM, nGrowDest);
+      a_vel.setVal(0.0, bndryBox, vel_comp, AMREX_SPACEDIM, nGrowDest);
     }
     if (need_hi) {
       auto bndryBox = amrex::Box(domain).grow(planeDir, nGrowDest);
       bndryBox.setSmall(planeDir, domain.bigEnd(planeDir) + 1);
-      a_vel.setVal(0.0, bndryBox, 0, AMREX_SPACEDIM, nGrowDest);
+      a_vel.setVal(0.0, bndryBox, vel_comp, AMREX_SPACEDIM, nGrowDest);
     }
 
   } else {
