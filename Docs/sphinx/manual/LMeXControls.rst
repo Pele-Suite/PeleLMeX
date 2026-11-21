@@ -278,9 +278,12 @@ PeleLMeX algorithm
     peleLM.spark_verbose = 0               # [OPT, DEF=0] Verbosity of spark ignition
     peleLM.sparks = spark1 spark2 ...      # [OPT] List of spark names - multiple can be given
     peleLM.spark1.location = 0.0 0.0 0.0   # [OPT] Spark location (in x,y,z coordinates) [m]
-    peleLM.spark1.temp = 2000.0            # [OPT] Temperature of the spark [K]
-    peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]
+    peleLM.spark1.energy = 1e-3            # [OPT] Energy deposited by the spark [J; J/m in 2D Cartesian]. Give energy or temp, not both
+    peleLM.spark1.temp = 2000.0            # [OPT] Alternative to energy [K]: energy = sphere volume x <rho (h(temp) - h(T))> over the sphere at ignition. Only sets the energy; the kernel ends up hotter as the heated gas expands
+    peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]. The energy is spread with a smoothed sphere of this radius
+    peleLM.spark1.width_cells = 1.0        # [OPT, DEF=1] Width of the spark's smoothed edge, in cells of the finest level holding the spark centre; 0 gives a top-hat. The injected energy is that of a sphere of the given radius whatever the width
     peleLM.spark1.duration = 1e-3          # [OPT] Duration of the spark [s]
+    peleLM.spark1.ramp = 0.1               # [OPT, DEF=0.1] Fraction of the duration over which the power ramps up (and down) smoothly; 0 gives constant power
     peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]
 
     peleLM.aux_vars = a b ...              # [OPT] Names of auxiliary variables

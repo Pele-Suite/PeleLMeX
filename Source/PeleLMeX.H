@@ -898,6 +898,10 @@ public:
 
   void addSpark(const PeleLM::TimeStamp a_time);
 
+  //! Volume of spark \p n's sphere clipped to the physical domain
+  //! (RZ-weighted): the volume its energy is normalised to.
+  amrex::Real sparkVolume(int n) const;
+
   void addScalarVarianceSources(const PeleLM::TimeStamp a_time);
 
   //-----------------------------------------------------------------------------
@@ -2336,6 +2340,15 @@ public:
   amrex::Vector<amrex::Vector<amrex::Real>> m_spark_location;
   amrex::Vector<amrex::Real> m_spark_temp;
   amrex::Vector<amrex::Real> m_spark_radius;
+  // Width of the tanh edge of the spark kernel, in cells of the finest
+  // level holding the spark centre
+  amrex::Vector<amrex::Real> m_spark_width_cells;
+  // Clipped sphere volume (lazily computed, < 0 until then)
+  amrex::Vector<amrex::Real> m_spark_volume;
+  // Fraction of the duration spent ramping the power up (and down)
+  amrex::Vector<amrex::Real> m_spark_ramp;
+  // Spark energy, frozen at ignition (< 0 until then)
+  amrex::Vector<amrex::Real> m_spark_energy;
 
   // DivU ? default ON when not incompressible
   int m_has_divu = 1;

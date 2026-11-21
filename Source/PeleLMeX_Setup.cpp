@@ -551,6 +551,10 @@ PeleLM::readParameters()
     m_spark_location.resize(m_n_sparks);
     m_spark_temp.resize(m_n_sparks);
     m_spark_radius.resize(m_n_sparks);
+    m_spark_width_cells.resize(m_n_sparks);
+    m_spark_volume.resize(m_n_sparks, -1.0);
+    m_spark_energy.resize(m_n_sparks, -1.0);
+    m_spark_ramp.resize(m_n_sparks);
     if (m_n_sparks > 0) {
       m_spark_verbose = amrex::max<int>(m_verbose - 2, 0);
     }
@@ -563,8 +567,38 @@ PeleLM::readParameters()
       pps.get("duration", m_spark_duration[n]);
       m_spark_location[n].resize(AMREX_SPACEDIM);
       pps.getarr("location", m_spark_location[n], 0, AMREX_SPACEDIM);
-      pps.get("temp", m_spark_temp[n]);
+      // Spark energy: given directly [J; J/m in 2D Cartesian], or as the
+      // energy to bring the gas inside the radius to a temperature at
+      // ignition.  Exactly one of the two.
+      const bool has_energy = pps.contains("energy");
+      const bool has_temp = pps.contains("temp");
+      if (has_energy == has_temp) {
+        amrex::Abort(m_spark[n] + ": give exactly one of energy or temp");
+      }
+      m_spark_temp[n] = -1.0;
+      if (has_energy) {
+        pps.get("energy", m_spark_energy[n]);
+        if (m_spark_energy[n] <= 0.0) {
+          amrex::Abort(m_spark[n] + ": energy must be > 0");
+        }
+      } else {
+        pps.get("temp", m_spark_temp[n]);
+      }
       pps.get("radius", m_spark_radius[n]);
+      m_spark_width_cells[n] = 1.0;
+      pps.query("width_cells", m_spark_width_cells[n]);
+      m_spark_ramp[n] = 0.1;
+      pps.query("ramp", m_spark_ramp[n]);
+      if (m_spark_ramp[n] < 0.0 || m_spark_ramp[n] > 0.5) {
+        amrex::Abort(m_spark[n] + ": ramp must be in [0, 0.5]");
+      }
+      if (m_spark_duration[n] <= 0.0) {
+        amrex::Abort(m_spark[n] + ": duration must be > 0");
+      }
+      if (m_spark_radius[n] <= 0.0 || m_spark_width_cells[n] < 0.0) {
+        amrex::Abort(
+          m_spark[n] + ": radius must be > 0 and width_cells must be >= 0");
+      }
     }
     if (m_spark_verbose > 0) {
       amrex::Print() << "Spark list: \n";
@@ -578,9 +612,20 @@ PeleLM::readParameters()
           amrex::Print() << m_spark_location[n][d] << " ";
         }
         amrex::Print() << "\n";
-        amrex::Print() << "Spark " << n << " temperature: " << m_spark_temp[n]
-                       << "\n";
+        if (m_spark_temp[n] > 0.0) {
+          amrex::Print() << "Spark " << n
+                         << " temperature (sets energy): " << m_spark_temp[n]
+                         << "\n";
+        } else {
+          amrex::Print() << "Spark " << n << " energy: " << m_spark_energy[n]
+                         << "\n";
+        }
         amrex::Print() << "Spark " << n << " radius: " << m_spark_radius[n]
+                       << "\n";
+        amrex::Print() << "Spark " << n
+                       << " edge width [cells]: " << m_spark_width_cells[n]
+                       << "\n";
+        amrex::Print() << "Spark " << n << " ramp fraction: " << m_spark_ramp[n]
                        << "\n";
       }
     }

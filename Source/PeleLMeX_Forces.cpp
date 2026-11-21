@@ -166,82 +166,351 @@ PeleLM::getVelForces(
   }
 }
 
+namespace {
+// Smoothed top-hat spark profile: 1 inside the radius, falling to 0 over a
+// tanh edge of width delta (a sharp top-hat when delta = 0).  Cut off where
+// it is below ~1e-7 so the source stays compact.
+constexpr amrex::Real spark_cutoff = 8.0;
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
+spark_kernel(amrex::Real r, amrex::Real radius, amrex::Real delta) noexcept
+{
+  if (delta <= 0.0) {
+    return (r < radius) ? 1.0 : 0.0;
+  }
+  const amrex::Real s = (r - radius) / delta;
+  if (s > spark_cutoff) {
+    return 0.0;
+  }
+  return 0.5 * (1.0 - std::tanh(s));
+}
+
+// Physical distance from the centre of cell (i,j,k) to the spark location.
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
+spark_distance(
+  int i,
+  int j,
+  int k,
+  amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& x0,
+  MeshMapEvaluator const& mmap,
+  amrex::GeometryData const& gd) noexcept
+{
+  const int ic[3] = {i, j, k};
+  amrex::Real d2 = 0.0;
+  for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    const amrex::Real dxc = mmap.x_phys_cc(d, ic[d], gd) - x0[d];
+    d2 += dxc * dxc;
+  }
+  amrex::ignore_unused(j, k);
+  return std::sqrt(d2);
+}
+
+// Fraction of the spark energy released by normalised time tau in [0, 1]:
+// the integral of a power profile with cosine ramps of width r (fraction of
+// the duration) at each end and a plateau between, normalised to 1.  Each
+// step deposits the exact difference, so the total is the spark energy
+// whatever the step sizes.  r = 0 is a constant power (top-hat in time).
+amrex::Real
+spark_released_fraction(amrex::Real tau, amrex::Real r)
+{
+  if (tau <= 0.0) {
+    return 0.0;
+  }
+  if (tau >= 1.0) {
+    return 1.0;
+  }
+  if (r <= 0.0) {
+    return tau;
+  }
+  const amrex::Real amp = 1.0 / (1.0 - r);
+  const amrex::Real pi = amrex::Math::pi<amrex::Real>();
+  auto ramp = [=](amrex::Real s) {
+    return amp * 0.5 * (s - r / pi * std::sin(pi * s / r));
+  };
+  if (tau < r) {
+    return ramp(tau);
+  }
+  if (tau <= 1.0 - r) {
+    return amp * (0.5 * r + (tau - r));
+  }
+  return 1.0 - ramp(1.0 - tau);
+}
+} // namespace
+
+amrex::Real
+PeleLM::sparkVolume(int n) const
+{
+  // Volume of the sphere of the spark radius clipped to the physical domain
+  // (so a spark on a symmetry plane gets the matching fraction of its
+  // energy).  Chords along x are exact; the remaining directions use midpoint
+  // quadrature.  RZ (x = r): dV = 2 pi r dr dz, integrated exactly in r.
+  const amrex::GeometryData gd = geom[0].data();
+  const amrex::Real radius = m_spark_radius[n];
+  constexpr int nq = (AMREX_SPACEDIM == 3) ? 512 : 4096;
+
+  amrex::Real lo[AMREX_SPACEDIM];
+  amrex::Real hi[AMREX_SPACEDIM];
+  for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    const amrex::Real x0 = m_spark_location[n][d];
+    lo[d] =
+      std::max(x0 - radius, m_map_eval.x_phys_from_xi(d, gd.ProbLo()[d], gd));
+    hi[d] =
+      std::min(x0 + radius, m_map_eval.x_phys_from_xi(d, gd.ProbHi()[d], gd));
+    if (hi[d] <= lo[d]) {
+      return 0.0;
+    }
+  }
+
+  const bool is_rz = geom[0].IsRZ();
+  const amrex::Real hy = (hi[1] - lo[1]) / nq;
+#if AMREX_SPACEDIM == 3
+  const int nz = nq;
+  const amrex::Real hz = (hi[2] - lo[2]) / nq;
+#else
+  const int nz = 1;
+  const amrex::Real hz = 1.0;
+#endif
+  amrex::Real vol = 0.0;
+  for (int k = 0; k < nz; ++k) {
+    for (int j = 0; j < nq; ++j) {
+      amrex::Real rho2 = 0.0;
+      const amrex::Real dy = lo[1] + (j + 0.5) * hy - m_spark_location[n][1];
+      rho2 += dy * dy;
+#if AMREX_SPACEDIM == 3
+      const amrex::Real dz = lo[2] + (k + 0.5) * hz - m_spark_location[n][2];
+      rho2 += dz * dz;
+#endif
+      if (rho2 >= radius * radius) {
+        continue;
+      }
+      const amrex::Real half = std::sqrt(radius * radius - rho2);
+      const amrex::Real xa = std::max(m_spark_location[n][0] - half, lo[0]);
+      const amrex::Real xb = std::min(m_spark_location[n][0] + half, hi[0]);
+      if (xb > xa) {
+        vol += is_rz ? amrex::Math::pi<amrex::Real>() * (xb * xb - xa * xa)
+                     : (xb - xa);
+      }
+    }
+  }
+  return vol * hy * hz;
+}
+
 void
 PeleLM::addSpark(const TimeStamp a_timestamp)
 {
-  for (int lev = 0; lev <= finest_level; ++lev) {
-    for (int n = 0; n < m_n_sparks; ++n) {
-      // Do the checks first
-      const amrex::Real time = getTime(lev, a_timestamp);
-      const bool verb = m_spark_verbose > 1 && lev == 0;
-      if (
-        time < m_spark_time[n] ||
-        time > m_spark_time[n] + m_spark_duration[n]) {
-        if (verb) {
-          amrex::Print() << m_spark[n] << " not active \n";
-        }
-        continue;
-      }
-      const amrex::Real* probLo = geom[lev].ProbLo();
-      auto const dx = geom[lev].CellSizeArray();
-      amrex::IntVect spark_idx;
-      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-        // Spark location is physical: index it through Xi.
-        const amrex::Real xi = m_map_eval.xi_from_x_phys(
-          d, m_spark_location[n][d], geom[lev].data());
-        spark_idx[d] = static_cast<int>(std::floor((xi - probLo[d]) / dx[d]));
-      }
-      const amrex::Box domainBox = geom[lev].Domain();
-      // just a check
-      if (!domainBox.contains(spark_idx)) {
-        amrex::Warning(m_spark[n] + " not in domain!");
-        continue;
-      }
+  BL_PROFILE("PeleLM::addSpark()");
+  const amrex::Real time = getTime(0, a_timestamp);
+  const bool verb = m_spark_verbose > 1;
+  for (int n = 0; n < m_n_sparks; ++n) {
+    // Fraction of the spark energy released during this step (smooth ramps
+    // in time, integrated exactly over the step).
+    const amrex::Real tau_a = (time - m_spark_time[n]) / m_spark_duration[n];
+    const amrex::Real tau_b =
+      (time + m_dt - m_spark_time[n]) / m_spark_duration[n];
+    if (tau_b <= 0.0 || tau_a >= 1.0) {
       if (verb) {
-        amrex::Print() << m_spark[n] << " active\n";
+        amrex::Print() << m_spark[n] << " not active \n";
       }
-      auto const* leosparm = eos_parms.device_parm();
+      continue;
+    }
+    const amrex::Real step_frac =
+      spark_released_fraction(tau_b, m_spark_ramp[n]) -
+      spark_released_fraction(tau_a, m_spark_ramp[n]);
 
-      auto const& statema =
-        getLevelDataPtr(lev, a_timestamp)->state.const_arrays();
+    if (m_spark_volume[n] < 0.0) {
+      m_spark_volume[n] = sparkVolume(n);
+    }
+    if (m_spark_volume[n] <= 0.0) {
+      amrex::Warning(m_spark[n] + " not in domain!");
+      continue;
+    }
+
+    const amrex::Real radius = m_spark_radius[n];
+    amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> x0;
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+      x0[d] = m_spark_location[n][d];
+    }
+    const MeshMapEvaluator mmap = m_map_eval;
+
+    // Edge width from the grid: width_cells x the physical cell size (largest
+    // direction) at the spark centre, on the finest level whose grids hold
+    // the centre.  The edge then always spans the same number of cells of
+    // the grid resolving the spark; the normalisation below keeps the energy
+    // independent of the width.
+    int spark_lev = 0;
+    amrex::Real dx_spark = 0.0;
+    for (int lev = finest_level; lev >= 0; --lev) {
+      const amrex::GeometryData gd = geom[lev].data();
+      const amrex::Box& domain = geom[lev].Domain();
+      amrex::IntVect idx;
+      for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        const amrex::Real xi = mmap.xi_from_x_phys(d, x0[d], gd);
+        idx[d] = amrex::max(
+          domain.smallEnd(d),
+          amrex::min(
+            domain.bigEnd(d), static_cast<int>(std::floor(
+                                (xi - gd.ProbLo()[d]) / gd.CellSize()[d]))));
+      }
+      if (lev == 0 || grids[lev].contains(idx)) {
+        spark_lev = lev;
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+          dx_spark = amrex::max(dx_spark, mmap.dx_phys_cc(d, idx[d], gd));
+        }
+        break;
+      }
+    }
+    const amrex::Real delta = m_spark_width_cells[n] * dx_spark;
+
+    // Spark energy given as a temperature: frozen at ignition as the energy
+    // to take the gas inside the radius from its state then to the spark
+    // temperature, sphere_volume x <rho (h(T_spark, Y) - h(T, Y))>_sphere.
+    // Frozen so the rate does not decay as the gas heats.  The temperature
+    // only sets the energy: the gas left in the kernel ends up hotter, as
+    // heated gas expands out of it.
+    if (m_spark_energy[n] < 0.0) {
+      // {sum_in q dV, sum_in dV, sum w q dV, sum w dV}; the kernel-weighted
+      // pair is the fallback when no cell centre lies inside the radius.
+      amrex::Real sums[4] = {0.0, 0.0, 0.0, 0.0};
+      auto const* leosparm = eos_parms.device_parm();
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        const amrex::GeometryData gd = geom[lev].data();
+        auto const& statema =
+          getLevelDataPtr(lev, a_timestamp)->state.const_arrays();
+        auto const& volma = m_cellVol[lev].const_arrays();
+        const bool has_mask = lev != finest_level;
+        auto const& maskma = has_mask ? m_coveredMask[lev]->const_arrays()
+                                      : amrex::MultiArray4<int const>{};
+        const amrex::Real spark_temp = m_spark_temp[n];
+        auto r = amrex::ParReduce(
+          amrex::TypeList<
+            amrex::ReduceOpSum, amrex::ReduceOpSum, amrex::ReduceOpSum,
+            amrex::ReduceOpSum>{},
+          amrex::TypeList<amrex::Real, amrex::Real, amrex::Real, amrex::Real>{},
+          m_cellVol[lev], amrex::IntVect(0),
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept
+            -> amrex::GpuTuple<
+              amrex::Real, amrex::Real, amrex::Real, amrex::Real> {
+            const amrex::Real r_c = spark_distance(i, j, k, x0, mmap, gd);
+            const amrex::Real w = spark_kernel(r_c, radius, delta);
+            const amrex::Real in = (r_c < radius) ? 1.0 : 0.0;
+            amrex::Real dV = volma[box_no](i, j, k);
+            if (has_mask) {
+              dV *= static_cast<amrex::Real>(maskma[box_no](i, j, k));
+            }
+            if (w <= 0.0 && in <= 0.0) {
+              return {0.0, 0.0, 0.0, 0.0};
+            }
+            auto eos = pele::physics::PhysicsType::eos(leosparm);
+            auto const& s = statema[box_no];
+            const amrex::Real rho = s(i, j, k, DENSITY);
+            amrex::Real Y[NUM_SPECIES];
+            for (int ns = 0; ns < NUM_SPECIES; ++ns) {
+              Y[ns] = s(i, j, k, FIRSTSPEC + ns) / rho;
+            }
+            amrex::Real h_spark = 0.0;
+            amrex::Real h_gas = 0.0;
+            eos.TY2H(spark_temp, Y, h_spark);
+            eos.TY2H(s(i, j, k, TEMP), Y, h_gas);
+            const amrex::Real q = rho * c2m::H(h_spark - h_gas);
+            return {in * q * dV, in * dV, w * q * dV, w * dV};
+          });
+        sums[0] += amrex::get<0>(r);
+        sums[1] += amrex::get<1>(r);
+        sums[2] += amrex::get<2>(r);
+        sums[3] += amrex::get<3>(r);
+      }
+      amrex::ParallelDescriptor::ReduceRealSum(sums, 4);
+      amrex::Real q_mean = 0.0;
+      if (sums[1] > 0.0) {
+        q_mean = sums[0] / sums[1];
+      } else if (sums[3] > 0.0) {
+        q_mean = sums[2] / sums[3];
+      }
+      m_spark_energy[n] = amrex::max(0.0, q_mean * m_spark_volume[n]);
+      if (q_mean <= 0.0) {
+        amrex::Warning(
+          m_spark[n] + ": gas inside the radius is already at or above the "
+                       "spark temperature; no energy added");
+      }
+      if (time > m_spark_time[n]) {
+        amrex::Warning(
+          m_spark[n] + ": energy evaluated after the spark started (restart "
+                       "during the spark?); it is based on the current state");
+      }
+      if (m_spark_verbose > 0) {
+        amrex::Print() << m_spark[n] << " energy [J";
+#if AMREX_SPACEDIM == 2
+        amrex::Print() << (geom[0].IsRZ() ? "" : "/m");
+#endif
+        amrex::Print() << "]: " << m_spark_energy[n] << "\n";
+      }
+    }
+    if (m_spark_energy[n] <= 0.0) {
+      continue;
+    }
+
+    // Discrete integral of the kernel over the composite (uncovered) grid,
+    // so the deposited power is exactly energy / duration whatever the
+    // resolution and edge width.
+    amrex::Real kernel_sum = 0.0;
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      const amrex::GeometryData gd = geom[lev].data();
+      if (lev != finest_level) {
+        kernel_sum += amrex::ReduceSum(
+          m_cellVol[lev], *m_coveredMask[lev], 0,
+          [=] AMREX_GPU_HOST_DEVICE(
+            amrex::Box const& bx, amrex::Array4<amrex::Real const> const& vol,
+            amrex::Array4<int const> const& mask) -> amrex::Real {
+            amrex::Real sum = 0.0;
+            AMREX_LOOP_3D(bx, i, j, k, {
+              sum += spark_kernel(
+                       spark_distance(i, j, k, x0, mmap, gd), radius, delta) *
+                     vol(i, j, k) * static_cast<amrex::Real>(mask(i, j, k));
+            });
+            return sum;
+          });
+      } else {
+        kernel_sum += amrex::ReduceSum(
+          m_cellVol[lev], 0,
+          [=] AMREX_GPU_HOST_DEVICE(
+            amrex::Box const& bx,
+            amrex::Array4<amrex::Real const> const& vol) -> amrex::Real {
+            amrex::Real sum = 0.0;
+            AMREX_LOOP_3D(bx, i, j, k, {
+              sum += spark_kernel(
+                       spark_distance(i, j, k, x0, mmap, gd), radius, delta) *
+                     vol(i, j, k);
+            });
+            return sum;
+          });
+      }
+    }
+    amrex::ParallelDescriptor::ReduceRealSum(kernel_sum);
+    if (kernel_sum <= 0.0) {
+      amrex::Warning(m_spark[n] + " not resolved by any cell!");
+      continue;
+    }
+    // Source [W/m^3]: this step's energy / dt x kernel / kernel integral
+    const amrex::Real coef =
+      m_spark_energy[n] * step_frac / (m_dt * kernel_sum);
+    if (verb) {
+      amrex::Print() << m_spark[n] << " active on level " << spark_lev
+                     << ", edge width " << delta
+                     << ", energy fraction this step " << step_frac
+                     << ", sphere volume " << m_spark_volume[n]
+                     << ", kernel integral " << kernel_sum << "\n";
+    }
+
+    for (int lev = 0; lev <= finest_level; ++lev) {
       auto const& extma = m_extSource[lev]->arrays();
-      const MeshMapEvaluator mmap = m_map_eval;
       const amrex::GeometryData gd = geom[lev].data();
       amrex::ParallelFor(
         *m_extSource[lev],
-        [statema, extma, leosparm, dx, spark_idx, mmap, gd,
-         spark_duration = m_spark_duration[n], spark_temp = m_spark_temp[n],
-         spark_radius = m_spark_radius
-           [n]] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
-          auto eos = pele::physics::PhysicsType::eos(leosparm);
-          // Physical distance from the centre of the spark cell; the
-          // index-space form is kept bit-identical without mapping.
-          amrex::Real dist_to_center = 0.0;
-          if (!is_identity_map(mmap)) {
-            const int ic[3] = {i, j, k};
-            amrex::Real d2 = 0.0;
-            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-              const amrex::Real dxc = mmap.x_phys_cc(d, ic[d], gd) -
-                                      mmap.x_phys_cc(d, spark_idx[d], gd);
-              d2 += dxc * dxc;
-            }
-            dist_to_center = std::sqrt(d2);
-          } else {
-            dist_to_center = std::sqrt(AMREX_D_TERM(
-              (i - spark_idx[0]) * (i - spark_idx[0]) * dx[0] * dx[0],
-              +(j - spark_idx[1]) * (j - spark_idx[1]) * dx[1] * dx[1],
-              +(k - spark_idx[2]) * (k - spark_idx[2]) * dx[2] * dx[2]));
-          }
-          if (dist_to_center < spark_radius) {
-            const amrex::Real rho = statema[box_no](i, j, k, DENSITY);
-            amrex::Real Y[NUM_SPECIES];
-            for (int ns = 0; ns < NUM_SPECIES; ++ns) {
-              Y[ns] = statema[box_no](i, j, k, FIRSTSPEC + ns) / rho;
-            }
-            amrex::Real h_cgs = 0.0;
-            eos.TY2H(spark_temp, Y, h_cgs);
-            extma[box_no](i, j, k, RHOH) +=
-              rho * c2m::H(h_cgs) / spark_duration;
+        [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+          const amrex::Real w =
+            spark_kernel(spark_distance(i, j, k, x0, mmap, gd), radius, delta);
+          if (w > 0.0) {
+            extma[box_no](i, j, k, RHOH) += coef * w;
           }
         });
     }
@@ -408,7 +677,9 @@ PeleLM::getExternalSources(
 {
   amrex::ignore_unused(is_initIter);
 
-  if (m_n_sparks > 0) {
+  // Not in the initial iterations: their state is discarded, and their dt
+  // (from the initial projection) can span the whole spark.
+  if (m_n_sparks > 0 && is_initIter == 0) {
     addSpark(a_timestamp_old);
   }
 
