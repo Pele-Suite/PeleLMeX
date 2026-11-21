@@ -1883,10 +1883,10 @@ PeleLM::evaluateSetup()
       the_same_box);
   }
 
-  // advection terms
+  // advection terms: every state component but temperature and RhoRT
+  // (unused); the components after RhoRT move down two slots
   {
-    amrex::Vector<std::string> var_names(
-      NVAR - 2); // Skip temperature and RhoRT, unused
+    amrex::Vector<std::string> var_names(NVAR - 2);
     AMREX_D_TERM(
       var_names[VELX] = "A(VELX)";, var_names[VELY] = "A(VELY)";
       , var_names[VELZ] = "A(VELZ)");
@@ -1895,6 +1895,11 @@ PeleLM::evaluateSetup()
       var_names[FIRSTSPEC + n] = "A(" + spec_names[n] + ")";
     }
     var_names[RHOH] = "A(RhoH)";
+    for (const auto& [idx, name] : stateComponents) {
+      if (idx > RHORT) {
+        var_names[idx - 2] = "A(" + name + ")";
+      }
+    }
     evaluate_lst.add(
       "advTerm", amrex::IndexType::TheCellType(), NVAR - 2, var_names,
       the_same_box);
