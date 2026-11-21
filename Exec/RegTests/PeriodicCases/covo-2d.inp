@@ -47,8 +47,6 @@ peleLM.sdc_iterMax = 1
 peleLM.num_init_iter = 5
 mac_proj.verbose = 0
 nodal_proj.verbose = 0
-mac_proj.rtol = 5e-13
-nodal_proj.rtol = 5e-13
 
 
 amr.plot_int = 10000

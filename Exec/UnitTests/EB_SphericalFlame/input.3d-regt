@@ -59,6 +59,9 @@ amr.yH.field_name    = Y(H)
 #--------------------LINEAR SOLVER CONTROL------------------------
 nodal_proj.verbose = 2
 nodal_proj.mg_max_coarsening_level = 4
+# At the default rtol (1e-11) the initial nodal projection stalls at a
+# relative residual of ~2.8e-9 around the EB sphere (still there after 200
+# iterations, twice the default nodal_proj.maxiter).
 nodal_proj.rtol = 5.0e-9
 
 #amrex.fpe_trap_invalid = 1

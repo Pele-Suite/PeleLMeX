@@ -79,7 +79,6 @@ amr.yH.field_name    = Y(H)
 
 #--------------------LINEAR SOLVER CONTROL------------------------
 nodal_proj.verbose = 0
-nodal_proj.rtol = 1.0e-11
 #amrex.fpe_trap_invalid = 1
 #amrex.fpe_trap_zero = 1
 #amrex.fpe_trap_overflow = 1
