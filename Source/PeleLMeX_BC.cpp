@@ -1343,11 +1343,21 @@ PeleLM::fillTurbInflow(
       amrex::FArrayBox& data = a_vel[mfi];
 
       for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+        // A turbulent inflow face has every velocity component ext_dir. On
+        // a slip wall only the normal one is, and zeroing there wipes the
+        // tangential ghost cells, which setInflowBoundaryVel never refills.
+        bool lo_inflow = true;
+        bool hi_inflow = true;
+        for (int n = 0; n < AMREX_SPACEDIM; ++n) {
+          lo_inflow =
+            lo_inflow && velBCRec[n].lo(dir) == amrex::BCType::ext_dir;
+          hi_inflow =
+            hi_inflow && velBCRec[n].hi(dir) == amrex::BCType::ext_dir;
+        }
 
         auto bndryBoxLO =
           amrex::Box(amrex::adjCellLo(geom[lev].Domain(), dir, 4) & bx);
-        if (
-          velBCRec[0].lo()[dir] == amrex::BCType::ext_dir && bndryBoxLO.ok()) {
+        if (lo_inflow && bndryBoxLO.ok()) {
           // Create box with ghost cells and set them to zero
           amrex::IntVect growVect(amrex::IntVect::TheUnitVector());
           constexpr int Grow = 4; // Being conservative
@@ -1368,8 +1378,7 @@ PeleLM::fillTurbInflow(
 
         auto bndryBoxHI =
           amrex::Box(amrex::adjCellHi(geom[lev].Domain(), dir, 4) & bx);
-        if (
-          velBCRec[0].hi()[dir] == amrex::BCType::ext_dir && bndryBoxHI.ok()) {
+        if (hi_inflow && bndryBoxHI.ok()) {
           // Create box with ghost cells and set them to zero
           amrex::IntVect growVect(amrex::IntVect::TheUnitVector());
           constexpr int Grow = 4;
