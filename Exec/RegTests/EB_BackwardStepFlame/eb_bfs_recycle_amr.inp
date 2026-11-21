@@ -27,8 +27,6 @@ prob.T_wall = 300
 prob.meanFlowMag = 10.0
 prob.Y_fuel = 0.0445269
 prob.Y_oxid = 0.2226345
-mac_proj.atol = 5e-11
-mac_proj.rtol = 5e-11
 mac_proj.verbose = 0
 
 #---------------------- PeleLM CONTROL ---------------------------

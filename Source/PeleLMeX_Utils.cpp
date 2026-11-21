@@ -1,6 +1,7 @@
 #include <AMReX_buildInfo.H>
 #include <PeleLMeX.H>
 #include <PeleLMeX_K.H>
+#include <AMReX_CompensatedSum.H>
 #include <hydro_utils.H>
 #include <limits>
 #include <memory>
@@ -1895,6 +1896,10 @@ PeleLM::MFSum(const amrex::Vector<const amrex::MultiFab*>& a_mf, const int comp)
   BL_PROFILE("PeleLMeX::MFSum()");
   // Physical-volume integral over uncovered cells; m_cellVol carries detJ
   // and the EB volume fraction (see defineCellVolume).
+  // Each box is accumulated with Kahan compensation, so on CPU a box sum is
+  // good to a few ulps rather than O(ncells) ulps; the sums over boxes,
+  // levels and ranks are plain (few terms). On GPU ReduceSum calls the
+  // lambda per cell and combines with a tree reduction instead.
 
   amrex::Real volwgtsum = 0.0;
 
@@ -1911,9 +1916,12 @@ PeleLM::MFSum(const amrex::Vector<const amrex::MultiFab*>& a_mf, const int comp)
           amrex::Array4<amrex::Real const> const& vol_arr,
           amrex::Array4<int const> const& covered_arr) -> amrex::Real {
           amrex::Real sum = 0.0;
+          amrex::Real comp_err = 0.0;
           AMREX_LOOP_3D(bx, i, j, k, {
-            sum += mf_arr(i, j, k, comp) * vol_arr(i, j, k) *
-                   static_cast<amrex::Real>(covered_arr(i, j, k));
+            amrex::compensatedAdd(
+              sum, comp_err,
+              mf_arr(i, j, k, comp) * vol_arr(i, j, k) *
+                static_cast<amrex::Real>(covered_arr(i, j, k)));
           });
           return sum;
         });
@@ -1924,8 +1932,11 @@ PeleLM::MFSum(const amrex::Vector<const amrex::MultiFab*>& a_mf, const int comp)
           amrex::Box const& bx, amrex::Array4<amrex::Real const> const& mf_arr,
           amrex::Array4<amrex::Real const> const& vol_arr) -> amrex::Real {
           amrex::Real sum = 0.0;
-          AMREX_LOOP_3D(
-            bx, i, j, k, { sum += mf_arr(i, j, k, comp) * vol_arr(i, j, k); });
+          amrex::Real comp_err = 0.0;
+          AMREX_LOOP_3D(bx, i, j, k, {
+            amrex::compensatedAdd(
+              sum, comp_err, mf_arr(i, j, k, comp) * vol_arr(i, j, k));
+          });
           return sum;
         });
     }

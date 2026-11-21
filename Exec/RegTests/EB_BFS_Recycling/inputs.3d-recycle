@@ -92,8 +92,6 @@ eb2.box_has_fluid_inside = 0
 eb2.small_volfrac = 1.0e-4
 
 #---------------------- Linear solver CONTROL --------------------
-mac_proj.atol = 1.0e-10
-mac_proj.rtol = 1.0e-10
 mac_proj.verbose = 0
 nodal_proj.verbose = 0
 

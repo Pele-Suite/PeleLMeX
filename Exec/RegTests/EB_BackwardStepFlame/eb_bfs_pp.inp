@@ -31,8 +31,6 @@ prob.Y_fuel = 0.0
 prob.Y_oxid = 0.23
 prob.EBinflow_Yfuel = 0.1
 peleLM.EBinflow = 1
-mac_proj.atol = 5e-11
-mac_proj.rtol = 5e-11
 mac_proj.verbose = 2
 #---------------------- PeleLM CONTROL ---------------------------
 peleLM.v = 1                                # PeleLMeX verbose
