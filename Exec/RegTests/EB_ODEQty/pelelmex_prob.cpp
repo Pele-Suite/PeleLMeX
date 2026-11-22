@@ -23,6 +23,9 @@ PeleLM::readProbParm() // NOLINT(readability-make-member-function-const)
   pp.query("extRhoYCO2", prob_parm->extRhoYCO2);
   pp.query("extRhoYCO2_ts", prob_parm->extRhoYCO2_ts);
   pp.query("extRhoYCO2_ramp", prob_parm->extRhoYCO2_ramp);
+  pp.query("isothermal_test", prob_parm->isothermal_test);
+  pp.query("iso_amp", prob_parm->iso_amp);
+  pp.query("iso_sigma", prob_parm->iso_sigma);
 }
 
 void

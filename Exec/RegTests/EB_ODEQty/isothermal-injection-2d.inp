@@ -1,0 +1,60 @@
+# Isothermal injection: a Gaussian CO2 mass source in quiescent gas, added at
+# the gas temperature. The composition change drives a flow out through the
+# x boundaries, but no enthalpy is added relative to the mixture at T_mean,
+# so T must stay exactly at T_mean. Checked by test.py.
+
+#----------------------DOMAIN DEFINITION-------------------------
+geometry.is_periodic =  0 1                # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   =  0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     =  0 0
+geometry.prob_hi     =  0.01 0.01
+
+#--------------------------BC FLAGS------------------------------
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Outflow  Interior
+peleLM.hi_bc = Outflow  Interior
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 32 32        # Level 0 number of cells in each direction
+amr.v               = 0                # AMR verbose
+amr.max_level       = 0                # maximum level number allowed
+amr.blocking_factor = 16               # block factor in grid generation (min box size)
+amr.max_grid_size   = 32               # max box size
+
+#--------------------------- Problem ----------------------------
+prob.T_mean = 300.0
+prob.P_mean = 101325.0
+prob.meanFlowMag = 0.0
+prob.meanFlowDir = 1
+prob.Y_CO2_0  = 0.15  # Initial CO2 mass frac contribution
+prob.Y_N2_0   = 0.25  # Initial N2 mass frac contribution
+prob.Y_AR_0   = 0.6   # Initial AR mass frac contribution
+prob.isothermal_test = true
+prob.iso_amp = 50.0     # Peak CO2 mass source (kg/m^3/s)
+prob.iso_sigma = 0.001  # Gaussian width (m), centred in the domain
+
+#---------------------- Temporal CONTROL -------------------------
+peleLM.do_temporals = 1
+peleLM.temporal_int = 1
+peleLM.do_extremas = 1
+
+#---------------------------TIME STEPPING------------------------
+amr.max_step = 10
+amr.stop_time = 1.0
+amr.fixed_dt = 2.0e-4
+
+#-------------------------PELE CONTROLS----------------------
+peleLM.v = 1
+peleLM.sdc_iterMax = 2
+peleLM.user_defined_ext_sources = true
+
+#---------------------------IO CONTROL---------------------------
+amr.check_file = "chk"
+amr.check_per = -1
+amr.plot_file = "plt"
+amr.plot_int = 10
+amr.derive_plot_vars = mass_fractions
+
+#------------------------- EB SETUP -----------------------------
+eb2.geom_type = "all_regular"

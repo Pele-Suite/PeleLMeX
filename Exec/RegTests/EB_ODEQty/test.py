@@ -20,6 +20,9 @@ def read_last_dataset(path, **read_csv_kwargs):
                 last_header_lineno = lineno
     return pd.read_csv(path, skiprows=last_header_lineno, **read_csv_kwargs)
 
+@unittest.skipUnless(
+    os.path.exists("composition-test-2d.inp"), "not the composition test"
+)
 class CompTestCase(unittest.TestCase):
     """Test composition of species with external sources"""
 
@@ -128,6 +131,47 @@ class CompTestCase(unittest.TestCase):
             np.array([expected_error_rho]),
             err_msg="Maximum density error exceeds specified tolerance."
         )
+
+@unittest.skipUnless(
+    os.path.exists("isothermal-injection-2d.inp"),
+    "not the isothermal injection test",
+)
+class IsothermalInjectionTestCase(unittest.TestCase):
+    """CO2 injected at the gas temperature must leave T unchanged"""
+
+    def test_temperature(self):
+        """Does T stay at T_mean while the injection drives a flow?
+
+        The source adds CO2 with its enthalpy at T_mean, so it adds no heat
+        to a mixture at T_mean, and a uniform T stays uniform under
+        advection and diffusion. The rhoH fluxes are built from the
+        predicted T edge states, so a missing -Sum{hk extRhoYk} in the
+        temperature edge forcing shows up as a drift of T (~2 K in 10
+        steps).
+        """
+        file_name = os.path.join(os.path.abspath("."), "temporals/tempExtremas")
+        data = read_last_dataset(
+            file_name, usecols=["time", "min_temp", "max_temp"], delimiter=","
+        ).apply(pd.to_numeric, errors="coerce")
+        if data.isnull().any().any():
+            raise ValueError("Data contains NaN values after conversion.")
+
+        with open("isothermal-injection-2d.inp") as f:
+            T_mean = float(
+                re.search(r"prob\.T_mean\s*=\s*([\d\.eE+-]+)", f.read()).group(1)
+            )
+
+        max_dev = max(
+            np.abs(data["min_temp"] - T_mean).max(),
+            np.abs(data["max_temp"] - T_mean).max(),
+        )
+        print("Max |T - T_mean| =", max_dev)
+        np.testing.assert_array_less(
+            np.array([max_dev]),
+            np.array([1.0e-6]),
+            err_msg="T drifted from T_mean under an isothermal injection.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
