@@ -1853,9 +1853,10 @@ DiffusionTensorOp::diffuse_velocity(
   const bool mesh_mapping = m_pelelm->hasMeshMapping();
   auto* mm = mesh_mapping ? m_pelelm->meshMap() : nullptr;
 
-  // A-coeff rho + a_dt * extrho (the implicit part of the -u extrho
-  // momentum source), times detJ under mesh mapping. Build scratch MFs
-  // that live as long as the solve.
+  // A-coeff rho + a_dt * max(extrho, 0) (the implicit part of the -u extrho
+  // momentum source; sinks stay explicit so the coefficient stays positive),
+  // times detJ under mesh mapping. Build scratch MFs that live as long as the
+  // solve.
   amrex::Vector<amrex::MultiFab> a_coeff_scaled;
   if (mesh_mapping || have_extSource) {
     a_coeff_scaled.resize(finest_level + 1);
@@ -1869,8 +1870,15 @@ DiffusionTensorOp::diffuse_velocity(
         a_coeff_scaled[lev].setVal(m_pelelm->m_rho);
       }
       if (have_extSource) {
-        amrex::MultiFab::Saxpy(
-          a_coeff_scaled[lev], a_dt, *a_extSource[lev], DENSITY, 0, 1, 0);
+        auto const& acoef = a_coeff_scaled[lev].arrays();
+        auto const& ext = a_extSource[lev]->const_arrays();
+        amrex::ParallelFor(
+          a_coeff_scaled[lev],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            acoef[box_no](i, j, k) +=
+              a_dt * amrex::max(ext[box_no](i, j, k, DENSITY), 0.0);
+          });
+        amrex::Gpu::streamSynchronize();
       }
       if (mesh_mapping) {
         amrex::MultiFab::Multiply(

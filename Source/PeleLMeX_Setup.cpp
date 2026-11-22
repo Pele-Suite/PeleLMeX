@@ -115,6 +115,8 @@ PeleLM::Setup()
 #endif
   }
 
+  setupExtSourcesSDC();
+
   // Setup the state variables
   variablesSetup();
 
@@ -1042,14 +1044,26 @@ PeleLM::readParameters()
   pp.query("user_defined_ext_sources", m_user_defined_ext_sources);
   pp.query("plot_extSource", m_plot_extSource);
   pp.query("add_variance_sources", m_add_variance_sources);
+}
 
+// After the EOS is initialized: a manifold model only has variance sources
+// if its table has a variance.
+void
+PeleLM::setupExtSourcesSDC()
+{
+  amrex::ParmParse pp("peleLM");
   // ext_sources_SDC defaults to on when there are sources it re-evaluates
   // and SDC iterations to re-evaluate them in. With one SDC iteration the
   // scalars only see S^n, while divU^{n+1} and the velocity forcing would
   // use S^{n+1}.
   bool has_sdc_sources = m_user_defined_ext_sources || m_n_sparks > 0;
 #ifdef USE_MANIFOLD_EOS
-  has_sdc_sources = has_sdc_sources || m_add_variance_sources;
+  if (m_add_variance_sources && m_incompressible == 0) {
+    auto const& leosparm = eos_parms.host_parm();
+    for (int n = 0; n < MANIFOLD_DIM; ++n) {
+      has_sdc_sources = has_sdc_sources || leosparm.is_variance_of[n] >= 0;
+    }
+  }
 #endif
   const bool sdc_capable = m_incompressible == 0 && m_nSDCmax >= 2;
   m_ext_sources_SDC = sdc_capable && has_sdc_sources;

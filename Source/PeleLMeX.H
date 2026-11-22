@@ -134,6 +134,7 @@ public:
 
   // ReadParameters
   void readParameters();
+  void setupExtSourcesSDC();
 
   // ReadIOParameters
   void readIOParameters();

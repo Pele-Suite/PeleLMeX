@@ -767,14 +767,17 @@ makeVelForce(
   }
 
   // rho Du/Dt = extmom - u extrho; extrho_explicit is the fraction of the
-  // u extrho term kept explicit (the rest is in the velocity solve).
-  // Incompressible: no mass source (extrho only points at a placeholder).
+  // u extrho term kept explicit (the rest is in the velocity solve). Sinks
+  // stay fully explicit so the solve's A coefficient stays positive.
+  // Incompressible: no mass source.
+  amrex::Real fexp = 0.0;
+  if (is_incomp == 0) {
+    fexp =
+      (extrho_explicit > 0.0 && extrho(i, j, k) < 0.0) ? 1.0 : extrho_explicit;
+  }
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-    force(i, j, k, idim) += extmom(i, j, k, idim);
-    if (is_incomp == 0) {
-      force(i, j, k, idim) -=
-        extrho_explicit * vel(i, j, k, idim) * extrho(i, j, k);
-    }
+    force(i, j, k, idim) +=
+      extmom(i, j, k, idim) - fexp * vel(i, j, k, idim) * extrho(i, j, k);
   }
 }
 

@@ -369,7 +369,10 @@ PeleLM::oneSDC(
       updateExternalSourcesSDC(diffData);
 #if NUM_ODE > 0
       if (m_user_defined_ext_sources) {
+        // S^{n+1,k} needs the filled state, and the prediction then
+        // overwrites the valid ODE cells: refresh their ghosts
         predictODEQty();
+        fillPatchState(AmrNewTime);
       }
 #endif
     }

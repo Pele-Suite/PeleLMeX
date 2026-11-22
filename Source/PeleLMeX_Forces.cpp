@@ -481,7 +481,9 @@ PeleLM::addFrozenExternalSources(
 // active at t^0. Otherwise u^0 misses the flow they drive, and the velocity
 // advection of the first step imprints an O(dt) error that the projections
 // do not remove. Only the sources that can be evaluated at an instant are
-// included; the spray, soot and radiation sources span a step.
+// included; the spray, soot and radiation sources span a step. The variance
+// sources need the turbulent viscosity at the old time, which is not set up
+// yet.
 void
 PeleLM::initDivUExternalSources(const amrex::Real a_dt)
 {
@@ -491,7 +493,6 @@ PeleLM::initDivUExternalSources(const amrex::Real a_dt)
   if (m_n_sparks > 0) {
     addSpark(AmrNewTime);
   }
-  addScalarVarianceSources(AmrNewTime);
   if (m_user_defined_ext_sources) {
     for (int lev = 0; lev <= finest_level; ++lev) {
       auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
