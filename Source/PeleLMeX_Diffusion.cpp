@@ -662,7 +662,7 @@ PeleLM::computeDifferentialDiffusionFluxes(
     getMCDiffusionOp(m_nAux)->computeDiffFluxes(
       a_auxfluxes, 0, GetVecOfConstPtrs(getAuxVect(a_time)), 0, {},
       GetVecOfConstPtrs(getAuxDiffusivityVect(a_time)), 0, bcRecAux, m_nAux,
-      do_avgDown, GetVecOfConstPtrs(spec_boundary));
+      do_avgDown, {});
   }
 
   // Add the wbar term
