@@ -999,6 +999,8 @@ pelelmex_derQcrit(
               qcrit_arr(i, j, k) += Ohm * Ohm - Sij * Sij;
             }
           }
+          // Q = 0.5 (|Omega|^2 - |S|^2)
+          qcrit_arr(i, j, k) *= 0.5;
         }
       });
   } else
@@ -1055,6 +1057,8 @@ pelelmex_derQcrit(
             qcrit_arr(i, j, k) += Ohm * Ohm - Sij * Sij;
           }
         }
+        // Q = 0.5 (|Omega|^2 - |S|^2)
+        qcrit_arr(i, j, k) *= 0.5;
       });
   }
 #else
