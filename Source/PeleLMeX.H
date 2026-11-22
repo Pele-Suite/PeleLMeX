@@ -999,6 +999,9 @@ public:
   bool addFrozenExternalSources(
     const int is_initIter, const PeleLM::TimeStamp a_timestamp);
 
+  // External sources at t^0 into m_extSource, for the initial divU
+  void initDivUExternalSources(amrex::Real a_dt);
+
   void assembleExternalSources(
     const int is_initIter,
     const PeleLM::TimeStamp a_timestamp_eval,

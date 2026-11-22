@@ -477,6 +477,31 @@ PeleLM::addFrozenExternalSources(
 // Add the external sources evaluated from the a_timestamp_eval state into
 // m_extSource. a_frozen: nullptr computes the frozen sources, otherwise its
 // (possibly empty) stored snapshot is added instead.
+// The initial projection needs divU^0 with the external sources already
+// active at t^0. Otherwise u^0 misses the flow they drive, and the velocity
+// advection of the first step imprints an O(dt) error that the projections
+// do not remove. Only the sources that can be evaluated at an instant are
+// included; the spray, soot and radiation sources span a step.
+void
+PeleLM::initDivUExternalSources(const amrex::Real a_dt)
+{
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_extSource[lev]->setVal(0.0);
+  }
+  if (m_n_sparks > 0) {
+    addSpark(AmrNewTime);
+  }
+  addScalarVarianceSources(AmrNewTime);
+  if (m_user_defined_ext_sources) {
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
+      ProblemSpecificFunctions::modify_ext_sources(
+        getTime(lev, AmrNewTime), a_dt, ldata_p->state, ldata_p->state,
+        m_extSource[lev], geom[lev].data(), prob_parm_d);
+    }
+  }
+}
+
 void
 PeleLM::assembleExternalSources(
   const int is_initIter,

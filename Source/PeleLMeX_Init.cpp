@@ -483,9 +483,13 @@ PeleLM::projectInitSolution()
       diffData = std::make_unique<AdvanceDiffData>(
         finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar,
         m_use_soret, m_nAux, is_initialization);
+      initDivUExternalSources(dtInit);
       calcDivU(
         is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
         diffData);
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        m_extSource[lev]->setVal(0.0);
+      }
     }
     initialProjection();
 
@@ -538,9 +542,13 @@ PeleLM::projectInitSolution()
         diffData = std::make_unique<AdvanceDiffData>(
           finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar,
           m_use_soret, m_nAux, is_initialization);
+        initDivUExternalSources(m_dt);
         calcDivU(
           is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
           diffData);
+        for (int lev = 0; lev <= finest_level; ++lev) {
+          m_extSource[lev]->setVal(0.0);
+        }
       }
       initialProjection();
     }
