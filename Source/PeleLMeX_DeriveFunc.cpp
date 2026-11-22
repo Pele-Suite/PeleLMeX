@@ -660,9 +660,9 @@ pelelmex_dervort(
                    uz = 0.5 * (dat_arr(i,j,k+1,0) - dat_arr(i,j,k-1,0)) * idz;
                    vz = 0.5 * (dat_arr(i,j,k+1,1) - dat_arr(i,j,k-1,1)) * idz;
                }
-               vort_arr(i,j,k,0) = (wy-vz)*(wy-vz);
-               vort_arr(i,j,k,1) = (uz-wx)*(uz-wx);
-               vort_arr(i,j,k,2) = (vx-uy)*(vx-uy);
+               vort_arr(i,j,k,0) = wy-vz;
+               vort_arr(i,j,k,1) = uz-wx;
+               vort_arr(i,j,k,2) = vx-uy;
 #endif
         }
       });
@@ -699,9 +699,9 @@ pelelmex_dervort(
 	const amrex::Real uz = 0.5 * (dat_arr(i,j,k+1,0) - dat_arr(i,j,k-1,0)) * idz;
 	const amrex::Real vz = 0.5 * (dat_arr(i,j,k+1,1) - dat_arr(i,j,k-1,1)) * idz;
 
-	vort_arr(i,j,k,0) = (wy-vz)*(wy-vz);
-	vort_arr(i,j,k,1) = (uz-wx)*(uz-wx);
-	vort_arr(i,j,k,2) = (vx-uy)*(vx-uy);
+	vort_arr(i,j,k,0) = wy-vz;
+	vort_arr(i,j,k,1) = uz-wx;
+	vort_arr(i,j,k,2) = vx-uy;
 #endif
       });
   }
