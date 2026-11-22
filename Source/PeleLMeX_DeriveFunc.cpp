@@ -68,6 +68,29 @@ pelelmex_derheatrelease(
   AMREX_ASSERT(derfab.nComp() >= dcomp + ncomp);
   AMREX_ASSERT(!a_pelelm->m_incompressible);
 
+#ifdef USE_MANIFOLD_EOS
+  // The manifold parameters are not species: read HRR from the table, as
+  // PeleLM::getHeatRelease does (zero if the table has no HRR)
+  amrex::ignore_unused(reactfab);
+  const int hrr_idx = get_var_index(
+    "HRR", &a_pelelm->eos_parms.host_only_parm().manfunc_par->host_parm(),
+    false);
+  auto const& state = statefab.const_array(FIRSTSPEC);
+  auto HRR = derfab.array(dcomp);
+  auto const* leosparm = a_pelelm->eos_parms.device_parm();
+  amrex::ParallelFor(
+    bx, [state, HRR, leosparm,
+         hrr_idx] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+      auto eos = pele::physics::PhysicsType::eos(leosparm);
+      amrex::Real rho, rhoinv, mani_vars_prim[NUM_SPECIES];
+      eos.RY2RRinvY(state.cellData(i, j, k), rho, rhoinv, mani_vars_prim);
+      amrex::Real mani_hrr = 0.0;
+      if (hrr_idx >= 0) {
+        eos.Y2GenericManifoldData(mani_vars_prim, &hrr_idx, &mani_hrr, 1);
+      }
+      HRR(i, j, k) = mani_hrr;
+    });
+#else
   amrex::FArrayBox EnthFab;
   EnthFab.resize(bx, NUM_SPECIES, amrex::The_Async_Arena());
 
@@ -86,6 +109,7 @@ pelelmex_derheatrelease(
       }
     });
   amrex::Gpu::streamSynchronize();
+#endif
 }
 
 //
