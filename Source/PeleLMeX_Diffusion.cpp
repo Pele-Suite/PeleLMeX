@@ -1355,8 +1355,8 @@ PeleLM::differentialDiffusionUpdate(
         getDensityVect(AmrNewTime)), // this is the acoeff of LinOp
       GetVecOfConstPtrs(
         getDensityVect(AmrNewTime)), // this triggers proper scaling by density
-      GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), 0, bcRecIons, 1, 0,
-      m_dt, {}, "Ion");
+      GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)),
+      NUM_SPECIES - NUM_IONS + n, bcRecIons, 1, 0, m_dt, {}, "Ion");
   }
 #else
   // Solve for \widetilda{rhoY^{np1,kp1}}
