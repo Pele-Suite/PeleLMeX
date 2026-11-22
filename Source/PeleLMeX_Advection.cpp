@@ -257,9 +257,9 @@ PeleLM::updateVelocity(const std::unique_ptr<AdvanceAdvData>& advData)
     velForces.emplace_back(grids[lev], dmap[lev], AMREX_SPACEDIM, nGrow_force);
   }
   constexpr int add_gradP = 1;
-  // With mass sources the -u extrho term is Crank-Nicolson, half explicit
-  // here with u^n and half implicit in diffuseVelocity
-  const amrex::Real extRhoExplicit = useImplicitExtRho() ? 0.5 : 1.0;
+  // Low Mach: the -u extrho term is Crank-Nicolson, half explicit here with
+  // u^n and half implicit in diffuseVelocity (zero without a mass source)
+  constexpr amrex::Real extRhoExplicit = 0.5;
   getVelForces(
     AmrHalfTime, GetVecOfPtrs(divtau), GetVecOfPtrs(velForces), nGrow_force,
     add_gradP, extRhoExplicit);

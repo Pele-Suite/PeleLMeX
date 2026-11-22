@@ -291,7 +291,7 @@ PeleLMeX algorithm
 
     peleLM.user_defined_ext_sources = 0    # [OPT, DEF=0] Enable user defined source terms. Requires local ProblemSpecificFunctions.cpp.
     peleLM.ext_sources_SDC = 1             # [OPT, DEF=1 if sdc_iterMax >= 2 and user defined or spark sources or a Manifold variance are active, else 0] Re-evaluate the user defined, spark and variance sources at t^{n+1,k} in each SDC iteration and use 0.5(S^n + S^{n+1,k}) (requires sdc_iterMax >= 2 and low Mach, otherwise ignored); set to 0 to keep S^n over the step; spray, soot and radiation sources stay at S^n. modify_ext_sources is then also called at t^{n+1} with state_old = state_new = the t^{n+1,k} iterate, so user sources must depend only on the time and state passed in. Independently of ext_sources_SDC, the user defined and spark sources are also evaluated at t = 0 (modify_ext_sources with state_old = state_new = the initial state) for the divU of the initial projection.
-                                           # Independently of ext_sources_SDC, when user defined, spray or soot sources are active (low Mach), the -u extrho term of the velocity forcing is treated Crank-Nicolson: half with u^n, half implicitly in the velocity diffusion solve
+                                           # Independently of ext_sources_SDC, in low Mach runs the -u extrho term of the velocity forcing is treated Crank-Nicolson: half with u^n, half implicitly in the velocity diffusion solve
     peleLM.add_variance_sources = 1        # [OPT, DEF=1] (only relevant for Manifold EOS) include production/dissipation for variances if present in model
 
 

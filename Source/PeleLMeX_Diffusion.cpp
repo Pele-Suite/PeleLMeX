@@ -2076,8 +2076,7 @@ PeleLM::diffuseVelocity()
       GetVecOfPtrs(getVelocityVect(AmrNewTime)),
       GetVecOfConstPtrs(getDensityVect(AmrHalfTime)),
       GetVecOfConstPtrs(getViscosityVect(AmrNewTime)), bcRec[0], dt_lcl,
-      useImplicitExtRho() ? GetVecOfConstPtrs(m_extSource)
-                          : amrex::Vector<amrex::MultiFab const*>{});
+      GetVecOfConstPtrs(m_extSource));
   }
 }
 
