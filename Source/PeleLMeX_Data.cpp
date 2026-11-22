@@ -100,7 +100,9 @@ PeleLM::AdvanceDiffData::AdvanceDiffData(
   const int a_use_wbar,
   const int a_use_soret,
   const int a_nAux,
-  const int is_init)
+  const int is_init,
+  const bool a_ext_sources_SDC,
+  const int a_nGrowExt)
 {
   if (is_init != 0) { // All I need is a container for a single diffusion term
     Dnp1.reserve(a_finestLevel + 1);
@@ -176,6 +178,17 @@ PeleLM::AdvanceDiffData::AdvanceDiffData(
           ba[lev], dm[lev], a_nAux, nGrowAdv, amrex::MFInfo(), *factory[lev]);
         Dhat_aux.emplace_back(
           ba[lev], dm[lev], a_nAux, nGrowAdv, amrex::MFInfo(), *factory[lev]);
+      }
+    }
+    // ext_sources_SDC: the external sources at t^n and t^{n+1,k}
+    if (a_ext_sources_SDC) {
+      extSrc_n.reserve(a_finestLevel + 1);
+      extSrc_np1.reserve(a_finestLevel + 1);
+      for (int lev = 0; lev <= a_finestLevel; ++lev) {
+        extSrc_n.emplace_back(
+          ba[lev], dm[lev], NVAR, a_nGrowExt, amrex::MFInfo(), *factory[lev]);
+        extSrc_np1.emplace_back(
+          ba[lev], dm[lev], NVAR, a_nGrowExt, amrex::MFInfo(), *factory[lev]);
       }
     }
   }

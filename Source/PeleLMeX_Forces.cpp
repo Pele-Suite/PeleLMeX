@@ -409,7 +409,10 @@ PeleLM::getExternalSources(
     return;
   }
 
+  // extSrc_n/np1 are allocated with diffData; the frozen snapshot only
+  // when a frozen source is active
   auto& frozen = diffData->extSrc_frozen;
+  AMREX_ASSERT(frozen.empty() && !diffData->extSrc_n.empty());
   // m_extSource is zero on entry: snapshot the frozen part on its own
   if (addFrozenExternalSources(is_initIter, a_timestamp_old)) {
     for (int lev = 0; lev <= finest_level; ++lev) {
@@ -423,17 +426,11 @@ PeleLM::getExternalSources(
   }
   assembleExternalSources(
     is_initIter, a_timestamp_old, a_timestamp_new, &frozen);
+  // extSrc_np1 is filled by the first updateExternalSourcesSDC
   for (int lev = 0; lev <= finest_level; ++lev) {
     const auto& ext = *m_extSource[lev];
-    diffData->extSrc_n.emplace_back(
-      grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
-      *m_factory[lev]);
     amrex::MultiFab::Copy(
       diffData->extSrc_n[lev], ext, 0, 0, NVAR, ext.nGrowVect());
-    // Filled by the first updateExternalSourcesSDC
-    diffData->extSrc_np1.emplace_back(
-      grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
-      *m_factory[lev]);
   }
 }
 
@@ -496,7 +493,8 @@ PeleLM::calcInitDivU(const amrex::Real a_dt)
   addUserExternalSources(AmrNewTime, AmrNewTime, a_dt);
 
   calcDivU(
-    is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime, diffData);
+    is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime, diffData,
+    GetVecOfConstPtrs(m_extSource));
   for (int lev = 0; lev <= finest_level; ++lev) {
     m_extSource[lev]->setVal(0.0);
   }

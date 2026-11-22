@@ -256,7 +256,9 @@ public:
       const int a_use_wbar,
       const int a_use_soret,
       const int a_nAux,
-      const int is_init = 0);
+      const int is_init = 0,
+      const bool a_ext_sources_SDC = false,
+      const int a_nGrowExt = 0);
     amrex::Vector<amrex::MultiFab> Dn;   // Diffusion term t^n
     amrex::Vector<amrex::MultiFab> Dnp1; // Diffusion term t^(n+1,k)
     amrex::Vector<amrex::MultiFab> Dhat; // Diffusion term t^(n+1,k+1)
@@ -1042,13 +1044,15 @@ public:
    * using the one already precompute and available in diffData
    * \param a_time state time to work with
    * \param diffData container for the diffusion terms
+   * \param a_extSrc external sources at a_time (extRhoY, extRhoH used)
    */
   void calcDivU(
     const int is_init,
     const int computeDiff,
     const int do_avgDown,
     const PeleLM::TimeStamp a_time,
-    const std::unique_ptr<AdvanceDiffData>& diffData);
+    const std::unique_ptr<AdvanceDiffData>& diffData,
+    const amrex::Vector<const amrex::MultiFab*>& a_extSrc);
 
   /**
    * \brief Compute the pressure drift term using RhoRT and

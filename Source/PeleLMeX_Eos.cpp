@@ -42,7 +42,8 @@ PeleLM::calcDivU(
   const int computeDiff,
   const int do_avgDown,
   const TimeStamp a_time,
-  const std::unique_ptr<AdvanceDiffData>& diffData)
+  const std::unique_ptr<AdvanceDiffData>& diffData,
+  const amrex::Vector<const amrex::MultiFab*>& a_extSrc)
 {
   BL_PROFILE("PeleLMeX::calcDivU()");
 
@@ -82,11 +83,7 @@ PeleLM::calcDivU(
       }
     }
 
-    // In an ext_sources_SDC advance, the external source at a_time
-    const amrex::MultiFab& extSrc =
-      diffData->extSrc_n.empty() ? *m_extSource[lev]
-      : (a_time == AmrOldTime)   ? diffData->extSrc_n[lev]
-                                 : diffData->extSrc_np1[lev];
+    const amrex::MultiFab& extSrc = *a_extSrc[lev];
 
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB

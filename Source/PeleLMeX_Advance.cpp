@@ -74,7 +74,7 @@ PeleLM::Advance(const int is_initIter)
   std::unique_ptr<AdvanceDiffData> diffData;
   diffData = std::make_unique<AdvanceDiffData>(
     finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar, m_use_soret,
-    m_nAux);
+    m_nAux, 0, m_ext_sources_SDC, m_extSource[0]->nGrow());
   std::unique_ptr<AdvanceAdvData> advData;
   advData = std::make_unique<AdvanceAdvData>(
     finest_level, grids, dmap, m_factory, m_incompressible, m_nAux, m_nGrowAdv,
@@ -163,7 +163,7 @@ PeleLM::Advance(const int is_initIter)
       constexpr int do_avgDown = 1;
       calcDivU(
         is_initialization, computeDiffusionTerm, do_avgDown, AmrOldTime,
-        diffData);
+        diffData, GetVecOfConstPtrs(diffData->extSrc_n));
       // S^{n+1,0} = S^n, so divU^{n+1,0} = divU^n for the first MAC solve
       for (int lev = 0; lev <= finest_level; ++lev) {
         amrex::MultiFab::Copy(
@@ -249,9 +249,12 @@ PeleLM::Advance(const int is_initIter)
       constexpr int computeDiffusionTerm =
         1; // Yes, re-evaluate the diffusion term after the last chemistry solve
       constexpr int do_avgDown = 1; // Always
+      // ext_sources_SDC: S^{n+1,k}; otherwise the S^n held over the step
       calcDivU(
         is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-        diffData);
+        diffData,
+        m_ext_sources_SDC ? GetVecOfConstPtrs(diffData->extSrc_np1)
+                          : GetVecOfConstPtrs(m_extSource));
     }
   }
   //----------------------------------------------------------------
@@ -384,9 +387,12 @@ PeleLM::oneSDC(
       constexpr int is_initialization = 0;    // Not here
       constexpr int computeDiffusionTerm = 0; // Nope, we just did that
       constexpr int do_avgDown = 1;           // Always
+      // ext_sources_SDC: S^{n+1,k}; otherwise the S^n held over the step
       calcDivU(
         is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-        diffData);
+        diffData,
+        m_ext_sources_SDC ? GetVecOfConstPtrs(diffData->extSrc_np1)
+                          : GetVecOfConstPtrs(m_extSource));
     }
 #ifdef PELE_USE_PLASMA
     ionDriftVelocity(advData);
