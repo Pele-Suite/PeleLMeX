@@ -765,9 +765,13 @@ makeVelForce(
     force(i, j, k, pseudo_gravity_dir) += dV_control * rho_lcl;
   }
 
+  // rho Du/Dt = extmom - u extrho. Incompressible: no mass source (extrho
+  // only points at a placeholder).
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-    force(i, j, k, idim) +=
-      extmom(i, j, k, idim) - vel(i, j, k, idim) * extrho(i, j, k);
+    force(i, j, k, idim) += extmom(i, j, k, idim);
+    if (is_incomp == 0) {
+      force(i, j, k, idim) -= vel(i, j, k, idim) * extrho(i, j, k);
+    }
   }
 }
 
