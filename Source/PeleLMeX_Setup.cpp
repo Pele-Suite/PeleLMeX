@@ -587,6 +587,9 @@ PeleLM::readParameters()
         }
       } else {
         pps.get("temp", m_spark_temp[n]);
+        if (m_spark_temp[n] <= 0.0) {
+          amrex::Abort(m_spark[n] + ": temp must be > 0");
+        }
       }
       pps.get("radius", m_spark_radius[n]);
       // Edge half-width: in cells of the grid resolving the spark, or a

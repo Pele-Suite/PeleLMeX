@@ -851,6 +851,7 @@ PeleLM::WriteCheckPointFile()
   constexpr bool is_checkpoint = true;
   WriteHeader(checkpointname, is_checkpoint);
   WriteJobInfo(checkpointname);
+  writeSparkCheckpoint(checkpointname);
 
   for (int lev = 0; lev <= finest_level; ++lev) {
     amrex::VisMF::Write(
@@ -1214,6 +1215,8 @@ PeleLM::ReadCheckPointFile()
       << "restart checkpoint does not contain RecyclingPlane data. "
       << "Recycling-plane running mean will not be restored from checkpoint.\n";
   }
+
+  readSparkCheckpoint(m_restart_chkfile);
 
   if (m_verbose != 0) {
     amrex::Print() << "Restart complete \n";

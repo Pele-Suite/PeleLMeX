@@ -278,15 +278,25 @@ PeleLMeX algorithm
     peleLM.spark_verbose = 0               # [OPT, DEF=0] Verbosity of spark ignition
     peleLM.sparks = spark1 spark2 ...      # [OPT] List of spark names - multiple can be given
     peleLM.spark1.location = 0.0 0.0 0.0   # [OPT] Spark location (in x,y,z coordinates) [m]
-    peleLM.spark1.energy = 1e-3            # [OPT] Energy deposited by the spark [J; J/m in 2D Cartesian]. Give energy or temp, not both
-    peleLM.spark1.temp = 2000.0            # [OPT] Alternative to energy [K]: energy = sphere volume x <rho (h(temp) - h(T))> over the sphere at ignition. Only sets the energy; the kernel ends up hotter as the heated gas expands
+    peleLM.spark1.energy = 1e-3            # [OPT] Energy deposited by the spark in the computational domain [J; J/m in 2D Cartesian]. Give energy or temp, not both. A spark cut by a symmetry plane gets all of it: give the energy of the simulated part
+    peleLM.spark1.temp = 2000.0            # [OPT] Alternative to energy [K]: energy = V x <rho (h(temp) - h(T))> over the sphere at ignition, with V the sphere volume inside the domain (EB ignored). Only sets the energy, see the note below
     peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]. The energy is spread with a smoothed sphere of this radius
     peleLM.spark1.width_cells = 1.0        # [OPT, DEF=1] Width w of the smoothed cosine edge, 0.5(1 + sin((radius - r)/w)) over |radius - r| < pi/2 w, in cells of the finest level holding the spark centre; 0 gives a top-hat. The injected energy is that of a sphere of the given radius whatever the width
-    peleLM.spark1.width = 5e-4             # [OPT] Fixed physical half-width of the edge [m]; overrides width_cells
+    peleLM.spark1.width = 5e-4             # [OPT] Fixed physical width w of the edge [m]; overrides width_cells
     peleLM.spark1.duration = 1e-3          # [OPT] Duration of the spark [s]
     peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]: the middle of the switch-on ramp (the power ramps up linearly from 1 ramp half-width earlier)
-    peleLM.spark1.ramp_steps = 1.0         # [OPT, DEF=1] Half-width of the linear power ramps in steps (dt is shortened to land a step on each end of the ramps, so the trapezoidal source with ext_sources_SDC is exact), frozen from the step size just before the ramp; 0 switches sharply
+    peleLM.spark1.ramp_steps = 1.0         # [OPT, DEF=1] Half-width of the linear power ramps in steps (dt is shortened to land a step on each end of the ramps, so the trapezoidal source with ext_sources_SDC is exact; without it the exact step-average power is used), frozen from the step size just before the ramp; 0 switches sharply
     peleLM.spark1.ramp_time = 1e-5         # [OPT] Fixed ramp half-width [s]; overrides ramp_steps
+    # Sparks deposit a fixed volumetric power in a fixed region. The gas at the
+    # centre stays in it while heated gas expands out, so it ends up far hotter
+    # than temp: without conduction about T0 exp((temp - T0)/T0) for an ideal
+    # gas of constant cp (~17000 K for temp = 1500 K from 300 K). Conduction
+    # lowers the peak, the more so the longer the spark. Before energy was
+    # added, temp set a power rho(t) h(temp) / duration inside the radius
+    # (current density, absolute enthalpy, sharp switch): the totals are
+    # similar for air from 298 K but differ for preheated gas or mixtures
+    # with a formation enthalpy. The energy and a ramp given in steps are
+    # frozen during the run and kept in the checkpoint (<chk>/Sparks).
 
     peleLM.aux_vars = a b ...              # [OPT] Names of auxiliary variables
     peleLM.a.advect = 1                    # [OPT, DEF = 1] Flag whether this variable is advected

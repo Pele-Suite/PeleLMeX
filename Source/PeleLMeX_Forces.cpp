@@ -2,6 +2,9 @@
 #include <PeleLMeX_K.H>
 #include <PelePhysics.H>
 
+#include <fstream>
+#include <sstream>
+
 namespace c2m = pele::physics::utilities::cgs2mks;
 
 // Return velocity forces scaled by rhoInv
@@ -217,6 +220,27 @@ spark_power_shape(
   return spark_ramp(t - t0, tau) - spark_ramp(t - t1, tau);
 }
 
+// Integral of spark_power_shape from -infinity to t, from the integral of
+// the ramp: 0 before -tau, (x + tau)^2 / (4 tau) across it, x after
+amrex::Real
+spark_power_integral(
+  amrex::Real t, amrex::Real t0, amrex::Real t1, amrex::Real tau)
+{
+  auto ramp_integral = [tau](amrex::Real x) -> amrex::Real {
+    if (tau <= 0.0) {
+      return amrex::max(x, 0.0);
+    }
+    if (x <= -tau) {
+      return 0.0;
+    }
+    if (x >= tau) {
+      return x;
+    }
+    return (x + tau) * (x + tau) / (4.0 * tau);
+  };
+  return ramp_integral(t - t0) - ramp_integral(t - t1);
+}
+
 // Physical distance from the centre of cell (i,j,k) to the spark location.
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE amrex::Real
 spark_distance(
@@ -352,6 +376,55 @@ PeleLM::limitDtForSparks(amrex::Real a_dt)
 }
 
 void
+PeleLM::writeSparkCheckpoint(const std::string& a_dir) const
+{
+  if (m_n_sparks == 0 || !amrex::ParallelDescriptor::IOProcessor()) {
+    return;
+  }
+  std::ofstream os(a_dir + "/Sparks");
+  if (!os.good()) {
+    amrex::FileOpenFailed(a_dir + "/Sparks");
+  }
+  os.precision(17);
+  // One line per spark: name, energy frozen at ignition and ramp half-width
+  // frozen before the ramp (< 0: not yet)
+  for (int n = 0; n < m_n_sparks; ++n) {
+    os << m_spark[n] << " " << m_spark_energy[n] << " " << m_spark_tau[n]
+       << "\n";
+  }
+}
+
+void
+PeleLM::readSparkCheckpoint(const std::string& a_dir)
+{
+  const std::string file = a_dir + "/Sparks";
+  if (m_n_sparks == 0 || !amrex::FileExists(file)) {
+    return;
+  }
+  amrex::Vector<char> buf;
+  amrex::ParallelDescriptor::ReadAndBcastFile(file, buf);
+  std::istringstream is(buf.dataPtr());
+  std::string name;
+  amrex::Real energy = 0.0;
+  amrex::Real tau = 0.0;
+  while (is >> name >> energy >> tau) {
+    for (int n = 0; n < m_n_sparks; ++n) {
+      if (m_spark[n] != name) {
+        continue;
+      }
+      // Only values derived during the run are state: a given energy or
+      // ramp time comes from the inputs, which may have changed on restart
+      if (m_spark_temp[n] > 0.0 && energy >= 0.0) {
+        m_spark_energy[n] = energy;
+      }
+      if (m_spark_ramp_time[n] < 0.0 && tau >= 0.0) {
+        m_spark_tau[n] = tau;
+      }
+    }
+  }
+}
+
+void
 PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
 {
   BL_PROFILE("PeleLM::addSpark()");
@@ -371,8 +444,15 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     const amrex::Real t0 = m_spark_time[n];
     const amrex::Real t1 = t0 + m_spark_duration[n];
     const amrex::Real reach = tau;
-    // Power shape at this time (a point value)
-    const amrex::Real p = spark_power_shape(time, t0, t1, tau);
+    // Power shape at this time (a point value). Without ext_sources_SDC the
+    // t^n source is held over the step: use the exact step average instead,
+    // so the deposited energy stays exact
+    const bool step_average = step_start && !m_ext_sources_SDC;
+    const amrex::Real p = step_average
+                            ? (spark_power_integral(time + m_dt, t0, t1, tau) -
+                               spark_power_integral(time, t0, t1, tau)) /
+                                m_dt
+                            : spark_power_shape(time, t0, t1, tau);
     // A step starting here may still overlap the spark even if p(t^n) = 0:
     // the energy must then be set (temperature input) and counted
     const bool in_step =
@@ -519,7 +599,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     }
 
     // Deposited energy as the scalar update sees it: trapezoidal with
-    // ext_sources_SDC, else the t^n value over the step
+    // ext_sources_SDC, else the step average over the step
     if (step_start) {
       const amrex::Real p_end =
         m_ext_sources_SDC ? spark_power_shape(time + m_dt, t0, t1, tau) : p;

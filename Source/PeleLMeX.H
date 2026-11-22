@@ -939,6 +939,12 @@ public:
   //! (RZ-weighted): the volume its energy is normalised to.
   amrex::Real sparkVolume(int n) const;
 
+  //! Spark energies frozen at ignition and ramp half-widths frozen before
+  //! the ramp, written to / read from <checkpoint>/Sparks so a restart
+  //! during a spark keeps them.
+  void writeSparkCheckpoint(const std::string& a_dir) const;
+  void readSparkCheckpoint(const std::string& a_dir);
+
   void addScalarVarianceSources(const PeleLM::TimeStamp a_time);
 
   //-----------------------------------------------------------------------------
