@@ -19,8 +19,8 @@ PeleLM::getVelForces(
 
   for (int lev = 0; lev <= finest_level; ++lev) {
     getVelForces(
-      a_time, lev, (has_divTau != 0) ? a_divTau[lev] : nullptr,
-      a_velForce[lev], add_gradP, a_extRhoExplicit);
+      a_time, lev, (has_divTau != 0) ? a_divTau[lev] : nullptr, a_velForce[lev],
+      add_gradP, a_extRhoExplicit);
   }
 
   // FillPatch forces

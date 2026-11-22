@@ -116,8 +116,8 @@ PeleLM::MLevaluate(
       finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar, m_use_soret,
       m_nAux, is_initialization);
     calcDivU(
-      is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-      diffData, GetVecOfConstPtrs(m_extSource));
+      is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime, diffData,
+      GetVecOfConstPtrs(m_extSource));
     for (int lev = 0; lev <= finest_level; ++lev) {
       auto* ldata_p = getLevelDataPtr(lev, AmrNewTime);
       amrex::MultiFab::Copy(*a_MFVec[lev], ldata_p->divu, 0, a_comp, 1, 0);
@@ -135,8 +135,8 @@ PeleLM::MLevaluate(
       finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar, m_use_soret,
       m_nAux, is_initialization);
     calcDivU(
-      is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-      diffData, GetVecOfConstPtrs(m_extSource));
+      is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime, diffData,
+      GetVecOfConstPtrs(m_extSource));
 
     // Do initProj
     initialProjection();
