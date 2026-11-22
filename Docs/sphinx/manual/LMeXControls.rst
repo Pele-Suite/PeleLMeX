@@ -191,11 +191,11 @@ The following list of derived variables are available in PeleLMeX:
       - NUM_ELEMENTS
       - Element mass fractions
     * - `diffcoeff`
-      - NUM_SPECIES
-      - Species mixture-averaged diffusion coefficients
+      - NUM_SPECIES (2 NUM_SPECIES with Soret)
+      - Density-weighted species diffusion coefficients :math:`\rho D_k` (`D_<spec>`); with Soret, also :math:`-\rho D_k \chi_k` (`theta_<spec>`)
     * - `lambda`
       - 1
-      - Thermal diffusivity
+      - Thermal conductivity
     * - `viscosity`
       - 1
       - Mixture viscosity
