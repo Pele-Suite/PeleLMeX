@@ -24,6 +24,8 @@ public:
 
   DiffusionOp(PeleLM* a_pelelm, int ncomp = 1);
 
+  // a_label names the solved variable in the solver output; "Species" and
+  // "Temperature" also select the debug max_iter limits of that solve
   void diffuse_scalar(
     amrex::Vector<amrex::MultiFab*> const& a_phi,
     const int phi_comp,
@@ -40,7 +42,8 @@ public:
     const int ncomp,
     const int isPoissonSolve,
     const amrex::Real dt,
-    amrex::Vector<amrex::MultiFab const*> const& a_boundary);
+    amrex::Vector<amrex::MultiFab const*> const& a_boundary,
+    const std::string& a_label);
 
 #ifdef AMREX_USE_EB
   void diffuse_scalar(
@@ -63,7 +66,8 @@ public:
     const int ncomp,
     const int isPoissonSolve,
     const amrex::Real dt,
-    amrex::Vector<amrex::MultiFab const*> const& a_boundary);
+    amrex::Vector<amrex::MultiFab const*> const& a_boundary,
+    const std::string& a_label);
 #endif
 
   void computeDiffLap(
