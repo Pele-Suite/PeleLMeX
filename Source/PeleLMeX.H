@@ -1001,7 +1001,11 @@ public:
     const int is_initIter, const PeleLM::TimeStamp a_timestamp);
 
   // External sources at t^0 into m_extSource, for the initial divU
-  void initDivUExternalSources(amrex::Real a_dt);
+  void calcInitDivU(amrex::Real a_dt);
+  void addUserExternalSources(
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Real a_dt);
 
   void assembleExternalSources(
     const int is_initIter,

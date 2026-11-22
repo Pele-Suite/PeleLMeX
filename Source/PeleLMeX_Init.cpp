@@ -474,22 +474,7 @@ PeleLM::projectInitSolution()
     // Subcycling IAMR/PeleLM first does a projection with no reaction divU
     // which can make the dt for evaluating I_R better
     if (m_has_divu != 0) {
-      constexpr int is_initialization = 1;    // Yes we are
-      constexpr int computeDiffusionTerm = 1; // Needed here
-      constexpr int do_avgDown = 1;           // Always
-
-      // Light version of the diffusion data container
-      std::unique_ptr<AdvanceDiffData> diffData;
-      diffData = std::make_unique<AdvanceDiffData>(
-        finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar,
-        m_use_soret, m_nAux, is_initialization);
-      initDivUExternalSources(dtInit);
-      calcDivU(
-        is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-        diffData);
-      for (int lev = 0; lev <= finest_level; ++lev) {
-        m_extSource[lev]->setVal(0.0);
-      }
+      calcInitDivU(dtInit);
     }
     initialProjection();
 
@@ -533,22 +518,7 @@ PeleLM::projectInitSolution()
         copyStateOldToNew();
       }
       if (m_has_divu != 0) {
-        constexpr int is_initialization = 1;    // Yes we are
-        constexpr int computeDiffusionTerm = 1; // Needed here
-        constexpr int do_avgDown = 1;           // Always
-
-        // Light version of the diffusion data container
-        std::unique_ptr<AdvanceDiffData> diffData;
-        diffData = std::make_unique<AdvanceDiffData>(
-          finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar,
-          m_use_soret, m_nAux, is_initialization);
-        initDivUExternalSources(m_dt);
-        calcDivU(
-          is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime,
-          diffData);
-        for (int lev = 0; lev <= finest_level; ++lev) {
-          m_extSource[lev]->setVal(0.0);
-        }
+        calcInitDivU(m_dt);
       }
       initialProjection();
     }

@@ -20,6 +20,24 @@ def read_last_dataset(path, **read_csv_kwargs):
                 last_header_lineno = lineno
     return pd.read_csv(path, skiprows=last_header_lineno, **read_csv_kwargs)
 
+def load_extremas(cols):
+    """Last run's temporals/tempExtremas columns, as numbers (no NaNs)"""
+    data = read_last_dataset(
+        os.path.join(os.path.abspath("."), "temporals/tempExtremas"),
+        usecols=cols, delimiter=",",
+    ).apply(pd.to_numeric, errors="coerce")
+    if data.isnull().any().any():
+        raise ValueError("Data contains NaN values after conversion.")
+    return data
+
+def inp_param(inp_file, key, default=None):
+    """Value of `key = value` in an input file (default if absent)"""
+    with open(inp_file) as f:
+        m = re.search(re.escape(key) + r"\s*=\s*([\d\.eE+-]+)", f.read())
+    if m is None and default is None:
+        raise KeyError(key)
+    return float(m.group(1)) if m else default
+
 @unittest.skipUnless(
     os.path.exists("composition-test-2d.inp"), "not the composition test"
 )
@@ -33,42 +51,22 @@ class CompTestCase(unittest.TestCase):
         molar_masses = {"AR": 0.040, "N2": 0.028, "CO2": 0.044}
 
         # Load the data
-        file_dir = os.path.abspath(".")
-        file_name = os.path.join(file_dir, "temporals/tempExtremas")
         col_names = ["time", "max_density", "max_rho.Y(AR)", "max_rho.Y(N2)", "max_rho.Y(CO2)"]
         var_names = ["AR", "N2", "CO2"]
-        data = read_last_dataset(file_name, usecols=col_names, delimiter=',')
+        data = load_extremas(col_names)
         print("Raw data:\n", data)
-
-        # Ensure numeric types for all data columns
-        data = data.apply(pd.to_numeric, errors="coerce")
-
-        # Check for NaN values and raise an error if found
-        if data.isnull().any().any():
-            raise ValueError("Data contains NaN values after conversion.")
-        
         time = data["time"]
 
-        # Parse input file for necessary solution parameters
-        input_file = os.path.join(file_dir, "composition-test-2d.inp")
-        with open(input_file, 'r') as file:
-            content = file.read()
-            soln_params = {
-                "ts": float(re.search(r"prob\.extRhoYCO2_ts\s*=\s*([\d\.]+)", content).group(1)),
-                "src_strength": float(re.search(r"prob\.extRhoYCO2\s*=\s*([\d\.]+)", content).group(1))
-            }
-            ramp = re.search(r"prob\.extRhoYCO2_ramp\s*=\s*([\d\.eE+-]+)", content)
-            soln_params["ramp"] = float(ramp.group(1)) if ramp else 0.0
-        ts, k, w = soln_params["ts"], soln_params["src_strength"], soln_params["ramp"]
+        # Solution parameters from the input file
+        inp = "composition-test-2d.inp"
+        ts = inp_param(inp, "prob.extRhoYCO2_ts")
+        k = inp_param(inp, "prob.extRhoYCO2")
+        w = inp_param(inp, "prob.extRhoYCO2_ramp", 0.0)
 
         # Density and species mass data
         data_rho = data["max_density"]
         data_rhoY = data.iloc[:, 2:].copy()
         data_rhoY.columns = var_names
-
-        # Ensure numeric types for all data columns
-        data_rho = pd.to_numeric(data_rho, errors="coerce")
-        data_rhoY = data_rhoY.apply(pd.to_numeric, errors="coerce")
 
         # Initial values
         AR_0, N2_0, CO2_0 = data_rhoY.iloc[0].to_dict().values()
@@ -149,27 +147,16 @@ class IsothermalInjectionTestCase(unittest.TestCase):
         temperature edge forcing shows up as a drift of T (~2 K in 10
         steps).
         """
-        file_name = os.path.join(os.path.abspath("."), "temporals/tempExtremas")
-        data = read_last_dataset(
-            file_name, usecols=["time", "min_temp", "max_temp"], delimiter=","
-        ).apply(pd.to_numeric, errors="coerce")
-        if data.isnull().any().any():
-            raise ValueError("Data contains NaN values after conversion.")
-
-        with open("isothermal-injection-2d.inp") as f:
-            T_mean = float(
-                re.search(r"prob\.T_mean\s*=\s*([\d\.eE+-]+)", f.read()).group(1)
-            )
+        data = load_extremas(["time", "min_temp", "max_temp"])
+        T_mean = inp_param("isothermal-injection-2d.inp", "prob.T_mean")
 
         max_dev = max(
             np.abs(data["min_temp"] - T_mean).max(),
             np.abs(data["max_temp"] - T_mean).max(),
         )
         print("Max |T - T_mean| =", max_dev)
-        np.testing.assert_array_less(
-            np.array([max_dev]),
-            np.array([1.0e-6]),
-            err_msg="T drifted from T_mean under an isothermal injection.",
+        self.assertLess(
+            max_dev, 1.0e-6, "T drifted from T_mean under an isothermal injection."
         )
 
 

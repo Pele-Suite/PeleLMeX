@@ -1878,7 +1878,6 @@ DiffusionTensorOp::diffuse_velocity(
             acoef[box_no](i, j, k) +=
               a_dt * amrex::max(ext[box_no](i, j, k, DENSITY), 0.0);
           });
-        amrex::Gpu::streamSynchronize();
       }
       if (mesh_mapping) {
         amrex::MultiFab::Multiply(

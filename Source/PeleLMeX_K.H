@@ -772,8 +772,7 @@ makeVelForce(
   // Incompressible: no mass source.
   amrex::Real fexp = 0.0;
   if (is_incomp == 0) {
-    fexp =
-      (extrho_explicit > 0.0 && extrho(i, j, k) < 0.0) ? 1.0 : extrho_explicit;
+    fexp = (extrho(i, j, k) < 0.0) ? 1.0 : extrho_explicit;
   }
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     force(i, j, k, idim) +=
