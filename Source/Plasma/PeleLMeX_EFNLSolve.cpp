@@ -383,31 +383,35 @@ PeleLM::computeBGcharge(
     auto const& dhat_ma = diffData->Dhat[lev].const_arrays();
     auto const& rhoYdot_ma = ldataR_p->I_R.const_arrays();
 
-    ldataNLs_p->backgroundCharge.setVal(0.0);
     auto const& charge_ma = ldataNLs_p->backgroundCharge.arrays();
     constexpr amrex::Real factor = 1.0 / elemCharge;
 
+    // Sum over the species in a fixed order in each cell, so the result is
+    // deterministic on GPU
     amrex::ParallelFor(
-      ldataNLs_p->backgroundCharge, amrex::IntVect(0.0), NUM_SPECIES,
+      ldataNLs_p->backgroundCharge,
       [state_old_ma, adv_ma, dn_ma, dnp1_ma, dhat_ma, rhoYdot_ma, charge_ma,
        dt_int,
-       zk =
-         zk] AMREX_GPU_DEVICE(int box_no, int i, int j, int k, int n) noexcept {
+       zk = zk] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
         amrex::Array4<amrex::Real const> rhoYold(
           state_old_ma[box_no], FIRSTSPEC);
         amrex::Array4<amrex::Real const> adv(adv_ma[box_no], FIRSTSPEC);
-        amrex::Real rhoYprov =
-          rhoYold(i, j, k, n) +
-          dt_int *
-            (adv(i, j, k, n) +
-             0.5 * (dn_ma[box_no](i, j, k, n) - dnp1_ma[box_no](i, j, k, n)) +
-             dhat_ma[box_no](i, j, k, n) + rhoYdot_ma[box_no](i, j, k, n));
-        rhoYprov = amrex::max<amrex::Real>(rhoYprov, 0.0);
-        const amrex::Real val = zk[n] * rhoYprov;
-        amrex::Gpu::Atomic::Add(&charge_ma[box_no](i, j, k), val);
+        amrex::Real charge = 0.0;
+        for (int n = 0; n < NUM_SPECIES; ++n) {
+          amrex::Real rhoYprov =
+            rhoYold(i, j, k, n) +
+            dt_int *
+              (adv(i, j, k, n) +
+               0.5 * (dn_ma[box_no](i, j, k, n) - dnp1_ma[box_no](i, j, k, n)) +
+               dhat_ma[box_no](i, j, k, n) + rhoYdot_ma[box_no](i, j, k, n));
+          rhoYprov = amrex::max<amrex::Real>(rhoYprov, 0.0);
+          // Separate statement: no fused multiply-add with the sum
+          const amrex::Real val = zk[n] * rhoYprov;
+          charge += val;
+        }
+        charge_ma[box_no](i, j, k) = charge * factor;
       });
     amrex::Gpu::streamSynchronize();
-    ldataNLs_p->backgroundCharge.mult(factor);
   }
 }
 
