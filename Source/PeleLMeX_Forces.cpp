@@ -3,6 +3,7 @@
 #include <PelePhysics.H>
 
 #include <fstream>
+#include <limits>
 #include <sstream>
 
 namespace c2m = pele::physics::utilities::cgs2mks;
@@ -272,16 +273,16 @@ PeleLM::sparkVolume(int n) const
   // quadrature.  RZ (x = r): dV = 2 pi r dr dz, integrated exactly in r.
   const amrex::GeometryData gd = geom[0].data();
   const amrex::Real radius = m_spark_radius[n];
+  const auto& xs = m_spark_location[n];
   constexpr int nq = (AMREX_SPACEDIM == 3) ? 512 : 4096;
 
   amrex::Real lo[AMREX_SPACEDIM];
   amrex::Real hi[AMREX_SPACEDIM];
   for (int d = 0; d < AMREX_SPACEDIM; ++d) {
-    const amrex::Real x0 = m_spark_location[n][d];
-    lo[d] =
-      std::max(x0 - radius, m_map_eval.x_phys_from_xi(d, gd.ProbLo()[d], gd));
-    hi[d] =
-      std::min(x0 + radius, m_map_eval.x_phys_from_xi(d, gd.ProbHi()[d], gd));
+    lo[d] = std::max(
+      xs[d] - radius, m_map_eval.x_phys_from_xi(d, gd.ProbLo()[d], gd));
+    hi[d] = std::min(
+      xs[d] + radius, m_map_eval.x_phys_from_xi(d, gd.ProbHi()[d], gd));
     if (hi[d] <= lo[d]) {
       return 0.0;
     }
@@ -300,18 +301,18 @@ PeleLM::sparkVolume(int n) const
   for (int k = 0; k < nz; ++k) {
     for (int j = 0; j < nq; ++j) {
       amrex::Real rho2 = 0.0;
-      const amrex::Real dy = lo[1] + (j + 0.5) * hy - m_spark_location[n][1];
+      const amrex::Real dy = lo[1] + (j + 0.5) * hy - xs[1];
       rho2 += dy * dy;
 #if AMREX_SPACEDIM == 3
-      const amrex::Real dz = lo[2] + (k + 0.5) * hz - m_spark_location[n][2];
+      const amrex::Real dz = lo[2] + (k + 0.5) * hz - xs[2];
       rho2 += dz * dz;
 #endif
       if (rho2 >= radius * radius) {
         continue;
       }
       const amrex::Real half = std::sqrt(radius * radius - rho2);
-      const amrex::Real xa = std::max(m_spark_location[n][0] - half, lo[0]);
-      const amrex::Real xb = std::min(m_spark_location[n][0] + half, hi[0]);
+      const amrex::Real xa = std::max(xs[0] - half, lo[0]);
+      const amrex::Real xb = std::min(xs[0] + half, hi[0]);
       if (xb > xa) {
         vol += is_rz ? amrex::Math::pi<amrex::Real>() * (xb * xb - xa * xa)
                      : (xb - xa);
@@ -319,12 +320,6 @@ PeleLM::sparkVolume(int n) const
     }
   }
   return vol * hy * hz;
-}
-
-amrex::Real
-PeleLM::sparkTau(int n) const
-{
-  return m_spark_tau[n];
 }
 
 amrex::Real
@@ -357,19 +352,23 @@ PeleLM::limitDtForSparks(amrex::Real a_dt)
     if (tau <= 0.0) {
       continue;
     }
+    // The kinks are not in time order when tau > duration / 2: take the
+    // nearest one ahead.  Within rounding of m_cur_time counts as landed.
     const amrex::Real kinks[4] = {t0 - tau, t0 + tau, t1 - tau, t1 + tau};
+    amrex::Real left = std::numeric_limits<amrex::Real>::max();
     for (const amrex::Real kink : kinks) {
-      const amrex::Real left = kink - m_cur_time;
-      if (left <= 1.0e-10 * dt) {
-        continue; // passed (or landed on)
+      const amrex::Real tol = amrex::max(
+        1.0e-10 * dt,
+        16.0 * std::numeric_limits<amrex::Real>::epsilon() * std::abs(kink));
+      if (kink - m_cur_time > tol) {
+        left = amrex::min(left, kink - m_cur_time);
       }
-      // Ensure ~O(dt) steps by checking a little in advance
-      if (2.0 * dt > left && left > dt) {
-        dt = 0.5 * left;
-      } else {
-        dt = amrex::min(dt, left);
-      }
-      break; // only the next kink matters
+    }
+    // Ensure ~O(dt) steps by checking a little in advance
+    if (2.0 * dt > left && left > dt) {
+      dt = 0.5 * left;
+    } else {
+      dt = amrex::min(dt, left);
     }
   }
   return dt;
@@ -387,10 +386,10 @@ PeleLM::writeSparkCheckpoint(const std::string& a_dir) const
   }
   os.precision(17);
   // One line per spark: name, energy frozen at ignition and ramp half-width
-  // frozen before the ramp (< 0: not yet)
+  // frozen before the ramp (< 0: not yet), energy deposited so far
   for (int n = 0; n < m_n_sparks; ++n) {
-    os << m_spark[n] << " " << m_spark_energy[n] << " " << m_spark_tau[n]
-       << "\n";
+    os << m_spark[n] << " " << m_spark_energy[n] << " " << m_spark_tau[n] << " "
+       << m_spark_deposited[n] << "\n";
   }
 }
 
@@ -407,7 +406,8 @@ PeleLM::readSparkCheckpoint(const std::string& a_dir)
   std::string name;
   amrex::Real energy = 0.0;
   amrex::Real tau = 0.0;
-  while (is >> name >> energy >> tau) {
+  amrex::Real deposited = 0.0;
+  while (is >> name >> energy >> tau >> deposited) {
     for (int n = 0; n < m_n_sparks; ++n) {
       if (m_spark[n] != name) {
         continue;
@@ -420,6 +420,7 @@ PeleLM::readSparkCheckpoint(const std::string& a_dir)
       if (m_spark_ramp_time[n] < 0.0 && tau >= 0.0) {
         m_spark_tau[n] = tau;
       }
+      m_spark_deposited[n] = deposited;
     }
   }
 }
@@ -435,15 +436,12 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
   for (int n = 0; n < m_n_sparks; ++n) {
     amrex::Real tau = m_spark_tau[n];
     if (tau < 0.0) {
-      // Not frozen yet (dt not from computeDt): use this step's dt
+      // Not frozen yet (limitDtForSparks freezes it before the ramp): the
+      // spark is still far off, so this only sizes the activity window
       tau = m_spark_ramp_steps[n] * m_dt;
-      if (step_start) {
-        m_spark_tau[n] = tau;
-      }
     }
     const amrex::Real t0 = m_spark_time[n];
     const amrex::Real t1 = t0 + m_spark_duration[n];
-    const amrex::Real reach = tau;
     // Power shape at this time (a point value). Without ext_sources_SDC the
     // t^n source is held over the step: use the exact step average instead,
     // so the deposited energy stays exact
@@ -456,7 +454,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     // A step starting here may still overlap the spark even if p(t^n) = 0:
     // the energy must then be set (temperature input) and counted
     const bool in_step =
-      step_start && time + m_dt > t0 - reach && time < t1 + reach;
+      step_start && time + m_dt > t0 - tau && time < t1 + tau;
     if (p <= 0.0 && !in_step) {
       if (verb) {
         amrex::Print() << m_spark[n] << " not active \n";
@@ -581,7 +579,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
           m_spark[n] + ": gas inside the radius is already at or above the "
                        "spark temperature; no energy added");
       }
-      if (time > t0 - reach) {
+      if (time > t0 - tau) {
         amrex::Warning(
           m_spark[n] + ": energy evaluated after the spark started (restart "
                        "during the spark?); it is based on the current state");
@@ -605,7 +603,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
         m_ext_sources_SDC ? spark_power_shape(time + m_dt, t0, t1, tau) : p;
       m_spark_deposited[n] +=
         m_spark_energy[n] / m_spark_duration[n] * m_dt * 0.5 * (p + p_end);
-      if (time + m_dt >= t1 + reach && m_spark_verbose > 0) {
+      if (time + m_dt >= t1 + tau && m_spark_verbose > 0) {
         amrex::Print() << m_spark[n]
                        << " deposited energy: " << m_spark_deposited[n]
                        << ", target " << m_spark_energy[n] << ", rel. error "
@@ -620,40 +618,20 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     // Discrete integral of the kernel over the composite (uncovered) grid,
     // so the deposited power is exactly energy / duration whatever the
     // resolution and edge width.
-    amrex::Real kernel_sum = 0.0;
+    amrex::Vector<amrex::MultiFab> kernel(finest_level + 1);
     for (int lev = 0; lev <= finest_level; ++lev) {
+      kernel[lev].define(
+        grids[lev], dmap[lev], 1, 0, amrex::MFInfo(), Factory(lev));
+      auto const& kma = kernel[lev].arrays();
       const amrex::GeometryData gd = geom[lev].data();
-      if (lev != finest_level) {
-        kernel_sum += amrex::ReduceSum(
-          m_cellVol[lev], *m_coveredMask[lev], 0,
-          [=] AMREX_GPU_HOST_DEVICE(
-            amrex::Box const& bx, amrex::Array4<amrex::Real const> const& vol,
-            amrex::Array4<int const> const& mask) -> amrex::Real {
-            amrex::Real sum = 0.0;
-            AMREX_LOOP_3D(bx, i, j, k, {
-              sum += spark_kernel(
-                       spark_distance(i, j, k, x0, mmap, gd), radius, delta) *
-                     vol(i, j, k) * static_cast<amrex::Real>(mask(i, j, k));
-            });
-            return sum;
-          });
-      } else {
-        kernel_sum += amrex::ReduceSum(
-          m_cellVol[lev], 0,
-          [=] AMREX_GPU_HOST_DEVICE(
-            amrex::Box const& bx,
-            amrex::Array4<amrex::Real const> const& vol) -> amrex::Real {
-            amrex::Real sum = 0.0;
-            AMREX_LOOP_3D(bx, i, j, k, {
-              sum += spark_kernel(
-                       spark_distance(i, j, k, x0, mmap, gd), radius, delta) *
-                     vol(i, j, k);
-            });
-            return sum;
-          });
-      }
+      amrex::ParallelFor(
+        kernel[lev],
+        [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+          kma[box_no](i, j, k) =
+            spark_kernel(spark_distance(i, j, k, x0, mmap, gd), radius, delta);
+        });
     }
-    amrex::ParallelDescriptor::ReduceRealSum(kernel_sum);
+    const amrex::Real kernel_sum = MFSum(amrex::GetVecOfConstPtrs(kernel), 0);
     if (kernel_sum <= 0.0) {
       amrex::Warning(m_spark[n] + " not resolved by any cell!");
       continue;
@@ -670,12 +648,11 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
 
     for (int lev = 0; lev <= finest_level; ++lev) {
       auto const& extma = m_extSource[lev]->arrays();
-      const amrex::GeometryData gd = geom[lev].data();
+      auto const& kma = kernel[lev].const_arrays();
       amrex::ParallelFor(
-        *m_extSource[lev],
+        kernel[lev],
         [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
-          const amrex::Real w =
-            spark_kernel(spark_distance(i, j, k, x0, mmap, gd), radius, delta);
+          const amrex::Real w = kma[box_no](i, j, k);
           if (w > 0.0) {
             extma[box_no](i, j, k, RHOH) += coef * w;
           }

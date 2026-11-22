@@ -592,18 +592,26 @@ PeleLM::readParameters()
         }
       }
       pps.get("radius", m_spark_radius[n]);
-      // Edge half-width: in cells of the grid resolving the spark, or a
-      // fixed physical width (takes precedence)
+      // Edge width: in cells of the grid resolving the spark, or a fixed
+      // physical width (takes precedence)
       m_spark_width_cells[n] = 1.0;
       pps.query("width_cells", m_spark_width_cells[n]);
       m_spark_width[n] = -1.0;
-      pps.query("width", m_spark_width[n]);
+      if (
+        pps.query("width", m_spark_width[n]) != 0 && m_spark_width[n] <= 0.0) {
+        amrex::Abort(
+          m_spark[n] + ": width must be > 0 (width_cells = 0 for a top-hat)");
+      }
       // Ramp half-width: in steps (frozen from the step size just before
       // the ramp), or a fixed time (takes precedence)
       m_spark_ramp_steps[n] = 1.0;
       pps.query("ramp_steps", m_spark_ramp_steps[n]);
       m_spark_ramp_time[n] = -1.0;
-      pps.query("ramp_time", m_spark_ramp_time[n]);
+      if (
+        pps.query("ramp_time", m_spark_ramp_time[n]) != 0 &&
+        m_spark_ramp_time[n] < 0.0) {
+        amrex::Abort(m_spark[n] + ": ramp_time must be >= 0");
+      }
       if (m_spark_ramp_time[n] >= 0.0) {
         m_spark_tau[n] = m_spark_ramp_time[n];
       } else if (m_spark_ramp_steps[n] < 0.0) {

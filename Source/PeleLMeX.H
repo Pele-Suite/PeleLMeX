@@ -932,16 +932,13 @@ public:
   //! step lands on each end of a compact (linear, cosine) power ramp.
   amrex::Real limitDtForSparks(amrex::Real a_dt);
 
-  //! Spark \p n ramp half-width tau [s] (< 0 while not yet frozen)
-  [[nodiscard]] amrex::Real sparkTau(int n) const;
-
   //! Volume of spark \p n's sphere clipped to the physical domain
   //! (RZ-weighted): the volume its energy is normalised to.
   amrex::Real sparkVolume(int n) const;
 
-  //! Spark energies frozen at ignition and ramp half-widths frozen before
-  //! the ramp, written to / read from <checkpoint>/Sparks so a restart
-  //! during a spark keeps them.
+  //! Spark energies frozen at ignition, ramp half-widths frozen before the
+  //! ramp and deposited energies, written to / read from <checkpoint>/Sparks
+  //! so a restart during a spark keeps them.
   void writeSparkCheckpoint(const std::string& a_dir) const;
   void readSparkCheckpoint(const std::string& a_dir);
 
@@ -2396,8 +2393,8 @@ public:
   amrex::Vector<amrex::Vector<amrex::Real>> m_spark_location;
   amrex::Vector<amrex::Real> m_spark_temp;
   amrex::Vector<amrex::Real> m_spark_radius;
-  // Edge half-width delta: in cells of the finest level holding the spark
-  // centre, or (when width > 0) a fixed physical width [m]
+  // Edge width w: in cells of the finest level holding the spark centre,
+  // or (when width > 0) a fixed physical width [m]
   amrex::Vector<amrex::Real> m_spark_width_cells;
   amrex::Vector<amrex::Real> m_spark_width;
   // Clipped sphere volume (lazily computed, < 0 until then)
