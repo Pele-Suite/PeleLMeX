@@ -4,23 +4,23 @@
 // Return velocity forces scaled by rhoInv
 // including grapP term if add_gradP = 1
 // including divTau if input amrex::Vector not empty
+// a_extRhoExplicit: fraction of the -u extrho external source term included
 void
 PeleLM::getVelForces(
   const TimeStamp a_time,
   const amrex::Vector<amrex::MultiFab*>& a_divTau,
   const amrex::Vector<amrex::MultiFab*>& a_velForce,
   const int nGrowForce,
-  const int add_gradP)
+  const int add_gradP,
+  const amrex::Real a_extRhoExplicit)
 {
   BL_PROFILE("PeleLMeX::getVelForces()");
   const int has_divTau = static_cast<int>(!a_divTau.empty());
 
   for (int lev = 0; lev <= finest_level; ++lev) {
-    if (has_divTau != 0) {
-      getVelForces(a_time, lev, a_divTau[lev], a_velForce[lev], add_gradP);
-    } else {
-      getVelForces(a_time, lev, nullptr, a_velForce[lev], add_gradP);
-    }
+    getVelForces(
+      a_time, lev, (has_divTau != 0) ? a_divTau[lev] : nullptr, a_velForce[lev],
+      add_gradP, a_extRhoExplicit);
   }
 
   // FillPatch forces
@@ -35,7 +35,8 @@ PeleLM::getVelForces(
   const int lev,
   amrex::MultiFab* a_divTau,
   amrex::MultiFab* a_velForce,
-  const int add_gradP)
+  const int add_gradP,
+  const amrex::Real a_extRhoExplicit)
 {
 
   // Get level data
@@ -65,13 +66,14 @@ PeleLM::getVelForces(
   amrex::ParallelFor(
     *a_velForce,
     [state_ma, ext_ma, force_ma, grav, gp0, ps_dir, is_incomp, rho_incomp,
-     pseudo_gravity,
-     dV_control] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) {
+     pseudo_gravity, dV_control,
+     a_extRhoExplicit] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) {
       amrex::Array4<amrex::Real const> vel(state_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> extmom(ext_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
       amrex::Array4<amrex::Real const> extrho(ext_ma[box_no], DENSITY);
-      // overwrite if incompressible, just to point to something
+      // Incompressible: no density in the state and no mass source, so
+      // point rho/extrho at something (makeVelForce does not read them)
       if (is_incomp != 0) {
         rho = vel;
         extrho = extmom;
@@ -79,7 +81,8 @@ PeleLM::getVelForces(
       // background gp, pseudo grav, ext sources
       makeVelForce(
         i, j, k, is_incomp, rho_incomp, pseudo_gravity, ps_dir, grav, gp0,
-        dV_control, vel, rho, extmom, extrho, force_ma[box_no]);
+        dV_control, vel, rho, extmom, extrho, a_extRhoExplicit,
+        force_ma[box_no]);
     });
   amrex::Gpu::streamSynchronize();
 
@@ -391,47 +394,173 @@ PeleLM::addScalarVarianceSources(const TimeStamp a_timestamp)
 }
 
 // Calculate additional external sources (soot, radiation, user defined, etc.)
+// at t^n. With ext_sources_SDC, also keep S^n and its frozen part in diffData
+// for the SDC re-evaluations.
 void
 PeleLM::getExternalSources(
   const int is_initIter,
   const PeleLM::TimeStamp a_timestamp_old,
-  const PeleLM::TimeStamp a_timestamp_new)
+  const PeleLM::TimeStamp a_timestamp_new,
+  const std::unique_ptr<AdvanceDiffData>& diffData)
 {
-  amrex::ignore_unused(is_initIter);
-
-  if (m_n_sparks > 0) {
-    addSpark(a_timestamp_old);
+  if (!m_ext_sources_SDC) {
+    assembleExternalSources(
+      is_initIter, a_timestamp_old, a_timestamp_new, nullptr);
+    return;
   }
 
+  // extSrc_n/np1 are allocated with diffData; the frozen snapshot only
+  // when a frozen source is active
+  auto& frozen = diffData->extSrc_frozen;
+  AMREX_ASSERT(frozen.empty() && !diffData->extSrc_n.empty());
+  // m_extSource is zero on entry: snapshot the frozen part on its own
+  if (addFrozenExternalSources(is_initIter, a_timestamp_old)) {
+    for (int lev = 0; lev <= finest_level; ++lev) {
+      auto& ext = *m_extSource[lev];
+      frozen.emplace_back(
+        grids[lev], dmap[lev], NVAR, ext.nGrowVect(), amrex::MFInfo(),
+        *m_factory[lev]);
+      std::swap(frozen[lev], ext);
+      ext.setVal(0.0);
+    }
+  }
+  assembleExternalSources(
+    is_initIter, a_timestamp_old, a_timestamp_new, &frozen);
+  // extSrc_np1 is filled by the first updateExternalSourcesSDC
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    const auto& ext = *m_extSource[lev];
+    amrex::MultiFab::Copy(
+      diffData->extSrc_n[lev], ext, 0, 0, NVAR, ext.nGrowVect());
+  }
+}
+
+// Spray advances its own particles (MKD), soot integrates its source over dt
+// internally and radiation needs a global solve, so these are only evaluated
+// once per step, from t^n. Returns whether any of them is active.
+bool
+PeleLM::addFrozenExternalSources(
+  const int is_initIter, const PeleLM::TimeStamp a_timestamp)
+{
+  amrex::ignore_unused(is_initIter, a_timestamp);
+  bool added = false;
 #ifdef PELE_USE_SPRAY
   if (is_initIter == 0) {
     SprayMKD(m_cur_time, m_dt);
+    added = added || do_spray_particles;
   }
 #endif
 #ifdef PELE_USE_SOOT
   if (do_soot_solve) {
-    computeSootSource(a_timestamp_old, m_dt);
+    computeSootSource(a_timestamp, m_dt);
+    added = true;
   }
 #endif
 #ifdef PELE_USE_RADIATION
   if (do_rad_solve) {
     BL_PROFILE_VAR("PeleLM::advance::rad", PLM_RAD);
-    computeRadSource(a_timestamp_old);
+    computeRadSource(a_timestamp);
     BL_PROFILE_VAR_STOP(PLM_RAD);
+    added = true;
   }
 #endif
+  return added;
+}
 
-  addScalarVarianceSources(a_timestamp_old);
+// divU for the initial projection(s), with the external sources already
+// active at t^0. Otherwise u^0 misses the flow they drive, and the velocity
+// advection of the first step imprints an O(dt) error that the projections
+// do not remove. Only the sources that can be evaluated at an instant are
+// included; the spray, soot and radiation sources span a step. The variance
+// sources need the turbulent viscosity at the old time, which is not set up
+// yet.
+void
+PeleLM::calcInitDivU(const amrex::Real a_dt)
+{
+  constexpr int is_initialization = 1;
+  constexpr int computeDiffusionTerm = 1;
+  constexpr int do_avgDown = 1;
+  // Light version of the diffusion data container
+  auto diffData = std::make_unique<AdvanceDiffData>(
+    finest_level, grids, dmap, m_factory, m_nGrowAdv, m_use_wbar, m_use_soret,
+    m_nAux, is_initialization);
 
-  // User defined external sources
-  if (m_user_defined_ext_sources) {
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_extSource[lev]->setVal(0.0);
+  }
+  if (m_n_sparks > 0) {
+    addSpark(AmrNewTime);
+  }
+  addUserExternalSources(AmrNewTime, AmrNewTime, a_dt);
+
+  calcDivU(
+    is_initialization, computeDiffusionTerm, do_avgDown, AmrNewTime, diffData,
+    GetVecOfConstPtrs(m_extSource));
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_extSource[lev]->setVal(0.0);
+  }
+}
+
+// ProblemSpecificFunctions::modify_ext_sources on every level
+void
+PeleLM::addUserExternalSources(
+  const PeleLM::TimeStamp a_timestamp_eval,
+  const PeleLM::TimeStamp a_timestamp_new,
+  const amrex::Real a_dt)
+{
+  if (!m_user_defined_ext_sources) {
+    return;
+  }
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    auto* ldata_p_eval = getLevelDataPtr(lev, a_timestamp_eval);
+    auto* ldata_p_new = getLevelDataPtr(lev, a_timestamp_new);
+    ProblemSpecificFunctions::modify_ext_sources(
+      getTime(lev, a_timestamp_eval), a_dt, ldata_p_eval->state,
+      ldata_p_new->state, m_extSource[lev], geom[lev].data(), prob_parm_d);
+  }
+}
+
+// Add the external sources evaluated from the a_timestamp_eval state into
+// m_extSource. a_frozen: nullptr computes the frozen sources, otherwise its
+// (possibly empty) stored snapshot is added instead.
+void
+PeleLM::assembleExternalSources(
+  const int is_initIter,
+  const PeleLM::TimeStamp a_timestamp_eval,
+  const PeleLM::TimeStamp a_timestamp_new,
+  const amrex::Vector<amrex::MultiFab>* a_frozen)
+{
+  if (m_n_sparks > 0) {
+    addSpark(a_timestamp_eval);
+  }
+  if (a_frozen == nullptr) {
+    addFrozenExternalSources(is_initIter, a_timestamp_eval);
+  } else if (!a_frozen->empty()) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      auto* ldata_p_old = getLevelDataPtr(lev, a_timestamp_old);
-      auto* ldata_p_new = getLevelDataPtr(lev, a_timestamp_new);
-      auto& ext_src = m_extSource[lev];
-      ProblemSpecificFunctions::modify_ext_sources(
-        getTime(lev, a_timestamp_old), m_dt, ldata_p_old->state,
-        ldata_p_new->state, ext_src, geom[lev].data(), prob_parm_d);
+      amrex::MultiFab::Add(
+        *m_extSource[lev], (*a_frozen)[lev], 0, 0, NVAR,
+        m_extSource[lev]->nGrowVect());
     }
+  }
+  addScalarVarianceSources(a_timestamp_eval);
+  addUserExternalSources(a_timestamp_eval, a_timestamp_new, m_dt);
+}
+
+// ext_sources_SDC: S^{n+1,k} from the new state into diffData->extSrc_np1,
+// and m_extSource <- 0.5 (S^n + S^{n+1,k})
+void
+PeleLM::updateExternalSourcesSDC(
+  const std::unique_ptr<AdvanceDiffData>& diffData)
+{
+  BL_PROFILE("PeleLMeX::updateExternalSourcesSDC()");
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    m_extSource[lev]->setVal(0.0);
+  }
+  assembleExternalSources(0, AmrNewTime, AmrNewTime, &diffData->extSrc_frozen);
+  for (int lev = 0; lev <= finest_level; ++lev) {
+    auto& ext = *m_extSource[lev];
+    std::swap(ext, diffData->extSrc_np1[lev]);
+    amrex::MultiFab::LinComb(
+      ext, 0.5, diffData->extSrc_n[lev], 0, 0.5, diffData->extSrc_np1[lev], 0,
+      0, NVAR, ext.nGrowVect());
   }
 }

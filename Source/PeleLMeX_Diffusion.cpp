@@ -2070,10 +2070,13 @@ PeleLM::diffuseVelocity()
       GetVecOfPtrs(getVelocityVect(AmrNewTime)), {},
       GetVecOfConstPtrs(getViscosityVect(AmrNewTime)), bcRec[0], dt_lcl);
   } else {
+    // Implicit half of the -u extrho source: rho^{n+1/2} + 0.5 dt extrho
+    // in the A coefficient
     getDiffusionTensorOp()->diffuse_velocity(
       GetVecOfPtrs(getVelocityVect(AmrNewTime)),
       GetVecOfConstPtrs(getDensityVect(AmrHalfTime)),
-      GetVecOfConstPtrs(getViscosityVect(AmrNewTime)), bcRec[0], dt_lcl);
+      GetVecOfConstPtrs(getViscosityVect(AmrNewTime)), bcRec[0], dt_lcl,
+      GetVecOfConstPtrs(m_extSource));
   }
 }
 

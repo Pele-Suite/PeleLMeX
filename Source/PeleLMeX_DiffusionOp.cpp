@@ -1836,24 +1836,29 @@ DiffusionTensorOp::diffuse_velocity(
   amrex::Vector<amrex::MultiFab const*> const& a_density,
   amrex::Vector<amrex::MultiFab const*> const& a_beta,
   const amrex::BCRec& a_bcrec,
-  const amrex::Real a_dt)
+  const amrex::Real a_dt,
+  amrex::Vector<amrex::MultiFab const*> const& a_extSource)
 {
 
   const int finest_level = m_pelelm->finestLevel();
 
   const int have_density = (a_density.empty()) ? 0 : 1;
+  const bool have_extSource = !a_extSource.empty();
 
   AMREX_ASSERT(
     (!m_pelelm->m_incompressible && have_density) ||
     (m_pelelm->m_incompressible && !have_density));
+  AMREX_ASSERT(!have_extSource || have_density);
 
   const bool mesh_mapping = m_pelelm->hasMeshMapping();
   auto* mm = mesh_mapping ? m_pelelm->meshMap() : nullptr;
 
-  // Under mesh mapping we need a cell-centered A-coeff of rho . J
-  // (density . detJ).  Build scratch MFs that live as long as the solve.
+  // A-coeff rho + a_dt * max(extrho, 0) (the implicit part of the -u extrho
+  // momentum source; sinks stay explicit so the coefficient stays positive),
+  // times detJ under mesh mapping. Build scratch MFs that live as long as the
+  // solve.
   amrex::Vector<amrex::MultiFab> a_coeff_scaled;
-  if (mesh_mapping) {
+  if (mesh_mapping || have_extSource) {
     a_coeff_scaled.resize(finest_level + 1);
     for (int lev = 0; lev <= finest_level; ++lev) {
       a_coeff_scaled[lev].define(
@@ -1864,14 +1869,27 @@ DiffusionTensorOp::diffuse_velocity(
       } else {
         a_coeff_scaled[lev].setVal(m_pelelm->m_rho);
       }
-      amrex::MultiFab::Multiply(
-        a_coeff_scaled[lev], mm->detJ_cc(lev), 0, 0, 1, 0);
+      if (have_extSource) {
+        auto const& acoef = a_coeff_scaled[lev].arrays();
+        auto const& ext = a_extSource[lev]->const_arrays();
+        amrex::ParallelFor(
+          a_coeff_scaled[lev],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            acoef[box_no](i, j, k) +=
+              a_dt *
+              amrex::max(ext[box_no](i, j, k, DENSITY), amrex::Real(0.0));
+          });
+      }
+      if (mesh_mapping) {
+        amrex::MultiFab::Multiply(
+          a_coeff_scaled[lev], mm->detJ_cc(lev), 0, 0, 1, 0);
+      }
     }
   }
 
   m_solve_op->setScalars(1.0, a_dt);
   for (int lev = 0; lev <= finest_level; ++lev) {
-    if (mesh_mapping) {
+    if (!a_coeff_scaled.empty()) {
       m_solve_op->setACoeffs(lev, a_coeff_scaled[lev]);
     } else if (have_density != 0) {
       m_solve_op->setACoeffs(lev, *a_density[lev]);

@@ -745,6 +745,7 @@ makeVelForce(
   amrex::Array4<const amrex::Real> const& rho,
   amrex::Array4<const amrex::Real> const& extmom,
   amrex::Array4<const amrex::Real> const& extrho,
+  const amrex::Real extrho_explicit,
   amrex::Array4<amrex::Real> const& force) noexcept
 {
   // Switch between incompressible/low-Mach rhos
@@ -765,9 +766,17 @@ makeVelForce(
     force(i, j, k, pseudo_gravity_dir) += dV_control * rho_lcl;
   }
 
+  // rho Du/Dt = extmom - u extrho; extrho_explicit is the fraction of the
+  // u extrho term kept explicit (the rest is in the velocity solve). Sinks
+  // stay fully explicit so the solve's A coefficient stays positive.
+  // Incompressible: no mass source.
+  amrex::Real fexp = 0.0;
+  if (is_incomp == 0) {
+    fexp = (extrho(i, j, k) < 0.0) ? 1.0 : extrho_explicit;
+  }
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
     force(i, j, k, idim) +=
-      extmom(i, j, k, idim) - vel(i, j, k, idim) * extrho(i, j, k);
+      extmom(i, j, k, idim) - fexp * vel(i, j, k, idim) * extrho(i, j, k);
   }
 }
 
@@ -884,6 +893,10 @@ buildAdvectionForcing(
   const amrex::Real rhoinv = 1.0 / rho(i, j, k);
   amrex::Real y[NUM_SPECIES] = {0.0};
 
+  // rho cp DT/Dt = Fourier + DiffDiff - Sum{hk (Dnk + Rk)}
+  //                + extRhoH - Sum{hk extRhoYk},
+  // the same combination as in divU: an external source of species k
+  // carries the enthalpy given in extRhoH, not hk(T)
   forceT(i, j, k) = dn(i, j, k, NUM_SPECIES) + ddn(i, j, k);
   for (int n = 0; n < NUM_SPECIES; ++n) {
     y[n] = rhoY(i, j, k, n) * rhoinv;    // get y
@@ -891,11 +904,11 @@ buildAdvectionForcing(
     if (do_react != 0) {
       forceY(i, j, k, n) += r(i, j, k, n); //         + Rk
     }
+    forceY(i, j, k, n) += extRhoY(i, j, k, n); //    + extRhoYk
     forceT(i, j, k) -=
       forceY(i, j, k, n) *
-      c2m::H(hi_spec_cgs[n]); // forceT -= Sum{ hk. (Rk + Dnk) } with CGS ->
+      c2m::H(hi_spec_cgs[n]); // forceT -= Sum{ hk forceYk } with CGS ->
                               // MKS conversion of hk
-    forceY(i, j, k, n) += extRhoY(i, j, k, n);
   }
 
   forceT(i, j, k) += extRhoH(i, j, k);

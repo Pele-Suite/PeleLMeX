@@ -28,6 +28,12 @@ struct MyProbParm : public ProbParmDefault
   amrex::Real Y_AR_0 = 0.75;
   amrex::Real extRhoYCO2 = 0.0;
   amrex::Real extRhoYCO2_ts = 0.0;
+  amrex::Real extRhoYCO2_ramp = 0.0;
+  // Isothermal injection: Gaussian CO2 mass source carrying h_CO2(T_mean),
+  // so T must stay at T_mean while the composition change drives a flow
+  bool isothermal_test = false;
+  amrex::Real iso_amp = 0.0;
+  amrex::Real iso_sigma = 0.0;
 };
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
@@ -221,7 +227,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     const amrex::MultiFab& state_old,
     const amrex::MultiFab& /*state_new*/,
     std::unique_ptr<amrex::MultiFab>& ext_src,
-    const amrex::GeometryData& /*geomdata*/,
+    const amrex::GeometryData& geomdata,
     const MyProbParm* prob_parm_d)
   {
     /*
@@ -252,13 +258,47 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
           amrex::Real src = 0.0;
 
           if (time >= prob_parm_d->extRhoYCO2_ts) {
+            // Switch on over extRhoYCO2_ramp with a smoothstep (a step
+            // when 0), so the source is smooth in time
+            amrex::Real ramp = 1.0;
+            if (prob_parm_d->extRhoYCO2_ramp > 0.0) {
+              const amrex::Real s = amrex::min(
+                (time - prob_parm_d->extRhoYCO2_ts) /
+                  prob_parm_d->extRhoYCO2_ramp,
+                amrex::Real(1.0));
+              ramp = s * s * (3.0 - 2.0 * s);
+            }
             amrex::Real CO2 =
               state_old_arr[box_no](i, j, k, FIRSTSPEC + CO2_ID);
-            src = prob_parm_d->extRhoYCO2 * CO2;
+            src = prob_parm_d->extRhoYCO2 * ramp * CO2;
           }
 
           ext_src_arr[box_no](i, j, k, FIRSTSPEC + CO2_ID) += src;
           ext_src_arr[box_no](i, j, k, DENSITY) += src;
+        }
+
+        // Source terms for the isothermal injection test
+        if (prob_parm_d->isothermal_test) {
+          const amrex::Real* plo = geomdata.ProbLo();
+          const amrex::Real* phi = geomdata.ProbHi();
+          const amrex::Real* dx = geomdata.CellSize();
+          const amrex::IntVect iv(AMREX_D_DECL(i, j, k));
+          amrex::Real r2 = 0.0;
+          for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+            const amrex::Real x =
+              plo[d] + (iv[d] + 0.5) * dx[d] - 0.5 * (plo[d] + phi[d]);
+            r2 += x * x;
+          }
+          const amrex::Real sig = prob_parm_d->iso_sigma;
+          const amrex::Real src =
+            prob_parm_d->iso_amp * std::exp(-r2 / (2.0 * sig * sig));
+          auto eos = pele::physics::PhysicsType::eos();
+          amrex::Real hi_cgs[NUM_SPECIES] = {0.0};
+          eos.T2Hi(prob_parm_d->T_mean, hi_cgs);
+          ext_src_arr[box_no](i, j, k, FIRSTSPEC + CO2_ID) += src;
+          ext_src_arr[box_no](i, j, k, DENSITY) += src;
+          ext_src_arr[box_no](i, j, k, RHOH) +=
+            src * hi_cgs[CO2_ID] * 1.0e-4; // CGS -> MKS conversion
         }
       });
     amrex::Gpu::streamSynchronize();

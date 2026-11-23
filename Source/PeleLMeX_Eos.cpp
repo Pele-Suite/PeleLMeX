@@ -42,7 +42,8 @@ PeleLM::calcDivU(
   const int computeDiff,
   const int do_avgDown,
   const TimeStamp a_time,
-  const std::unique_ptr<AdvanceDiffData>& diffData)
+  const std::unique_ptr<AdvanceDiffData>& diffData,
+  const amrex::Vector<const amrex::MultiFab*>& a_extSrc)
 {
   BL_PROFILE("PeleLMeX::calcDivU()");
 
@@ -82,6 +83,8 @@ PeleLM::calcDivU(
       }
     }
 
+    const amrex::MultiFab& extSrc = *a_extSrc[lev];
+
     //----------------------------------------------------------------
 #ifdef AMREX_USE_EB
     // Get EBFact
@@ -117,8 +120,8 @@ PeleLM::calcDivU(
         ((m_do_react != 0) && (m_skipInstantRR == 0))
           ? RhoYdot.const_array(mfi)
           : ldata_p->state.const_array(mfi, FIRSTSPEC); // Dummy unused Array4
-      auto const& extRhoY = m_extSource[lev]->const_array(mfi, FIRSTSPEC);
-      auto const& extRhoH = m_extSource[lev]->const_array(mfi, RHOH);
+      auto const& extRhoY = extSrc.const_array(mfi, FIRSTSPEC);
+      auto const& extRhoH = extSrc.const_array(mfi, RHOH);
       auto const& divu = ldata_p->divu.array(mfi);
       int use_react = ((m_do_react != 0) && (m_skipInstantRR == 0)) ? 1 : 0;
       auto const* leosparm = eos_parms.device_parm();

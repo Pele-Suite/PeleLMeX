@@ -134,6 +134,7 @@ public:
 
   // ReadParameters
   void readParameters();
+  void setupExtSourcesSDC();
 
   // ReadIOParameters
   void readIOParameters();
@@ -255,7 +256,9 @@ public:
       const int a_use_wbar,
       const int a_use_soret,
       const int a_nAux,
-      const int is_init = 0);
+      const int is_init = 0,
+      const bool a_ext_sources_SDC = false,
+      const int a_nGrowExt = 0);
     amrex::Vector<amrex::MultiFab> Dn;   // Diffusion term t^n
     amrex::Vector<amrex::MultiFab> Dnp1; // Diffusion term t^(n+1,k)
     amrex::Vector<amrex::MultiFab> Dhat; // Diffusion term t^(n+1,k+1)
@@ -272,6 +275,12 @@ public:
     amrex::Vector<amrex::MultiFab> DT; // Diffusion term of T (soret flux)
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
       soret_fluxes; // Soret flux correction
+
+    // ext_sources_SDC only: external sources at t^n and t^(n+1,k), and the
+    // part of S^n held frozen over the step (spray, soot, radiation)
+    amrex::Vector<amrex::MultiFab> extSrc_n;
+    amrex::Vector<amrex::MultiFab> extSrc_np1;
+    amrex::Vector<amrex::MultiFab> extSrc_frozen;
   };
   /**
    * \brief Advance function data container for advection term
@@ -887,14 +896,16 @@ public:
     const amrex::Vector<amrex::MultiFab*>& a_divTau,
     const amrex::Vector<amrex::MultiFab*>& a_velForce,
     const int nGrowForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void getVelForces(
     const PeleLM::TimeStamp a_time,
     const int lev,
     amrex::MultiFab* a_divTau,
     amrex::MultiFab* a_velForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void addSpark(const PeleLM::TimeStamp a_time);
 
@@ -967,7 +978,27 @@ public:
   void getExternalSources(
     const int is_initIter,
     const PeleLM::TimeStamp a_timestamp_old,
-    const PeleLM::TimeStamp a_timestamp_new);
+    const PeleLM::TimeStamp a_timestamp_new,
+    const std::unique_ptr<AdvanceDiffData>& diffData);
+
+  bool addFrozenExternalSources(
+    const int is_initIter, const PeleLM::TimeStamp a_timestamp);
+
+  // External sources at t^0 into m_extSource, for the initial divU
+  void calcInitDivU(amrex::Real a_dt);
+  void addUserExternalSources(
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Real a_dt);
+
+  void assembleExternalSources(
+    const int is_initIter,
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Vector<amrex::MultiFab>* a_frozen);
+
+  void
+  updateExternalSourcesSDC(const std::unique_ptr<AdvanceDiffData>& diffData);
 
   //-----------------------------------------------------------------------------
   // EOS
@@ -1013,13 +1044,15 @@ public:
    * using the one already precompute and available in diffData
    * \param a_time state time to work with
    * \param diffData container for the diffusion terms
+   * \param a_extSrc external sources at a_time (extRhoY, extRhoH used)
    */
   void calcDivU(
     const int is_init,
     const int computeDiff,
     const int do_avgDown,
     const PeleLM::TimeStamp a_time,
-    const std::unique_ptr<AdvanceDiffData>& diffData);
+    const std::unique_ptr<AdvanceDiffData>& diffData,
+    const amrex::Vector<const amrex::MultiFab*>& a_extSrc);
 
   /**
    * \brief Compute the pressure drift term using RhoRT and
