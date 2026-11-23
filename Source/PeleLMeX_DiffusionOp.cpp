@@ -1876,7 +1876,8 @@ DiffusionTensorOp::diffuse_velocity(
           a_coeff_scaled[lev],
           [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
             acoef[box_no](i, j, k) +=
-              a_dt * amrex::max(ext[box_no](i, j, k, DENSITY), 0.0);
+              a_dt *
+              amrex::max(ext[box_no](i, j, k, DENSITY), amrex::Real(0.0));
           });
       }
       if (mesh_mapping) {
