@@ -35,7 +35,7 @@ PeleLM::poissonSolveEF(const TimeStamp a_time)
 
     constexpr amrex::Real factor = -1.0;
     amrex::ParallelFor(
-      ldata_p->state, [state_ma, rhs_ma, factor, zk = zk] AMREX_GPU_DEVICE(
+      ldata_p->state, [state_ma, rhs_ma, zk = zk] AMREX_GPU_DEVICE(
                         int box_no, int i, int j, int k) noexcept {
         amrex::Array4<amrex::Real const> nE(state_ma[box_no], NE);
         amrex::Array4<amrex::Real const> rhoY(state_ma[box_no], FIRSTSPEC);

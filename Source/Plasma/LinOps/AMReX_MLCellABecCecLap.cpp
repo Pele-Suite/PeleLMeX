@@ -201,7 +201,8 @@ MLCellABecCecLap::getFluxes(
 }
 
 void
-MLCellABecCecLap::applyInhomogNeumannTerm(int amrlev, MultiFab& rhs) const
+MLCellABecCecLap::applyInhomogNeumannTerm(
+  int /*amrlev*/, MultiFab& /*rhs*/) const
 {
   bool has_inhomog_neumann = hasInhomogNeumannBC();
   bool has_robin = hasRobinBC();

@@ -44,12 +44,9 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     AMREX_D_TERM(
       const amrex::Real x = prob_lo[0] + (i + 0.5) * dx[0];
       , const amrex::Real y = prob_lo[1] + (j + 0.5) * dx[1];
-      , const amrex::Real z = prob_lo[2] + (k + 0.5) * dx[2];);
+      , [[maybe_unused]] const amrex::Real z = prob_lo[2] + (k + 0.5) * dx[2];);
 
-    AMREX_D_TERM(
-      const amrex::Real Lx = prob_hi[0] - prob_lo[0];
-      , const amrex::Real Ly = prob_hi[1] - prob_lo[1];
-      , const amrex::Real Lz = prob_hi[2] - prob_lo[2]);
+    const amrex::Real Lx = prob_hi[0] - prob_lo[0];
 
     constexpr amrex::Real Pi = 3.14159265358979323846264338327950288;
 
@@ -58,7 +55,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     amrex::Real molefrac[NUM_SPECIES] = {0.0};
     amrex::Real massfrac[NUM_SPECIES] = {0.0};
     amrex::Real pert;
-    amrex::Real y1, y2;
+    amrex::Real y1;
 
     pert = 0.0;
     if (prob_parm.pertmag > 0.0) {
@@ -71,7 +68,6 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     }
 
     y1 = (y - prob_parm.standoff - 0.5 * dx[1] + pert) * 100.0;
-    y2 = (y - prob_parm.standoff + 0.5 * dx[1] + pert) * 100.0;
 
     y1 += 0.5 * dx[1];
     pele::physics::PMF::pmf(pmf_data, y1, y1, pmf_vals);
@@ -95,7 +91,7 @@ struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
     massfrac[E_ID] = 0.0;
     amrex::Real sum = 0.0;
     for (int n = 0; n < NUM_SPECIES; n++) {
-      massfrac[n] = amrex::max(0.0, massfrac[n]);
+      massfrac[n] = amrex::max(amrex::Real(0.0), massfrac[n]);
       if (n != N2_ID)
         sum += massfrac[n];
     }

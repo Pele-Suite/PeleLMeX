@@ -162,8 +162,8 @@ void
 PrecondOp::diffOpSolve(
   const amrex::Vector<amrex::MultiFab*>& a_sol,
   const amrex::Vector<const amrex::MultiFab*>& a_rhs,
-  const amrex::Real& rtol,
-  const amrex::Real& atol)
+  const amrex::Real& /*rtol*/,
+  const amrex::Real& /*atol*/)
 {
   // TODO set all the MLMG options
   m_mlmg_diff->setVerbose(m_diff_verbose);
@@ -179,8 +179,8 @@ void
 PrecondOp::StildaOpSolve(
   const amrex::Vector<amrex::MultiFab*>& a_sol,
   const amrex::Vector<const amrex::MultiFab*>& a_rhs,
-  const amrex::Real& rtol,
-  const amrex::Real& atol)
+  const amrex::Real& /*rtol*/,
+  const amrex::Real& /*atol*/)
 {
   // TODO set all the MLMG options
   m_mlmg_Stilda->setVerbose(m_Stilda_verbose);
