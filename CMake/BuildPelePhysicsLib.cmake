@@ -237,7 +237,6 @@ function(build_pele_physics_lib pele_physics_lib_name)
                      ${PELE_PHYSICS_RADIATION_DIR}/POneMultiLevbyLev.H
                      ${PELE_PHYSICS_RADIATION_DIR}/POneSingle.H
                      ${PELE_PHYSICS_RADIATION_DIR}/POneSingleEB.H
-                     ${PELE_PHYSICS_RADIATION_DIR}/PeleCRad.H
                      ${PELE_PHYSICS_RADIATION_DIR}/PeleLMRad.H
                      ${PELE_PHYSICS_RADIATION_DIR}/PlanckMean.H
                      ${PELE_PHYSICS_RADIATION_DIR}/SpectralModels.H)
