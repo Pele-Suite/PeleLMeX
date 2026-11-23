@@ -229,7 +229,7 @@ spark_power_integral(
 {
   auto ramp_integral = [tau](amrex::Real x) -> amrex::Real {
     if (tau <= 0.0) {
-      return amrex::max(x, 0.0);
+      return amrex::max(x, amrex::Real(0.0));
     }
     if (x <= -tau) {
       return 0.0;
@@ -573,7 +573,8 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
       } else if (sums[3] > 0.0) {
         q_mean = sums[2] / sums[3];
       }
-      m_spark_energy[n] = amrex::max(0.0, q_mean * m_spark_volume[n]);
+      m_spark_energy[n] =
+        amrex::max(amrex::Real(0.0), q_mean * m_spark_volume[n]);
       if (q_mean <= 0.0) {
         amrex::Warning(
           m_spark[n] + ": gas inside the radius is already at or above the "
