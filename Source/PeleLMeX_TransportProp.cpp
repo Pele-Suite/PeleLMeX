@@ -427,7 +427,8 @@ PeleLM::getDiffusivity(
   // Use the following relationships to translate from the ncomp and beta_comp
   // to the component ncomp = NUM_SPECIES, beta_comp = 0           --> SPECIES
   // DIFFUSIVITY ncomp = 1          , beta_comp = NUM_SPECIES --> THERMAL
-  // CONDUCTIVITY ncomp = 1          , beta_comp = 0           --> VISCOSITY If
+  // CONDUCTIVITY ncomp = 1          , beta_comp = 0           --> VISCOSITY
+  // (auxiliary diffusivities are recognised separately). If
   // PELE_USE_PLASMA is active, these relationships will not hold and LES is not
   // supported
   if ((addTurbContrib != 0) and m_do_les) {
@@ -445,9 +446,21 @@ PeleLM::getDiffusivity(
     }
     auto* ldata_p = getLevelDataPtr(lev, tstamp);
 
+    // Auxiliary scalars: identified by their own diffusivity container, as
+    // (ncomp, beta_comp) can coincide with the viscosity or species cases
+    const bool is_aux =
+      (m_nAux > 0) && (&beta_cc == &m_leveldata_old[lev]->diff_aux_cc ||
+                       &beta_cc == &m_leveldata_new[lev]->diff_aux_cc);
+
     // Identify and add the correct turbulent contribution
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      if ((ncomp == 1) and (beta_comp == 0)) { // Viscosity
+      if (is_aux) { // Auxiliary diffusivity: mu_t / Sc_t, as for species
+        for (int n = 0; n < ncomp; ++n) {
+          amrex::MultiFab::Saxpy(
+            beta_ec[idim], m_Schmidt_inv, ldata_p->visc_turb_fc[idim], 0, n, 1,
+            0);
+        }
+      } else if ((ncomp == 1) and (beta_comp == 0)) { // Viscosity
         amrex::MultiFab::Add(
           beta_ec[idim], ldata_p->visc_turb_fc[idim], 0, 0, 1, 0);
       } else if ((ncomp == NUM_SPECIES) and (beta_comp == 0)) { // Species
