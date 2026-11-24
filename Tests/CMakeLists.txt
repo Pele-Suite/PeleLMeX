@@ -346,6 +346,12 @@ else()
     add_test_rt(composition-test-${PELE_DIM}d EB_ODEQty)
     add_test_r(eb_bfs EB_BackwardStepFlame)
     add_test_r(eb_bfs_pp EB_BackwardStepFlame)
+    if(PELE_ENABLE_HYPRE)
+      # AMReX's composite solvers (hypre, AlgMG) with EB: the projections,
+      # the scalar diffusion (isothermal EB) and the velocity diffusion
+      add_test_r(eb_bfs_composite EB_BackwardStepFlame)
+      add_test_r(eb-cylinder-composite-${PELE_DIM}d EB_FlowPastCylinder)
+    endif()
     # Recycling-plane inflow capability (PeleLM::fillFromRecyclingPlane)
     add_test_r(eb_bfs_recycle_off     EB_BackwardStepFlame)
     add_test_r(eb_bfs_recycle_basic   EB_BackwardStepFlame)

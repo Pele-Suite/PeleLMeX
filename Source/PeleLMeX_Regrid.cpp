@@ -424,8 +424,9 @@ PeleLM::MakeNewLevelFromCoarse(
   m_mcdiffusion_op.reset();
   m_diffusionTensor_op.reset();
 
-  // Trigger MacProj reset
+  // Trigger MacProj and NodalProj reset
   m_macProjNeedReset = 1;
+  m_nodalProjNeedReset = 1;
   m_extSource[lev] = std::make_unique<amrex::MultiFab>(
     ba, dm, NVAR, amrex::max<int>(m_nGrowAdv, m_nGrowMAC), amrex::MFInfo(),
     *m_factory[lev]);
@@ -555,8 +556,9 @@ PeleLM::RemakeLevel(
   m_mcdiffusion_op.reset();
   m_diffusionTensor_op.reset();
 
-  // Trigger MacProj reset
+  // Trigger MacProj and NodalProj reset
   m_macProjNeedReset = 1;
+  m_nodalProjNeedReset = 1;
   m_extSource[lev] = std::make_unique<amrex::MultiFab>(
     ba, dm, NVAR, amrex::max<int>(m_nGrowAdv, m_nGrowMAC), amrex::MFInfo(),
     *m_factory[lev]);
@@ -587,6 +589,7 @@ PeleLM::ClearLevel(const int lev)
   m_mcdiffusion_op.reset();
   m_diffusionTensor_op.reset();
   macproj.reset();
+  m_nodalproj.reset();
 #ifdef PELE_USE_PLASMA
   m_leveldatanlsolve[lev].reset();
   if (m_do_extraEFdiags) {

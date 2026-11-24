@@ -121,6 +121,7 @@ PeleLM::MakeNewLevelFromScratch(
   macproj = std::make_unique<Hydro::MacProjector>(Geom(0, finest_level));
 #endif
   m_macProjOldSize = finest_level + 1;
+  m_nodalProjNeedReset = 1;
   m_extSource[lev] = std::make_unique<amrex::MultiFab>(
     grids[lev], dmap[lev], NVAR, amrex::max<int>(m_nGrowAdv, m_nGrowMAC),
     amrex::MFInfo(), *m_factory[lev]);

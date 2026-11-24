@@ -151,6 +151,9 @@ PeleLM::initialProjection()
   doNodalProject(
     GetVecOfPtrs(vel), GetVecOfPtrs(sigma), GetVecOfPtrs(rhs_cc), {},
     incremental, dummy_dt);
+  // The time steps scale sigma by dt: the kept composite solver starts them
+  // with a fresh setup
+  m_nodalProjNeedReset = 1;
 
   // Mesh mapping: correct the AmrWind-inherited sigma_x-only velocity
   // update from MLNodeLaplacian::mknewu.  See velocityProjection for
@@ -348,6 +351,7 @@ PeleLM::initialPressProjection()
   // Done without divU in IAMR
   doNodalProject(
     GetVecOfPtrs(vel), GetVecOfPtrs(sigma), {}, {}, incremental, dummy_dt);
+  m_nodalProjNeedReset = 1; // see initialProjection
 
   // Velocity is local to this function; no post-project unscaling needed.
 }
@@ -785,28 +789,69 @@ PeleLM::doNodalProject(
     }
   }
 
-  // Setup NodalProjector
-  std::unique_ptr<Hydro::NodalProjector> nodal_projector;
+  // Setup NodalProjector.  With nodal_proj.use_mlhypre the projector is
+  // kept across projections: its composite solver (and solver setup, see
+  // nodal_proj.mlhypre_reuse_setup) is reused and its matrix updated in place
+  // from the current sigma, so sigma is always a MultiFab then.  Otherwise it
+  // is built per projection.
+  const bool const_sigma = (m_incompressible != 0) && !m_mesh_mapping;
+  const bool keep_projector = (m_nodal_use_mlhypre != 0);
+  std::unique_ptr<Hydro::NodalProjector> local_projector;
+  amrex::Vector<amrex::MultiFab> const_sigma_mf;
+  Hydro::NodalProjector* nodal_projector = nullptr;
 
-  if ((m_incompressible != 0) && !m_mesh_mapping) {
-    const amrex::Real constant_sigma = scaling_factor / m_rho;
-    nodal_projector = std::make_unique<Hydro::NodalProjector>(
-      a_vel, constant_sigma, Geom(0, finest_level), info);
-  } else {
-    // Mesh mapping (or low-Mach): sigma is a MultiFab.  Under mesh
-    // mapping it carries AMREX_SPACEDIM components; velocityProjection
-    // builds it that way.
-    if (!rhs_cc.empty()) {
-      nodal_projector = std::make_unique<Hydro::NodalProjector>(
-        a_vel, GetVecOfConstPtrs(a_sigma), Geom(0, finest_level), info, rhs_cc,
-        rhs_nd);
+  if (!keep_projector) {
+    if (const_sigma) {
+      const amrex::Real constant_sigma = scaling_factor / m_rho;
+      local_projector = std::make_unique<Hydro::NodalProjector>(
+        a_vel, constant_sigma, Geom(0, finest_level), info);
     } else {
-      nodal_projector = std::make_unique<Hydro::NodalProjector>(
-        a_vel, GetVecOfConstPtrs(a_sigma), Geom(0, finest_level), info);
+      // Mesh mapping (or low-Mach): sigma is a MultiFab.  Under mesh
+      // mapping it carries AMREX_SPACEDIM components; velocityProjection
+      // builds it that way.
+      if (!rhs_cc.empty()) {
+        local_projector = std::make_unique<Hydro::NodalProjector>(
+          a_vel, GetVecOfConstPtrs(a_sigma), Geom(0, finest_level), info,
+          rhs_cc, rhs_nd);
+      } else {
+        local_projector = std::make_unique<Hydro::NodalProjector>(
+          a_vel, GetVecOfConstPtrs(a_sigma), Geom(0, finest_level), info);
+      }
     }
+    local_projector->setDomainBC(lobc, hibc);
+    nodal_projector = local_projector.get();
+  } else {
+    amrex::Vector<const amrex::MultiFab*> sigma_ptrs;
+    if (const_sigma) {
+      const_sigma_mf.resize(finest_level + 1);
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        const_sigma_mf[lev].define(
+          grids[lev], dmap[lev], 1, 0, amrex::MFInfo(), *m_factory[lev]);
+        const_sigma_mf[lev].setVal(scaling_factor / m_rho);
+      }
+      sigma_ptrs = GetVecOfConstPtrs(const_sigma_mf);
+    } else {
+      sigma_ptrs = GetVecOfConstPtrs(a_sigma);
+    }
+    if (
+      m_nodalproj && ((m_nodalProjNeedReset != 0) ||
+                      (m_nodalProjOldSize != finest_level + 1))) {
+      m_nodalproj.reset();
+    }
+    if (!m_nodalproj) {
+      m_nodalproj = std::make_unique<Hydro::NodalProjector>(
+        a_vel, sigma_ptrs, Geom(0, finest_level), info, rhs_cc, rhs_nd);
+      m_nodalproj->setDomainBC(lobc, hibc);
+      m_nodalProjNeedReset = 0;
+      m_nodalProjOldSize = finest_level + 1;
+    } else {
+      // The data of this projection, on the same grids
+      m_nodalproj->setVelocity(a_vel);
+      m_nodalproj->setSigma(sigma_ptrs);
+      m_nodalproj->setSourceTerms(rhs_cc, rhs_nd);
+    }
+    nodal_projector = m_nodalproj.get();
   }
-
-  nodal_projector->setDomainBC(lobc, hibc);
 
 #ifdef AMREX_USE_EB
   if (m_useEBinflow != 0) {
