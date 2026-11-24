@@ -25,7 +25,6 @@ amr.max_grid_size   = 64               # max box size
 #--------------------------- Problem -------------------------------
 prob.T_mean = 298.0
 prob.P_mean = 101325.0
-prob.type   = ConvectedVortex
 prob.meanFlowMag = 5.0
 prob.meanFlowDir = 1
 
@@ -38,8 +37,6 @@ transport.const_diffusivity      = 0.0
 #-------------------------PeleLM CONTROL----------------------------
 peleLM.v = 1
 peleLM.incompressible = 0
-peleLM.rho = 1.17
-peleLM.mu = 0.0003
 
 amr.plot_int = 20
 amr.max_step = 20
