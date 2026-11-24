@@ -322,6 +322,12 @@ PeleLM::initData()
     // Read starting configuration from chk file.
     ReadCheckPointFile();
 
+    // The checkpoint restores typical_values, but the chemistry integrator
+    // only receives them through setTypicalValues(), which runs every
+    // typical_values_reset_int steps.  Hand them over now, or CVODE uses its
+    // defaults (and fails or misbehaves) until the next reset.
+    updateTypicalValuesChem();
+
 #ifdef PELE_USE_SPRAY
     SprayInit();
 #endif
