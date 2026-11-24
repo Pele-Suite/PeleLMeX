@@ -1,5 +1,6 @@
 #include "PeleLMeX_BPatch.H"
 #include "PelePhysics.H"
+#include <unordered_set>
 
 std::string
 Trim_First_Last_Whitespace(const std::string& species_name)
