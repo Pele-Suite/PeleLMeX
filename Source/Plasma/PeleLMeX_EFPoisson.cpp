@@ -49,5 +49,5 @@ PeleLM::poissonSolveEF(const TimeStamp a_time)
   // Solve for PhiV
   getDiffusionOp()->diffuse_scalar(
     GetVecOfPtrs(getPhiVVect(a_time)), 0, GetVecOfConstPtrs(rhsPoisson), 0, {},
-    0, {}, {}, {}, 0, bcRecPhiV, 1, 1, -eps0 * epsr, {});
+    0, {}, {}, {}, 0, bcRecPhiV, 1, 1, -eps0 * epsr, {}, "PhiV");
 }

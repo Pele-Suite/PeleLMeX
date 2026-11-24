@@ -656,14 +656,14 @@ PeleLM::computeDifferentialDiffusionFluxes(
       GetVecOfConstPtrs(getDensityVect(a_time)),
       GetVecOfConstPtrs(getDiffusivityVect(a_time)), 0, bcRecSpec, NUM_SPECIES,
       do_avgDown, GetVecOfConstPtrs(spec_boundary));
+#endif
 
   if (m_nAux > 0) {
     getMCDiffusionOp(m_nAux)->computeDiffFluxes(
       a_auxfluxes, 0, GetVecOfConstPtrs(getAuxVect(a_time)), 0, {},
       GetVecOfConstPtrs(getAuxDiffusivityVect(a_time)), 0, bcRecAux, m_nAux,
-      do_avgDown, GetVecOfConstPtrs(spec_boundary));
+      do_avgDown, {});
   }
-#endif
 
   // Add the wbar term
   if (m_use_wbar != 0) {
@@ -1343,7 +1343,7 @@ PeleLM::differentialDiffusionUpdate(
       GetVecOfConstPtrs(
         getDensityVect(AmrNewTime)), // this triggers proper scaling by density
       GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), 0, bcRecSpec,
-      NUM_SPECIES - NUM_IONS, 0, m_dt, {});
+      NUM_SPECIES - NUM_IONS, 0, m_dt, {}, "Species");
   // Ions one by one
   for (int n = 0; n < NUM_IONS; ++n) {
     auto bcRecIons = fetchBCRecArray(FIRSTSPEC + NUM_SPECIES - NUM_IONS + n, 1);
@@ -1355,8 +1355,8 @@ PeleLM::differentialDiffusionUpdate(
         getDensityVect(AmrNewTime)), // this is the acoeff of LinOp
       GetVecOfConstPtrs(
         getDensityVect(AmrNewTime)), // this triggers proper scaling by density
-      GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), 0, bcRecIons, 1, 0,
-      m_dt, {});
+      GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)),
+      NUM_SPECIES - NUM_IONS + n, bcRecIons, 1, 0, m_dt, {}, "Ion");
   }
 #else
   // Solve for \widetilda{rhoY^{np1,kp1}}
@@ -1372,7 +1372,8 @@ PeleLM::differentialDiffusionUpdate(
       GetVecOfConstPtrs(
         getDensityVect(AmrNewTime)), // this triggers proper scaling by density
       GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), 0, bcRecSpec,
-      NUM_SPECIES, 0, m_dt, GetVecOfConstPtrs(spec_boundary));
+      NUM_SPECIES, 0, m_dt, GetVecOfConstPtrs(spec_boundary), "Species");
+#endif
   if (m_nAux > 0) {
     // Solve for \widetilde{c^{np1,kp1}}
     // Don't need to provide acoeff, or density.
@@ -1380,9 +1381,8 @@ PeleLM::differentialDiffusionUpdate(
       GetVecOfPtrs(getAuxVect(AmrNewTime)), 0,
       GetVecOfConstPtrs(advData->Forcing_aux), 0, GetVecOfArrOfPtrs(fluxes_aux),
       0, {}, {}, GetVecOfConstPtrs(getAuxDiffusivityVect(AmrNewTime)), 0,
-      bcRecAux, m_nAux, 0, m_dt, {});
+      bcRecAux, m_nAux, 0, m_dt, {}, "Aux");
   }
-#endif
 
   // Add lagged Wbar term
   // Computed in computeDifferentialDiffusionTerms at t^{n} if first SDC
@@ -1723,7 +1723,8 @@ PeleLM::differentialDiffusionUpdate(
           0, GetVecOfConstPtrs(rhs), 0, GetVecOfArrOfPtrs(fluxes), NUM_SPECIES,
           GetVecOfConstPtrs(RhoCp), {},
           GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), NUM_SPECIES,
-          GetVecOfConstPtrs(EBdiff), 0, bcRecTemp, 1, 0, m_dt, {});
+          GetVecOfConstPtrs(EBdiff), 0, bcRecTemp, 1, 0, m_dt, {},
+          "Temperature");
       } else
 #endif
       {
@@ -1731,7 +1732,7 @@ PeleLM::differentialDiffusionUpdate(
           GetVecOfPtrs(getTempVect(AmrNewTime)), 0, GetVecOfConstPtrs(rhs), 0,
           GetVecOfArrOfPtrs(fluxes), NUM_SPECIES, GetVecOfConstPtrs(RhoCp), {},
           GetVecOfConstPtrs(getDiffusivityVect(AmrNewTime)), NUM_SPECIES,
-          bcRecTemp, 1, 0, m_dt, {});
+          bcRecTemp, 1, 0, m_dt, {}, "Temperature");
       }
 
       // Post deltaT iteration linear solve

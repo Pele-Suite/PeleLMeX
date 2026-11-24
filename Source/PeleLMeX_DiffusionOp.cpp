@@ -1,6 +1,7 @@
 #include <PeleLMeX.H>
 #include <PeleLMeX_DiffusionOp.H>
 #include <AMReX_ParmParse.H>
+#include <AMReX_String.H>
 #include <AMReX_VisMF.H>
 #include <AMReX_GMRES_MLMG.H>
 #ifdef AMREX_USE_HYPRE
@@ -197,7 +198,8 @@ DiffusionOp::diffuse_scalar(
   const int ncomp,
   const int isPoissonSolve,
   const amrex::Real a_dt,
-  amrex::Vector<amrex::MultiFab const*> const& a_boundary)
+  amrex::Vector<amrex::MultiFab const*> const& a_boundary,
+  const std::string& a_label)
 {
   BL_PROFILE("DiffusionOp::diffuse_scalar()");
 
@@ -401,10 +403,11 @@ DiffusionOp::diffuse_scalar(
     // Setup linear solver
     amrex::MLMG mlmg(*m_scal_solve_op);
 
-    std::string mg_variable =
-      (m_ncomp == NUM_SPECIES) ? "Species" : "Temperature";
+    const std::string& mg_variable = a_label;
+    const bool is_species = (mg_variable == "Species");
+    const bool is_temperature = (mg_variable == "Temperature");
     if (m_mg_verbose > 0) {
-      if (m_ncomp == NUM_SPECIES) {
+      if (!is_temperature) {
         amrex::Print() << "MLMG: " << mg_variable << " Diffusion\n";
       } else {
         amrex::Print() << "MLMG: DeltaT solve [" << m_pelelm->m_deltaTIter
@@ -420,14 +423,14 @@ DiffusionOp::diffuse_scalar(
       bool sdc_iters_met = (m_pelelm->m_sdcIter >= m_mg_fail_sdc_miniter);
       bool limit_max_iter = false;
 
-      if (m_ncomp == NUM_SPECIES) {
+      if (is_species) {
         // Species diffusion: only SDC iter matters
         if (
           sdc_iters_met && (m_mg_fail_species_maxiter_after_sdc_miniter > 0)) {
           limit_max_iter = true;
           max_iter = m_mg_fail_species_maxiter_after_sdc_miniter;
         }
-      } else {
+      } else if (is_temperature) {
 #ifndef USE_MANIFOLD_EOS
         // Temperature diffusion: check both SDC and deltaT iters
         bool dT_iters_met =
@@ -442,7 +445,7 @@ DiffusionOp::diffuse_scalar(
 
       // Print diagnostic message if limit was applied
       if (limit_max_iter) {
-        if (m_ncomp == NUM_SPECIES) {
+        if (is_species) {
           amrex::Print() << "      Limiting species diffusion MLMG max_iter to "
                          << max_iter << " (SDC iter [" << m_pelelm->m_sdcIter
                          << "] >= " << m_mg_fail_sdc_miniter << ")\n";
@@ -596,9 +599,8 @@ DiffusionOp::diffuse_scalar(
                        << " diffusion MLMG solve failed (non-EB)! ***\n"
                        << "  Error: " << e.what() << "\n"
                        << "  Dumping residuals for debugging...\n";
-        std::string m_solver_type = (m_ncomp == NUM_SPECIES)
-                                      ? "species_diffusion"
-                                      : "temperature_diffusion";
+        const std::string m_solver_type =
+          amrex::toLower(mg_variable + "_diffusion");
         m_pelelm->WriteMLMGResidual(
           mlmg, GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_solver_type,
           m_pelelm->m_nstep);
@@ -639,7 +641,7 @@ DiffusionOp::diffuse_scalar(
   // Don't touch the ghost cells
   if (have_density == 0) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, 0, ncomp, 0);
+      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, phi_comp, ncomp, 0);
     }
   } else {
     for (int lev = 0; lev <= finest_level; ++lev) {
@@ -648,9 +650,9 @@ DiffusionOp::diffuse_scalar(
       auto const& a_rho_ma = a_density[lev]->const_arrays();
       amrex::ParallelFor(
         phi[lev], amrex::IntVect(0), ncomp,
-        [a_phi_ma, a_rho_ma, phi_ma] AMREX_GPU_DEVICE(
+        [a_phi_ma, a_rho_ma, phi_ma, phi_comp] AMREX_GPU_DEVICE(
           int box_no, int i, int j, int k, int n) noexcept {
-          a_phi_ma[box_no](i, j, k, n) =
+          a_phi_ma[box_no](i, j, k, phi_comp + n) =
             phi_ma[box_no](i, j, k, n) * a_rho_ma[box_no](i, j, k);
         });
     }
@@ -679,7 +681,8 @@ DiffusionOp::diffuse_scalar(
   const int ncomp,
   const int isPoissonSolve,
   const amrex::Real a_dt,
-  amrex::Vector<amrex::MultiFab const*> const& a_boundary)
+  amrex::Vector<amrex::MultiFab const*> const& a_boundary,
+  const std::string& a_label)
 {
   BL_PROFILE("DiffusionOp::diffuse_scalar()");
 
@@ -818,10 +821,11 @@ DiffusionOp::diffuse_scalar(
     // Setup linear solver
     amrex::MLMG mlmg(*m_scal_solve_op);
 
-    std::string mg_variable =
-      (m_ncomp == NUM_SPECIES) ? "Species" : "Temperature";
+    const std::string& mg_variable = a_label;
+    const bool is_species = (mg_variable == "Species");
+    const bool is_temperature = (mg_variable == "Temperature");
     if (m_mg_verbose > 0) {
-      if (m_ncomp == NUM_SPECIES) {
+      if (!is_temperature) {
         amrex::Print() << "MLMG: " << mg_variable << " Diffusion\n";
       } else {
         amrex::Print() << "MLMG: DeltaT solve [" << m_pelelm->m_deltaTIter
@@ -837,14 +841,14 @@ DiffusionOp::diffuse_scalar(
       bool sdc_iters_met = (m_pelelm->m_sdcIter >= m_mg_fail_sdc_miniter);
       bool limit_max_iter = false;
 
-      if (m_ncomp == NUM_SPECIES) {
+      if (is_species) {
         // Species diffusion: only SDC iter matters
         if (
           sdc_iters_met && (m_mg_fail_species_maxiter_after_sdc_miniter > 0)) {
           limit_max_iter = true;
           max_iter = m_mg_fail_species_maxiter_after_sdc_miniter;
         }
-      } else {
+      } else if (is_temperature) {
 #ifndef USE_MANIFOLD_EOS
         // Temperature diffusion: check both SDC and deltaT iters
         bool dT_iters_met =
@@ -859,7 +863,7 @@ DiffusionOp::diffuse_scalar(
 
       // Print diagnostic message if limit was applied
       if (limit_max_iter) {
-        if (m_ncomp == NUM_SPECIES) {
+        if (is_species) {
           amrex::Print() << "      Limiting species diffusion MLMG max_iter to "
                          << max_iter << " (SDC iter [" << m_pelelm->m_sdcIter
                          << "] >= " << m_mg_fail_sdc_miniter << ")\n";
@@ -926,9 +930,8 @@ DiffusionOp::diffuse_scalar(
                        << " diffusion MLMG solve failed (EB)! ***\n"
                        << "  Error: " << e.what() << "\n"
                        << "  Dumping residuals for debugging...\n";
-        std::string m_solver_type = (m_ncomp == NUM_SPECIES)
-                                      ? "species_diffusion"
-                                      : "temperature_diffusion";
+        const std::string m_solver_type =
+          amrex::toLower(mg_variable + "_diffusion");
         m_pelelm->WriteMLMGResidual(
           mlmg, GetVecOfPtrs(component), GetVecOfConstPtrs(rhs), m_solver_type,
           m_pelelm->m_nstep);
@@ -960,7 +963,7 @@ DiffusionOp::diffuse_scalar(
   // Don't touch the ghost cells
   if (have_density == 0) {
     for (int lev = 0; lev <= finest_level; ++lev) {
-      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, 0, ncomp, 0);
+      amrex::MultiFab::Copy(*a_phi[lev], phi[lev], 0, phi_comp, ncomp, 0);
     }
   } else {
     for (int lev = 0; lev <= finest_level; ++lev) {
@@ -969,9 +972,9 @@ DiffusionOp::diffuse_scalar(
       auto const& a_rho_ma = a_density[lev]->const_arrays();
       amrex::ParallelFor(
         phi[lev], amrex::IntVect(0), ncomp,
-        [a_phi_ma, a_rho_ma, phi_ma] AMREX_GPU_DEVICE(
+        [a_phi_ma, a_rho_ma, phi_ma, phi_comp] AMREX_GPU_DEVICE(
           int box_no, int i, int j, int k, int n) noexcept {
-          a_phi_ma[box_no](i, j, k, n) =
+          a_phi_ma[box_no](i, j, k, phi_comp + n) =
             phi_ma[box_no](i, j, k, n) * a_rho_ma[box_no](i, j, k);
         });
     }
@@ -1029,6 +1032,11 @@ DiffusionOp::computeDiffLap(
     // Component based vector of data
     amrex::Vector<amrex::MultiFab> laps;
     amrex::Vector<amrex::MultiFab> component;
+
+    // Allow for component specific LinOp BC
+    m_scal_apply_op->setDomainBC(
+      m_pelelm->getDiffusionLinOpBC(amrex::Orientation::low, a_bcrec[comp]),
+      m_pelelm->getDiffusionLinOpBC(amrex::Orientation::high, a_bcrec[comp]));
 
     for (int lev = 0; lev <= finest_level; ++lev) {
       laps.emplace_back(
