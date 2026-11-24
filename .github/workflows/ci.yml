@@ -57,7 +57,9 @@ jobs:
     needs: Formatting
     runs-on: ubuntu-24.04
     env:
-      CCACHE_MAXSIZE: 100M
+      # One cold FlameSheet build plus the SUNDIALS TPL fills ~95M; ccache
+      # evicts per subdirectory before the total reaches the limit.
+      CCACHE_MAXSIZE: 250M
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
     steps:
       - name: Clone
@@ -160,8 +162,10 @@ jobs:
             reference_comparison: OFF
           - build_type: Release
             ccache_size: 250M
+          # A cold Debug build (-g) overflows 500M; Trim Ccache keeps the
+          # saved cache to one build's worth, not the limit.
           - build_type: Debug
-            ccache_size: 500M
+            ccache_size: 1G
           - enable_eb: EB-OFF
             use_eb: "OFF"
           - enable_eb: EB-ON
@@ -420,7 +424,8 @@ jobs:
             use_eb: "ON"
       fail-fast: false
     env:
-      CCACHE_MAXSIZE: 300M
+      # A cold build overflows 300M (EB-OFF and EB-ON)
+      CCACHE_MAXSIZE: 600M
       CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
     steps:
       - name: Clone
@@ -577,9 +582,13 @@ jobs:
             use_eb: "ON"
       fail-fast: false
     env:
-      CCACHE_MAXSIZE: 100M
+      # Room for a whole build, with headroom: a cold build overflows 100M,
+      # and ccache evicts per subdirectory before the total reaches the
+      # limit. Check trims the cache to what the run used, so the saved
+      # cache is one build's worth, not the limit.
+      CCACHE_MAXSIZE: 500M
       # Unlike the build jobs, this cache is saved on PRs too: a cold
-      # clang-tidy run takes hours, and the cache is small.
+      # clang-tidy run takes hours, and Check trims it to one build.
       CCACHE_COMPRESSLEVEL: 10
       # clang-tidy-cache skips files whose preprocessed source, flags and
       # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL store
@@ -637,15 +646,19 @@ jobs:
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           mkdir -p ${CTCACHE_DIR}
-          touch ${{runner.temp}}/ctcache-start
+          # The restored caches carry earlier runs' counts: report this run's
+          ccache -z
+          clang-tidy-cache --zero-stats || true
+          touch ${{runner.temp}}/cache-start
           build_status=0
           cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
           # Hits refresh an entry's mtime: drop the ones this run did not use
-          # (and older clang-tidy versions) so the cache does not grow. Only
+          # (and older clang-tidy versions) so the caches do not grow. Only
           # after a complete build: a failed one never reached some files.
           if [ ${build_status} -eq 0 ]; then
-            find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/ctcache-start -delete
+            find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/cache-start -delete
             find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
+            ccache --evict-older-than $(( $(date +%s) - $(date -r ${{runner.temp}}/cache-start +%s) + 60 ))s
           fi
           # Fail on a failed build: a replayed cache hit restores the exit
           # code but not clang-tidy's stderr, so the warning count alone can
@@ -659,6 +672,7 @@ jobs:
           # Entries are named by the rest of their sha1 digest (38 hex
           # characters); the per-directory stats files are not counted.
           echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
+          clang-tidy-cache --show-stats || true
           ccache -s
       # Saved on PRs too (see CCACHE_COMPRESSLEVEL above), whenever Check
       # completed the build, before Short report can fail on warnings.
