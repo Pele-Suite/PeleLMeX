@@ -119,18 +119,17 @@ PeleLM::implicitNonLinearSolve(
     amrex::Real scaledResnE, scaledResphiV;
     getNLResidScaling(scaledResnE, scaledResphiV);
     amrex::Real max_nlres = amrex::max<amrex::Real>(scaledResnE, scaledResphiV);
-    if (max_nlres <= m_ef_newtonTol) {
-      if (ef_verbose) {
-        amrex::Print() << " No Newton iteration needed, exiting. \n";
-      }
-      return;
+    // Skip the Newton iterations if the initial state already satisfies the
+    // tolerance, but still do the post-Newton forcing and state update
+    int exit_newton = (max_nlres <= m_ef_newtonTol) ? 1 : 0;
+    if ((exit_newton != 0) && (ef_verbose != 0)) {
+      amrex::Print() << " No Newton iteration needed. \n";
     }
 
     // -----------------
     // Newton iteration
-    int exit_newton = 0;
     int NK_ite = 0;
-    do {
+    while (exit_newton == 0) {
       NK_ite += 1;
 
       // Verbose
@@ -176,7 +175,7 @@ PeleLM::implicitNonLinearSolve(
 
       // Exit condition
       exit_newton = testExitNewton(NK_ite, max_nlres, newtonDir_Norm);
-    } while (!exit_newton);
+    }
     NK_tot_count += NK_ite;
 
     // -----------------
@@ -207,7 +206,7 @@ PeleLM::implicitNonLinearSolve(
     amrex::Real run_time = amrex::ParallelDescriptor::second() - strt_time;
     amrex::ParallelDescriptor::ReduceRealMax(
       run_time, amrex::ParallelDescriptor::IOProcessorNumber());
-    if (!m_ef_use_PETSC_direct) {
+    if ((m_ef_use_PETSC_direct == 0) && (NK_tot_count > 0)) {
       amrex::Real avgGMRES = (float)GMRES_tot_count / (float)NK_tot_count;
       amrex::Print() << "  [" << sdcIter << "] dt: " << a_dt
                      << " - Avg GMRES/Newton: " << avgGMRES << "\n";
@@ -384,31 +383,35 @@ PeleLM::computeBGcharge(
     auto const& dhat_ma = diffData->Dhat[lev].const_arrays();
     auto const& rhoYdot_ma = ldataR_p->I_R.const_arrays();
 
-    ldataNLs_p->backgroundCharge.setVal(0.0);
     auto const& charge_ma = ldataNLs_p->backgroundCharge.arrays();
     constexpr amrex::Real factor = 1.0 / elemCharge;
 
+    // Sum over the species in a fixed order in each cell, so the result is
+    // deterministic on GPU
     amrex::ParallelFor(
-      ldataNLs_p->backgroundCharge, amrex::IntVect(0.0), NUM_SPECIES,
+      ldataNLs_p->backgroundCharge,
       [state_old_ma, adv_ma, dn_ma, dnp1_ma, dhat_ma, rhoYdot_ma, charge_ma,
        dt_int,
-       zk =
-         zk] AMREX_GPU_DEVICE(int box_no, int i, int j, int k, int n) noexcept {
+       zk = zk] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
         amrex::Array4<amrex::Real const> rhoYold(
           state_old_ma[box_no], FIRSTSPEC);
         amrex::Array4<amrex::Real const> adv(adv_ma[box_no], FIRSTSPEC);
-        amrex::Real rhoYprov =
-          rhoYold(i, j, k, n) +
-          dt_int *
-            (adv(i, j, k, n) +
-             0.5 * (dn_ma[box_no](i, j, k, n) - dnp1_ma[box_no](i, j, k, n)) +
-             dhat_ma[box_no](i, j, k, n) + rhoYdot_ma[box_no](i, j, k, n));
-        rhoYprov = amrex::max<amrex::Real>(rhoYprov, 0.0);
-        const amrex::Real val = zk[n] * rhoYprov;
-        amrex::Gpu::Atomic::Add(&charge_ma[box_no](i, j, k), val);
+        amrex::Real charge = 0.0;
+        for (int n = 0; n < NUM_SPECIES; ++n) {
+          amrex::Real rhoYprov =
+            rhoYold(i, j, k, n) +
+            dt_int *
+              (adv(i, j, k, n) +
+               0.5 * (dn_ma[box_no](i, j, k, n) - dnp1_ma[box_no](i, j, k, n)) +
+               dhat_ma[box_no](i, j, k, n) + rhoYdot_ma[box_no](i, j, k, n));
+          rhoYprov = amrex::max<amrex::Real>(rhoYprov, 0.0);
+          // Separate statement: no fused multiply-add with the sum
+          const amrex::Real val = zk[n] * rhoYprov;
+          charge += val;
+        }
+        charge_ma[box_no](i, j, k) = charge * factor;
       });
     amrex::Gpu::streamSynchronize();
-    ldataNLs_p->backgroundCharge.mult(factor);
   }
 }
 
@@ -1077,7 +1080,7 @@ PeleLM::getUpwindedEdge(
 #else
   const amrex::Box& domain = geom[lev].Domain();
 #ifdef AMREX_USE_OMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
+#pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
   for (amrex::MFIter mfi(ccMF, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
