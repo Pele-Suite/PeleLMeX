@@ -2,6 +2,7 @@
 #include <PeleLMeX_Utils.H>
 #include <AMReX_MemProfiler.H>
 #include <memory>
+#include <algorithm>
 
 void
 PeleLM::Advance(const int is_initIter)
@@ -201,6 +202,9 @@ PeleLM::Advance(const int is_initIter)
     checkMemory("MAC-Proj");
 
   } else {
+
+    // Reaction forcing for the first SDC iteration
+    extrapolateIR(is_initIter);
 
     // SDC iterations
     for (m_sdcIter = 1; m_sdcIter <= m_nSDCmax; ++m_sdcIter) {
@@ -510,4 +514,161 @@ PeleLM::oneSDC(
   setTemperature(AmrNewTime);
   floorSpecies(AmrNewTime);
   setThermoPress(AmrNewTime);
+}
+
+void
+PeleLM::extrapolateIR(int is_initIter)
+{
+  // I_R holds the previous step's time-averaged reaction rate, which the first
+  // SDC iteration uses as the reaction forcing of advection and diffusion.
+  // Replace it by a value extrapolated to the middle of the new step.  The
+  // chemistry solve of each SDC iteration overwrites I_R, so only the first
+  // iteration's forcing changes and the converged answer does not.  Skipped
+  // during initial iterations; the history restarts when the grids change.
+  if (m_IR_extrapolation == 0 || m_do_react == 0 || is_initIter != 0) {
+    return;
+  }
+  const int nlev = finest_level + 1;
+  bool same = static_cast<int>(m_IR_h1.size()) == nlev && m_IR_nhist > 0;
+  for (int lev = 0; same && lev < nlev; ++lev) {
+    const auto& IR = getLevelDataReactPtr(lev)->I_R;
+    same = m_IR_h1[lev] && m_IR_h1[lev]->boxArray() == IR.boxArray() &&
+           m_IR_h1[lev]->DistributionMap() == IR.DistributionMap();
+  }
+  if (!same) {
+    m_IR_nhist = 0;
+  }
+
+  // I_R^n is the average over the previous step (dt_c), I_R^{n-1} over the
+  // one before: slopes are taken over the spacing of the step midpoints
+  const amrex::Real dt_c = (m_IR_dt_last > 0.0) ? m_IR_dt_last : m_dt;
+  const amrex::Real tau_new = 0.5 * (m_dt + dt_c);
+  const amrex::Real tau1 = 0.5 * (dt_c + m_IR_dt_h1);
+  const amrex::Real tau0 = 0.5 * (m_IR_dt_h1 + m_IR_dt_h2);
+  const int mode = m_IR_extrapolation;
+  bool do_lin = (mode == 1 && m_IR_nhist >= 1);
+  bool do_lim = (mode >= 2 && m_IR_nhist >= 2);
+  const bool strict = (mode == 3);
+
+  // Change measure: per species, max |I_R^n - I_R^{n-1}| relative to the
+  // domain max |I_R^n| (species with negligible rates ignored)
+  const int nc = getLevelDataReactPtr(0)->I_R.nComp();
+  amrex::Vector<amrex::Real> imax(nc, 0.0);
+  amrex::Real itop = 0.0;
+  if (do_lin || do_lim) {
+    amrex::Vector<amrex::Real> dmax(nc, 0.0);
+    for (int lev = 0; lev < nlev; ++lev) {
+      const auto& IR = getLevelDataReactPtr(lev)->I_R;
+      amrex::MultiFab d(IR.boxArray(), IR.DistributionMap(), nc, 0);
+      amrex::MultiFab::LinComb(d, 1.0, IR, 0, -1.0, *m_IR_h1[lev], 0, 0, nc, 0);
+      for (int n = 0; n < nc; ++n) {
+        dmax[n] = std::max(dmax[n], d.norm0(n, 0, true));
+        imax[n] = std::max(imax[n], IR.norm0(n, 0, true));
+      }
+    }
+    amrex::ParallelDescriptor::ReduceRealMax(dmax.data(), nc);
+    amrex::ParallelDescriptor::ReduceRealMax(imax.data(), nc);
+    itop = *std::max_element(imax.begin(), imax.end());
+    amrex::Real eta = 0.0;
+    for (int n = 0; n < nc; ++n) {
+      if (imax[n] > 1.0e-6 * itop) {
+        eta = std::max(eta, dmax[n] / imax[n]);
+      }
+    }
+    const bool skip =
+      (m_IR_extrap_globalrel > 0.0 && eta > m_IR_extrap_globalrel);
+    if (m_verbose > 1) {
+      amrex::Print() << "   I_R extrapolation: change " << eta
+                     << (skip ? " -> skipped" : "") << "\n";
+    }
+    if (skip) {
+      do_lin = false;
+      do_lim = false;
+    }
+  }
+
+  m_IR_h1.resize(nlev);
+  m_IR_h2.resize(nlev);
+  for (int lev = 0; lev < nlev; ++lev) {
+    auto& IR = getLevelDataReactPtr(lev)->I_R;
+    const amrex::IntVect ng = IR.nGrowVect();
+    amrex::MultiFab cur(IR.boxArray(), IR.DistributionMap(), nc, ng);
+    amrex::MultiFab::Copy(cur, IR, 0, 0, nc, ng);
+    if (do_lin || do_lim) {
+      // Per-box switch-off: boxes with a fast transient keep I_R^n
+      amrex::Gpu::DeviceVector<int> boxoff(IR.local_size(), 0);
+      if (m_IR_extrap_boxrel > 0.0) {
+        amrex::Vector<int> hoff(IR.local_size(), 0);
+        int nskip = 0;
+        for (amrex::MFIter mfi(IR); mfi.isValid(); ++mfi) {
+          const amrex::Box& bx = mfi.validbox();
+          amrex::FArrayBox d(bx, nc, amrex::The_Async_Arena());
+          d.template copy<amrex::RunOn::Device>(IR[mfi], bx, 0, bx, 0, nc);
+          d.template minus<amrex::RunOn::Device>(
+            (*m_IR_h1[lev])[mfi], bx, bx, 0, 0, nc);
+          amrex::Real eta_b = 0.0;
+          for (int n = 0; n < nc; ++n) {
+            if (imax[n] > 1.0e-6 * itop) {
+              eta_b = std::max(
+                eta_b,
+                d.template maxabs<amrex::RunOn::Device>(bx, n) / imax[n]);
+            }
+          }
+          if (eta_b > m_IR_extrap_boxrel) {
+            hoff[mfi.LocalIndex()] = 1;
+            ++nskip;
+          }
+        }
+        amrex::Gpu::copy(
+          amrex::Gpu::hostToDevice, hoff.begin(), hoff.end(), boxoff.begin());
+        if (m_verbose > 1) {
+          amrex::ParallelDescriptor::ReduceIntSum(nskip);
+          amrex::Print() << "   I_R extrapolation: level " << lev
+                         << " boxes skipped " << nskip << " / " << IR.size()
+                         << "\n";
+        }
+      }
+      int const* boxoff_p = boxoff.data();
+      auto const& ir_ma = IR.arrays();
+      auto const& c_ma = cur.const_arrays();
+      auto const& h1_ma = m_IR_h1[lev]->const_arrays();
+      auto const& h2_ma = do_lim ? m_IR_h2[lev]->const_arrays() : h1_ma;
+      amrex::ParallelFor(
+        IR, ng, nc,
+        [=] AMREX_GPU_DEVICE(int b, int i, int j, int k, int n) noexcept {
+          if (boxoff_p[b] != 0) {
+            return;
+          }
+          const amrex::Real c = c_ma[b](i, j, k, n);
+          const amrex::Real d1 = (c - h1_ma[b](i, j, k, n)) / tau1;
+          amrex::Real slope = d1;
+          if (do_lim) {
+            const amrex::Real d0 =
+              (h1_ma[b](i, j, k, n) - h2_ma[b](i, j, k, n)) / tau0;
+            slope = (d1 * d0 <= 0.0)
+                      ? 0.0
+                      : ((std::abs(d1) < std::abs(d0)) ? d1 : d0);
+            if (
+              strict && d1 * d0 > 0.0 &&
+              (2.0 * std::abs(d1) < std::abs(d0) ||
+               2.0 * std::abs(d0) < std::abs(d1))) {
+              slope = 0.0;
+            }
+          }
+          ir_ma[b](i, j, k, n) = c + slope * tau_new;
+        });
+      amrex::Gpu::streamSynchronize();
+    }
+    // History: h2 <- h1, h1 <- I_R^n
+    if (m_IR_nhist >= 1 && m_IR_h1[lev]) {
+      m_IR_h2[lev] = std::move(m_IR_h1[lev]);
+    }
+    m_IR_h1[lev] = std::make_unique<amrex::MultiFab>(
+      IR.boxArray(), IR.DistributionMap(), nc, ng);
+    amrex::MultiFab::Copy(*m_IR_h1[lev], cur, 0, 0, nc, ng);
+  }
+  m_IR_dt_h2 = m_IR_dt_h1;
+  m_IR_dt_h1 = dt_c;
+  m_IR_dt_last = m_dt;
+  m_IR_nhist = std::min(m_IR_nhist + 1, 2);
 }
