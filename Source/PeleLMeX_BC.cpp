@@ -267,12 +267,14 @@ PeleLM::setBoundaryConditions()
       }
     }
 #endif
-    // Used by fetchBCRecDummyArray for slab interpolation in interior-only
-    // contexts where domain BCs must not be applied
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-      m_bcrec_dummy.setLo(idim, amrex::BCType::int_dir);
-      m_bcrec_dummy.setHi(idim, amrex::BCType::int_dir);
-    }
+  }
+
+  // Used by fetchBCRecDummyArray for slab interpolation in interior-only
+  // contexts where domain BCs must not be applied (also for incompressible
+  // runs, which can use recycling)
+  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+    m_bcrec_dummy.setLo(idim, amrex::BCType::int_dir);
+    m_bcrec_dummy.setHi(idim, amrex::BCType::int_dir);
   }
 }
 
@@ -1343,11 +1345,21 @@ PeleLM::fillTurbInflow(
       amrex::FArrayBox& data = a_vel[mfi];
 
       for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+        // A turbulent inflow face has every velocity component ext_dir. On
+        // a slip wall only the normal one is, and zeroing there wipes the
+        // tangential ghost cells, which setInflowBoundaryVel never refills.
+        bool lo_inflow = true;
+        bool hi_inflow = true;
+        for (int n = 0; n < AMREX_SPACEDIM; ++n) {
+          lo_inflow =
+            lo_inflow && velBCRec[n].lo(dir) == amrex::BCType::ext_dir;
+          hi_inflow =
+            hi_inflow && velBCRec[n].hi(dir) == amrex::BCType::ext_dir;
+        }
 
         auto bndryBoxLO =
           amrex::Box(amrex::adjCellLo(geom[lev].Domain(), dir, 4) & bx);
-        if (
-          velBCRec[0].lo()[dir] == amrex::BCType::ext_dir && bndryBoxLO.ok()) {
+        if (lo_inflow && bndryBoxLO.ok()) {
           // Create box with ghost cells and set them to zero
           amrex::IntVect growVect(amrex::IntVect::TheUnitVector());
           constexpr int Grow = 4; // Being conservative
@@ -1368,8 +1380,7 @@ PeleLM::fillTurbInflow(
 
         auto bndryBoxHI =
           amrex::Box(amrex::adjCellHi(geom[lev].Domain(), dir, 4) & bx);
-        if (
-          velBCRec[0].hi()[dir] == amrex::BCType::ext_dir && bndryBoxHI.ok()) {
+        if (hi_inflow && bndryBoxHI.ok()) {
           // Create box with ghost cells and set them to zero
           amrex::IntVect growVect(amrex::IntVect::TheUnitVector());
           constexpr int Grow = 4;
@@ -2226,12 +2237,12 @@ PeleLM::fillFromRecyclingPlane(amrex::MultiFab& a_vel, int vel_comp, int lev)
     if (need_lo) {
       auto bndryBox = amrex::Box(domain).grow(planeDir, nGrowDest);
       bndryBox.setBig(planeDir, domain.smallEnd(planeDir) - 1);
-      a_vel.setVal(0.0, bndryBox, 0, AMREX_SPACEDIM, nGrowDest);
+      a_vel.setVal(0.0, bndryBox, vel_comp, AMREX_SPACEDIM, nGrowDest);
     }
     if (need_hi) {
       auto bndryBox = amrex::Box(domain).grow(planeDir, nGrowDest);
       bndryBox.setSmall(planeDir, domain.bigEnd(planeDir) + 1);
-      a_vel.setVal(0.0, bndryBox, 0, AMREX_SPACEDIM, nGrowDest);
+      a_vel.setVal(0.0, bndryBox, vel_comp, AMREX_SPACEDIM, nGrowDest);
     }
 
   } else {

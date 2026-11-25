@@ -895,7 +895,7 @@ PeleLM::WriteCheckPointFile()
       (m_use_inlet_from_plane != 0) &&
       (m_recycling_mode == RecyclingMode::Fluctuations) &&
       m_inlet_recycling.initialized &&
-      lev < static_cast<int>(m_inlet_recycling.mean_src.size()) &&
+      static_cast<int>(m_inlet_recycling.mean_src.size()) >= finest_level + 1 &&
       m_inlet_recycling.mean_src[lev]) {
       amrex::VisMF::Write(
         *m_inlet_recycling.mean_src[lev],
