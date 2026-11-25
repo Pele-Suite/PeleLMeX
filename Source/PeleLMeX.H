@@ -2550,6 +2550,14 @@ public:
   std::unique_ptr<Hydro::MacProjector> macproj;
   int m_macProjNeedReset{0};
   int m_macProjOldSize{0};
+  // The nodal projector is kept across projections with
+  // nodal_proj.use_mlhypre (its composite solver and setup are reused, the
+  // matrix updated in place from the current sigma); otherwise it is built
+  // per projection as before
+  std::unique_ptr<Hydro::NodalProjector> m_nodalproj;
+  int m_nodalProjNeedReset{0};
+  int m_nodalProjOldSize{0};
+  int m_nodal_use_mlhypre{0};
 
   //-----------------------------------------------------------------------------
   // Mesh mapping (optional single-block, axis-aligned stretched mesh).
