@@ -1286,7 +1286,7 @@ PeleLM::initProgressVariable()
       AMREX_ALWAYS_ASSERT(entryCount == NUM_SPECIES + 1);
       weightsIn.resize(entryCount);
       pp.getarr("progressVariable.weights", weightsIn, 0, entryCount);
-      for (int i = 0; i < NUM_SPECIES; ++i) {
+      for (int i = 0; i < NUM_SPECIES + 1; ++i) {
         m_Cweights[i] = weightsIn[i];
       }
       // Cold side/Hot side

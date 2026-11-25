@@ -1792,10 +1792,12 @@ PeleLM::addLevelVelocityDataFromPlt(int a_lev, const std::string& a_velPltFile)
   auto* ldata_p = getLevelDataPtr(a_lev, AmrNewTime);
 
   // load data from plot file
-  amrex::BoxArray tmpVelBA(ldata_p->state.boxArray());
-  amrex::DistributionMapping tmpVelDM(tmpVelBA);
+  // On the state's DistributionMapping: MultiFab::Add below pairs the two
+  // MultiFabs box by box through the state's MFIter
   int nGrow0(0), sComp0(0);
-  amrex::MultiFab tmpVel(tmpVelBA, tmpVelDM, AMREX_SPACEDIM, nGrow0);
+  amrex::MultiFab tmpVel(
+    ldata_p->state.boxArray(), ldata_p->state.DistributionMap(), AMREX_SPACEDIM,
+    nGrow0);
   pltData.fillPatchFromPlt(
     a_lev, geom[a_lev], idXvel, sComp0, AMREX_SPACEDIM, tmpVel);
   // scale the velocity
