@@ -351,7 +351,7 @@ PeleLM::readParameters()
   pp.query("debug_check_compatibility", m_debug_check_compatibility);
   pp.query("debug_compatibility_tol", m_debug_compatibility_tol);
   pp.query("debug_divu_mismatch", m_debug_divu_mismatch);
-  if ((verbose != 0) && (m_closed_chamber != 0)) {
+  if ((m_verbose != 0) && (m_closed_chamber != 0)) {
     amrex::Print()
       << " Simulation performed with the closed chamber algorithm \n";
   }
@@ -485,10 +485,10 @@ PeleLM::readParameters()
       m_phiV_bcpol.setLo(idim, 0);
     } else if (lo_bc_char[idim] == "Anode") { // Pos. elec = 1
       m_phiV_bcpol.setLo(idim, 1);
-      AMREX_ASSERT(m_phiV_bc.lo(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.lo(idim) == 1);
     } else if (lo_bc_char[idim] == "Cathode") { // Neg. elec = 2
       m_phiV_bcpol.setLo(idim, 2);
-      AMREX_ASSERT(m_phiV_bc.lo(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.lo(idim) == 1);
     } else {
       amrex::Abort(
         "Wrong PhiV polarity. Should be : Neutral, Anode or Cathode");
@@ -497,10 +497,10 @@ PeleLM::readParameters()
       m_phiV_bcpol.setHi(idim, 0);
     } else if (hi_bc_char[idim] == "Anode") { // Pos. elec = 1
       m_phiV_bcpol.setHi(idim, 1);
-      AMREX_ASSERT(m_phiV_bc.hi(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.hi(idim) == 1);
     } else if (hi_bc_char[idim] == "Cathode") { // Neg. elec = 2
       m_phiV_bcpol.setHi(idim, 2);
-      AMREX_ASSERT(m_phiV_bc.hi(idim) == 1);
+      AMREX_ALWAYS_ASSERT(m_phiV_bc.hi(idim) == 1);
     } else {
       amrex::Abort(
         "Wrong PhiV polarity. Should be : Neutral, Anode or Cathode");
@@ -518,12 +518,11 @@ PeleLM::readParameters()
   pp.query("incompressible", m_incompressible);
   if (m_incompressible != 0) {
     m_has_divu = 0;
-    m_do_react = 0;
     pp.query("rho", m_rho);
     pp.query("mu", m_mu);
-    AMREX_ASSERT_WITH_MESSAGE(
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       m_rho > 0.0, "peleLM.rho is needed when running incompressible");
-    AMREX_ASSERT_WITH_MESSAGE(
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
       m_mu > 0.0, "peleLM.mu is needed when running incompressible");
   }
   amrex::Vector<amrex::Real> grav(AMREX_SPACEDIM, 0);
@@ -753,6 +752,9 @@ PeleLM::readParameters()
   // Reaction
   // -----------------------------------------
   pp.query("do_react", m_do_react);
+  if (m_incompressible != 0) {
+    m_do_react = 0; // no species, no reactor: ignore peleLM.do_react
+  }
   pp.query("use_typ_vals_chem", m_useTypValChem);
   pp.query("typical_values_reset_int", m_resetTypValInt);
   pp.query("typical_values_Ymin", m_typicalYvalMin);
@@ -979,13 +981,13 @@ PeleLM::readParameters()
   ppef.query("JFNK_maxNewton", m_ef_maxNewtonIter);
   ppef.query("JFNK_lambda", m_ef_lambda_jfnk);
   ppef.query("JFNK_diffType", m_ef_diffT_jfnk);
-  AMREX_ASSERT(m_ef_diffT_jfnk == 1 || m_ef_diffT_jfnk == 2);
+  AMREX_ALWAYS_ASSERT(m_ef_diffT_jfnk == 1 || m_ef_diffT_jfnk == 2);
   ppef.query("GMRES_rel_tol", m_ef_GMRES_reltol);
   ppef.query("GMRES_abs_tol", m_ef_GMRES_abstol);
   ppef.query("PC_approx", m_ef_PC_approx);
   ppef.query("PC_damping", m_ABecCecOmega);
   ppef.query("advection_scheme_order", m_nEAdvOrder);
-  AMREX_ASSERT(m_nEAdvOrder == 1 || m_nEAdvOrder == 2);
+  AMREX_ALWAYS_ASSERT(m_nEAdvOrder == 1 || m_nEAdvOrder == 2);
 
   ppef.query("tabulated_Ke", m_electronKappaTab);
   ppef.query("fixed_Ke", m_fixedKappaE);
@@ -1110,11 +1112,11 @@ PeleLM::checkSetupParams()
       "Update Submodules/PelePhysics, or drop geometry.mesh_mapping.");
 #endif
   }
-  if (turb_inflow.is_initialized() && (verbose != 0)) {
+  if (turb_inflow.is_initialized() && (m_verbose != 0)) {
     reportTurbInflowMaps();
   }
 
-  if (m_mesh_mapping && (m_use_inlet_from_plane != 0) && (verbose != 0)) {
+  if (m_mesh_mapping && (m_use_inlet_from_plane != 0) && (m_verbose != 0)) {
     const int dir = m_inlet_plane_dir;
     amrex::Print() << " Recycling source plane: physical position "
                    << m_inlet_plane_position << " -> Xi position "
@@ -1124,7 +1126,7 @@ PeleLM::checkSetupParams()
                    << ")\n";
   }
 
-  if (turb_inflow.is_initialized() && (verbose != 0)) {
+  if (turb_inflow.is_initialized() && (m_verbose != 0)) {
     reportTurbInflowResolution();
   }
 }
@@ -1380,7 +1382,8 @@ PeleLM::readIOParameters()
 #ifdef AMREX_USE_HDF5
   pp.query("use_hdf5_plt", m_write_hdf5_pltfile);
 #endif
-  AMREX_ASSERT(m_regrid_interp_method == 0 || m_regrid_interp_method == 1);
+  AMREX_ALWAYS_ASSERT(
+    m_regrid_interp_method == 0 || m_regrid_interp_method == 1);
 }
 
 void
@@ -1550,14 +1553,14 @@ PeleLM::variablesSetup()
 
   if (max_level > 0 && !m_initial_grid_file.empty()) {
     readGridFile(m_initial_grid_file, m_initial_ba);
-    if (verbose > 0) {
+    if (m_verbose > 0) {
       amrex::Print() << "Read initial_ba. Size is " << m_initial_ba.size()
                      << "\n";
     }
   }
   if (max_level > 0 && !m_regrid_file.empty() && m_regrid_int > 0) {
     readGridFile(m_regrid_file, m_regrid_ba);
-    if (verbose > 0) {
+    if (m_verbose > 0) {
       amrex::Print() << "Read regrid_ba. Size is " << m_regrid_ba.size()
                      << "\n";
     }
@@ -1568,9 +1571,8 @@ void
 PeleLM::readGridFile(
   const std::string& grid_file, amrex::Vector<amrex::BoxArray>& input_ba)
 {
-#define STRIP                \
-  while (is.get() != '\n') { \
-  }
+  // Skip to the next line (also safe at EOF, where get() never sees '\n')
+#define STRIP is.ignore(std::numeric_limits<std::streamsize>::max(), '\n')
   std::ifstream is(grid_file.c_str(), std::ios::in);
   if (!is.good()) {
     amrex::FileOpenFailed(grid_file);
@@ -1883,10 +1885,10 @@ PeleLM::evaluateSetup()
       the_same_box);
   }
 
-  // advection terms
+  // advection terms: every state component but temperature and RhoRT
+  // (unused); the components after RhoRT move down two slots
   {
-    amrex::Vector<std::string> var_names(
-      NVAR - 2); // Skip temperature and RhoRT, unused
+    amrex::Vector<std::string> var_names(NVAR - 2);
     AMREX_D_TERM(
       var_names[VELX] = "A(VELX)";, var_names[VELY] = "A(VELY)";
       , var_names[VELZ] = "A(VELZ)");
@@ -1895,6 +1897,11 @@ PeleLM::evaluateSetup()
       var_names[FIRSTSPEC + n] = "A(" + spec_names[n] + ")";
     }
     var_names[RHOH] = "A(RhoH)";
+    for (const auto& [idx, name] : stateComponents) {
+      if (idx > RHORT) {
+        var_names[idx - 2] = "A(" + name + ")";
+      }
+    }
     evaluate_lst.add(
       "advTerm", amrex::IndexType::TheCellType(), NVAR - 2, var_names,
       the_same_box);
@@ -1934,7 +1941,7 @@ PeleLM::evaluateSetup()
     for (int n = 0; n < NUM_SPECIES; ++n) {
       var_names[n] = "rhoD(" + spec_names[n] + ")";
     }
-    var_names[NUM_SPECIES] = "Lamdba";
+    var_names[NUM_SPECIES] = "Lambda";
     var_names[NUM_SPECIES + 1] = "Mu";
     evaluate_lst.add(
       "transportCC", amrex::IndexType::TheCellType(), NUM_SPECIES + 2,

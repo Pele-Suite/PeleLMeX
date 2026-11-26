@@ -691,6 +691,10 @@ PeleLM::averageDownConservedDensities(const TimeStamp a_time)
 void
 PeleLM::averageDownReaction()
 {
+  // I_R is only allocated when reactions are on
+  if (m_do_react == 0) {
+    return;
+  }
   for (int lev = finest_level; lev > 0; --lev) {
     auto* ldataRFine_p = getLevelDataReactPtr(lev);
     auto* ldataRCrse_p = getLevelDataReactPtr(lev - 1);

@@ -118,7 +118,7 @@ IO parameters
     amr.plot_init_state  = false           # [OPT, DEF=false] Create a plot file during initialization before the initial projections
     amr.plot_per         = 0.002           # [OPT, DEF=-1] Period (time in s) for writing plot file
     amr.plot_per_exact   = 1               # [OPT, DEF=0] Flag to enforce exactly plt_per by shortening dt
-    amr.plot_file        = "plt_"          # [OPT, DEF="plt_"] Plot file prefix
+    amr.plot_file        = "plt_"          # [OPT, DEF="plt"] Plot file prefix
     amr.check_int        = 100             # [OPT, DEF=-1] Frequency (as step #) for writing checkpoint file
     amr.check_overwrite  = false           # [OPT, DEF=false] Overwrite checkpoint files with same name if present
     amr.check_per        = 0.05            # [OPT, DEF=-1] Period (time in s) for writing checkpoint file
@@ -258,7 +258,7 @@ PeleLMeX algorithm
     peleLM.num_init_iter = 2               # [OPT, DEF=3] Number of iterations to get initial pressure
     peleLM.num_divu_iter = 1               # [OPT, DEF=1] Number of divU iterations to get initial dt estimate
     peleLM.do_init_proj = 1                # [OPT, DEF=1] Control over initial projection
-    peleLM.advection_scheme = Godunov_BDS  # [OPT, DEF=Godunov_PLM] Advection scheme: Godunov_PLM, Godunov_PPM or Godunov_BDS
+    peleLM.advection_scheme = Godunov_BDS  # [OPT, DEF=Godunov_PLM] Advection scheme: Godunov_PLM, Godunov_PPM, Godunov_PPM_WENOZ, Godunov_PPM_NOLIM or Godunov_BDS
     peleLM.chi_correction_type = DivuFirstIter  # [OPT, DEF=DivuEveryIter] When to compute divu for MAC proj divu constraint [DivuEveryIter, DivuFirstIter, NoDivu]
     peleLM.print_chi_convergence = 1            # [OPT, DEF=(peleLM.v > 1)] Boolean flag on whether to print size of chi correction on each SDC iter
     peleLM.incompressible = 0              # [OPT, DEF=0] Enable to run fully incompressible, scalar advance is bypassed
@@ -270,7 +270,7 @@ PeleLMeX algorithm
     peleLM.periodic_channel_dir = 2        # [OPT, DEF= -1] Required if do_periodic_channel != 0. Direction to apply pressure gradient.
     peleLM.closed_chamber = 0              # [OPT] Override the automatic detection of closed chamber (based on Outflow(s))
     peleLM.floor_species = 0               # [OPT, DEF=0] Crudely enforce mass fraction positivity
-    peleLM.deltaT_verbose = 0              # [OPT, DEF=0] Verbose of the deltaT iterative solve algorithm
+    peleLM.deltaT_verbose = 0              # [OPT, DEF=max(peleLM.v-1,0)] Verbose of the deltaT iterative solve algorithm
     peleLM.deltaT_iterMax = 5              # [OPT, DEF=10] Maximum number of deltaT iterations
     peleLM.deltaT_tol = 1e-10              # [OPT, DEF=1.e-10] Tolerance of the deltaT solve
     peleLM.evaluate_vars =...              # [OPT, DEF=""] In evaluate mode, list unitTest: diffTerm, divU, instRR, transportCC
@@ -309,7 +309,7 @@ Transport coefficients and LES
     peleLM.les_cs_smag = 0.18              # [OPT, DEF=0.18] If using Smagorinsky LES model, provides model coefficient
     peleLM.les_cm_wale = 0.60              # [OPT, DEF=0.60] If using WALE LES model, provides model coefficient
     peleLM.les_cs_sigma = 1.35             # [OPT, DEF=1.35] If using Sigma LES model, provides model coefficient
-    peleLM.les_v = 0                       # [OPT, DEF=0] Verbosity level for LES model
+    peleLM.les_v = 0                       # [OPT, DEF=peleLM.v] Verbosity level for LES model
     peleLM.plot_les = 0                    # [OPT, DEF=0] If doing LES, whether to plot the turbulent viscosity
     transport.use_soret = 0                # [OPT, DEF=0] Compute diffusion including the Soret effect (note, this option is inherited from PelePhysics)
 

@@ -2170,13 +2170,13 @@ public:
 #ifdef PELE_USE_SOOT
   // Soot parameters
   SootModel* soot_model = nullptr;
-  bool do_soot_solve;
+  bool do_soot_solve = true;
 #endif
 
 #ifdef PELE_USE_RADIATION
   // Radiation parameters
   std::unique_ptr<PeleRad::Radiation> rad_model;
-  bool do_rad_solve;
+  bool do_rad_solve = false;
 #endif
 
   // Active controller
@@ -2457,8 +2457,8 @@ public:
   int m_do_massBalance = 0;
   int m_do_energyBalance = 0;
   int m_do_speciesBalance = 0;
-  amrex::Real m_massOld;
-  amrex::Real m_massNew;
+  amrex::Real m_massOld = 0.0;
+  amrex::Real m_massNew = 0.0;
   amrex::Real m_RhoHOld;
   amrex::Real m_RhoHNew;
   amrex::Array<amrex::Real, NUM_SPECIES> m_RhoYOld;

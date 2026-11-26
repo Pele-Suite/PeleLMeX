@@ -460,9 +460,14 @@ PeleLM::evaluateAdvectionTerms(
   computeVelocityAdvTerm(advData);
 
   // Copy AofS into outgoing container, skip Temperature and RhoRT
+  static_assert(RHORT == TEMP + 1, "advTerm layout assumes RHORT follows TEMP");
+  constexpr int nAfterRhoRT = NVAR - RHORT - 1;
   for (int lev = 0; lev <= finest_level; ++lev) {
-    amrex::MultiFab::Copy(
-      *a_advTerms[lev], advData->AofS[lev], 0, 0, NVAR - 2, 0);
+    amrex::MultiFab::Copy(*a_advTerms[lev], advData->AofS[lev], 0, 0, TEMP, 0);
+    if (nAfterRhoRT > 0) {
+      amrex::MultiFab::Copy(
+        *a_advTerms[lev], advData->AofS[lev], RHORT + 1, TEMP, nAfterRhoRT, 0);
+    }
   }
 
   // Reset state
