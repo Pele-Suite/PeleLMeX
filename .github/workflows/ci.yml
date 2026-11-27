@@ -28,7 +28,9 @@ env:
   # discarded at the end of the job.
   CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
   # The ccache directory the cache steps save and restore (ccache's default
-  # on Linux; CPU-CMake sets its own per OS).
+  # on Linux; CPU-CMake sets its own per OS). Not a CCACHE_* name on purpose,
+  # nor is CACHE_KEY: ccache reads those (CCACHE_PATH is where it looks for
+  # the compiler).
   COMPILER_CACHE_DIR: ~/.cache/ccache
   # SUNDIALS writes its configure time into sundials_config.h (SUN_JOB_ID,
   # SUN_JOB_START_TIME) unless these are set, which changes the ccache and
@@ -123,8 +125,6 @@ jobs:
       # so the saved cache is the current working set; only after a successful
       # job (the default condition), since a failed one never reached some
       # files. Reused (*trim_ccache, *save_ccache) by the other build jobs.
-      # COMPILER_CACHE_DIR and CACHE_KEY are not CCACHE_* names on purpose:
-      # ccache reads those (CCACHE_PATH is where it looks for the compiler).
       - &trim_ccache
         name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
@@ -318,16 +318,21 @@ jobs:
       - name: Setup
         run: |
           echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-          echo "HYPRE_INSTALL=${{runner.workspace}}/hypre-install-${HYPRE_VERSION}" >> $GITHUB_ENV
+          # The Restore/Save Hypre path, expanded for the build. No version in
+          # it (the cache key has it), so keep-caches.yml can restore it
+          # without parsing the key.
+          echo "HYPRE_INSTALL=${HOME}/.cache/hypre-install" >> $GITHUB_ENV
       - name: Dependencies
         run: ${{github.workspace}}/.github/workflows/dependencies/dependencies_mpi.sh
       - *install_ccache
       - *restore_ccache
-      - name: Cache Hypre
+      # Restore only, and save only from development (SAVE_CCACHE), like the
+      # ccaches: a PR builds Hypre itself if development has no copy.
+      - name: Restore Hypre
         id: cache-hypre
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
-          path: ${{env.HYPRE_INSTALL}}
+          path: ~/.cache/hypre-install
           key: hypre-${{env.HYPRE_VERSION}}-${{runner.os}}-openmpi
       - name: Build Hypre
         if: steps.cache-hypre.outputs.cache-hit != 'true'
@@ -339,6 +344,12 @@ jobs:
           ./configure --prefix=${HYPRE_INSTALL} --with-cxxstandard=17 CFLAGS="-O2 -std=gnu17"
           make -j ${{env.NPROCS}}
           make install
+      - name: Save Hypre
+        if: env.SAVE_CCACHE == 'true' && steps.cache-hypre.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/hypre-install
+          key: ${{steps.cache-hypre.outputs.cache-primary-key}}
       - name: Configure
         run: |
           cmake -B${{runner.workspace}}/build-hypre \
@@ -452,9 +463,8 @@ jobs:
       - *restore_ccache
       - name: Configure
         run: |
-          # /usr/local/cuda points at whichever version dependencies_cuda.sh installed.
-          export PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
-          export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+          # dependencies_cuda.sh puts nvcc on GITHUB_PATH and sets CUDA_HOME
+          # and LD_LIBRARY_PATH in GITHUB_ENV.
           cmake -Bbuild-cuda \
             -DCMAKE_BUILD_TYPE:STRING=Release \
             -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
@@ -593,12 +603,14 @@ jobs:
     env:
       # Room for a whole build, with headroom: a cold build overflows 100M,
       # and ccache evicts per subdirectory before the total reaches the
-      # limit. Check trims the cache to what the run used, so the saved
+      # limit. Trim Ccache cuts the cache to what the run used, so the saved
       # cache is one build's worth, not the limit.
       CCACHE_MAXSIZE: 500M
-      # Unlike the build jobs, this cache is saved on PRs too: a cold
-      # clang-tidy run takes hours, and Check trims it to one build.
-      CCACHE_COMPRESSLEVEL: 10
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
+      # The ctcache is saved and restored with the ccache.
+      COMPILER_CACHE_DIR: |-
+        ~/.cache/ccache
+        ~/.cache/ctcache
       # clang-tidy-cache skips files whose preprocessed source, flags and
       # resolved clang-tidy config are unchanged. SAVE_OUTPUT/SAVE_ALL store
       # each file's diagnostics (clang-tidy's stdout) and exit code and replay
@@ -623,19 +635,7 @@ jobs:
           # ctcache 1.2.0; the module is a self-contained script
           sudo curl -fsSL https://raw.githubusercontent.com/matus-chochlik/ctcache/e33c063ca6e52b48bcefbc45d46d8c150ffa81ca/src/ctcache/clang_tidy_cache.py -o /usr/local/bin/clang-tidy-cache
           sudo chmod +x /usr/local/bin/clang-tidy-cache
-      # Restore and save separately: the combined actions/cache saves only
-      # when the whole job passes, so a run that finds warnings would throw
-      # away the cache it just filled.
-      - name: Set Up Ccache
-        id: ccache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            ~/.cache/ccache
-            ~/.cache/ctcache
-          key: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-${{github.sha}}-${{github.run_id}}-${{github.run_attempt}}
-          restore-keys: |
-               ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}-git-
+      - *restore_ccache
       # Debug (-O0): linting does not need optimisation, and clang 18's
       # optimiser crashes (SIGSEGV) on amrex's AMReX_EB_STL_utils.cpp at -O3.
       #
@@ -666,23 +666,10 @@ jobs:
           # The restored caches carry earlier runs' counts: report this run's
           ccache -z
           clang-tidy-cache --zero-stats || true
-          # The file marks the start for find -newer, the time for ccache.
-          touch ${{runner.temp}}/cache-start
-          start=$(date +%s)
-          build_status=0
-          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
-          # Hits refresh an entry's mtime: drop the ones this run did not use
-          # (and older clang-tidy versions) so the caches do not grow. Only
-          # after a complete build: a failed one never reached some files.
-          if [ ${build_status} -eq 0 ]; then
-            find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/cache-start -delete
-            find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
-            ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
-          fi
-          # Fail on a failed build: a replayed cache hit restores the exit
-          # code but not clang-tidy's stderr, so the warning count alone can
-          # miss it.
-          exit ${build_status}
+          # pipefail fails the step on a failed build: a replayed cache hit
+          # restores the exit code but not clang-tidy's stderr, so the
+          # warning count alone can miss it.
+          cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt
       # The reports run when Check found warnings (failed) as well as when
       # it passed, but not after an earlier step failed: there is then no
       # build directory or log, and their errors would bury the real one.
@@ -696,15 +683,16 @@ jobs:
           echo "ctcache entries: $(find ${CTCACHE_DIR} -type f -regextype posix-extended -regex '.*/[0-9a-f]{38}' | wc -l)"
           clang-tidy-cache --show-stats || true
           ccache -s
-      # Saved on PRs too (see CCACHE_COMPRESSLEVEL above), whenever Check
-      # completed the build, before Short report can fail on warnings.
-      - name: Save Ccache
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            ~/.cache/ccache
-            ~/.cache/ctcache
-          key: ${{steps.ccache.outputs.cache-primary-key}}
+      # Like *trim_ccache, for the ctcache: hits refresh an entry's mtime, so
+      # drop the entries this run did not use, and older clang-tidy versions.
+      - name: Trim Ctcache
+        if: env.SAVE_CCACHE == 'true'
+        run: |
+          start=${COMPILER_CACHE_START:?not set by Install Ccache}
+          find ${CTCACHE_DIR} -type f ! -newermt @${start} -delete
+          find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
+      - *trim_ccache
+      - *save_ccache
       # No Full report step: Check already prints the whole log (tee).
       - name: Short report
         if: ${{ success() || steps.check.outcome == 'failure' }}

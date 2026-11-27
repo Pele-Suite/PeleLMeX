@@ -9,6 +9,12 @@ on:
 jobs:
   CleanUpCcacheCache:
     name: Clean Up Ccache Cache for ${{ github.event.workflow_run.name }}
+    # Only development saves caches (SAVE_CCACHE in ci.yml), so only its runs
+    # leave old ones to delete. A fork's development branch is not this one.
+    if: >-
+      github.event.workflow_run.head_branch == 'development' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -17,40 +23,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # gh reads the repository from here, so no checkout is needed.
       GH_REPO: ${{ github.repository }}
+      BRANCH: refs/heads/development
+      # Triggering workflow run name (e.g., PeleLMeX-CI)
+      WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
     steps:
       - name: Clean up ccache
-        # Event values go through the environment, not ${{ }} in the script:
-        # a branch name is chosen by whoever pushed it (forks included), and
-        # pasted into the script it could run shell commands.
-        env:
-          # push or pull_request or schedule or ...
-          EVENT: ${{ github.event.workflow_run.event }}
-          # Triggering workflow run name (e.g., PeleLMeX-CI)
-          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
-          # For debugging, cat ${GITHUB_EVENT_PATH} to see the payload.
-
-          if [[ $EVENT == "pull_request" ]]; then
-            # The run's own PR when it has one (same-repo PRs); otherwise search,
-            # keeping only the PR whose head is this commit (a stacked PR also
-            # contains it). Closed PRs too: one can close before this runs.
-            if [ -z "${pr_number}" ]; then
-              pr_number=$(gh pr list --state all --search "${HEAD_SHA}" --json number,headRefOid \
-                --jq "map(select(.headRefOid == \"${HEAD_SHA}\")) | .[0].number // empty") || true
-            fi
-            if [ -z "${pr_number}" ]; then
-              echo "No PR for ${HEAD_SHA}; nothing to clean up."
-              exit 0
-            fi
-            echo "Clean up cache for PR ${pr_number}"
-            BRANCH=refs/pull/${pr_number}/merge
-          else
-            BRANCH="refs/heads/${HEAD_BRANCH}"
-          fi
-
           # Setting this to not fail the workflow while deleting cache keys.
           set +e
 

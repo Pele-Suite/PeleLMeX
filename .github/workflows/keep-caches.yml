@@ -2,9 +2,10 @@ name: KeepCaches
 
 # GitHub evicts a cache after 7 days without access, and a restore counts as
 # an access. Twice a week (a margin for late scheduled starts), this restores
-# each of development's ccaches, so PRs still find them when development has
-# had no push for a while; no build runs, and nothing is saved. The ccaches
-# themselves are only saved by PeleLMeX-CI runs on development.
+# each of development's ccaches and its Hypre install, so PRs still find them
+# when development has had no push for a while; no build runs, and nothing is
+# saved. The caches themselves are only saved by PeleLMeX-CI runs on
+# development.
 on:
   workflow_dispatch:
   schedule:
@@ -14,6 +15,12 @@ permissions:
   # gh cache list
   actions: read
   contents: read
+
+# bash -eo pipefail: a failed gh cache list fails List, rather than leaving
+# an empty list for Restore's matrix.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   List:
@@ -31,9 +38,13 @@ jobs:
           # Each cache with the runner and path its job saved it with: a
           # restore must give the same path, or it misses. Keep these in step
           # with ci.yml (CPU-CMake's ccache_cache on macOS, Lint-clang-tidy's
-          # ccache and ctcache, COMPILER_CACHE_DIR for the rest).
-          caches=$(gh cache list -L 100 --ref refs/heads/development --key ccache- --json key | jq -c '[.[].key |
-            if test("-macos-") then {key: ., os: "macos-latest", path: "/Users/runner/Library/Caches/ccache"}
+          # ccache and ctcache, CPU-CMake-Hypre's Hypre install,
+          # COMPILER_CACHE_DIR for the rest).
+          caches=$( { gh cache list -L 100 --ref refs/heads/development --key ccache- --json key
+                      gh cache list -L 10 --ref refs/heads/development --key hypre- --json key; } |
+            jq -cs '[add[].key |
+            if startswith("hypre-") then {key: ., os: "ubuntu-24.04", path: "~/.cache/hypre-install"}
+            elif test("-macos-") then {key: ., os: "macos-latest", path: "/Users/runner/Library/Caches/ccache"}
             elif test("-Lint-clang-tidy-") then {key: ., os: "ubuntu-24.04", path: "~/.cache/ccache\n~/.cache/ctcache"}
             else {key: ., os: "ubuntu-24.04", path: "~/.cache/ccache"} end]')
           echo "${caches}" | jq .

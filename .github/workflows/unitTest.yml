@@ -16,6 +16,11 @@ concurrency:
   group: ${{ github.ref }}-${{ github.head_ref }}-${{ github.event_name }}-unitTest
   cancel-in-progress: true
 
+# bash -eo pipefail: a failed command in a pipeline fails the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # Build the RegTests/UnitTest
   UT_FS:
