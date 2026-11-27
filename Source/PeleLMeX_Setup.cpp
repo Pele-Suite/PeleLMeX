@@ -559,6 +559,10 @@ PeleLM::readParameters()
     m_spark_ramp_steps.resize(m_n_sparks);
     m_spark_tau.resize(m_n_sparks, -1.0);
     m_spark_deposited.resize(m_n_sparks, 0.0);
+    m_spark_dh.resize(m_n_sparks, -1.0);
+    m_spark_last_power.resize(m_n_sparks, 0.0);
+    m_spark_last_time.resize(m_n_sparks, 0.0);
+    m_spark_edge_warned.resize(m_n_sparks, 0);
     if (m_n_sparks > 0) {
       m_spark_verbose = amrex::max<int>(m_verbose - 2, 0);
     }
@@ -571,9 +575,9 @@ PeleLM::readParameters()
       pps.get("duration", m_spark_duration[n]);
       m_spark_location[n].resize(AMREX_SPACEDIM);
       pps.getarr("location", m_spark_location[n], 0, AMREX_SPACEDIM);
-      // Spark energy: given directly [J; J/m in 2D Cartesian], or as the
-      // energy to bring the gas inside the radius to a temperature at
-      // ignition.  Exactly one of the two.
+      // Spark strength: an energy [J; J/m in 2D Cartesian], deposited at a
+      // fixed power density, or a temperature the gas inside the radius is
+      // heated to, at a fixed rate per unit mass.  Exactly one of the two.
       const bool has_energy = pps.contains("energy");
       const bool has_temp = pps.contains("temp");
       if (has_energy == has_temp) {
@@ -638,8 +642,7 @@ PeleLM::readParameters()
         }
         amrex::Print() << "\n";
         if (m_spark_temp[n] > 0.0) {
-          amrex::Print() << "Spark " << n
-                         << " temperature (sets energy): " << m_spark_temp[n]
+          amrex::Print() << "Spark " << n << " temperature: " << m_spark_temp[n]
                          << "\n";
         } else {
           amrex::Print() << "Spark " << n << " energy: " << m_spark_energy[n]

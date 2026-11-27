@@ -924,8 +924,11 @@ public:
 
   //! Add the spark power at the time of \p a_time (a point value: the
   //! scalar update takes 0.5 (S^n + S^{n+1}) with ext_sources_SDC).
+  //! An energy input is a fixed power density; a temperature input heats at
+  //! a fixed rate per unit mass, so its power density follows the density.
   //! The t^n call of a regular step (\p a_is_initIter == 0) also freezes the
-  //! spark energy and accumulates the deposited-energy diagnostic.
+  //! enthalpy rise of a temperature input and accumulates the
+  //! deposited-energy diagnostic.
   void addSpark(const PeleLM::TimeStamp a_time, const int a_is_initIter = 0);
 
   //! Freeze the spark ramp widths given in steps and shorten \p a_dt so a
@@ -936,8 +939,9 @@ public:
   //! (RZ-weighted): the volume its energy is normalised to.
   amrex::Real sparkVolume(int n) const;
 
-  //! Spark energies frozen at ignition, ramp half-widths frozen before the
-  //! ramp and deposited energies, written to / read from <checkpoint>/Sparks
+  //! Spark enthalpy rises frozen at ignition, ramp half-widths frozen before
+  //! the ramp and deposited energies, written to / read from
+  //! <checkpoint>/Sparks
   //! so a restart during a spark keeps them.
   void writeSparkCheckpoint(const std::string& a_dir) const;
   void readSparkCheckpoint(const std::string& a_dir);
@@ -2407,8 +2411,16 @@ public:
   amrex::Vector<amrex::Real> m_spark_tau;
   // Energy deposited so far (trapezoidal, as the scalar update sees it)
   amrex::Vector<amrex::Real> m_spark_deposited;
-  // Spark energy, frozen at ignition (< 0 until then)
+  // Spark energy (energy input; < 0 for a temperature input)
   amrex::Vector<amrex::Real> m_spark_energy;
+  // Temperature input: mass-averaged enthalpy rise to the spark temperature
+  // [J/kg], frozen at ignition (< 0 until then), and the power and time of
+  // the last step start, for the deposited energy
+  amrex::Vector<amrex::Real> m_spark_dh;
+  amrex::Vector<amrex::Real> m_spark_last_power;
+  amrex::Vector<amrex::Real> m_spark_last_time;
+  // Under-resolved edge already reported
+  amrex::Vector<int> m_spark_edge_warned;
 
   // DivU ? default ON when not incompressible
   int m_has_divu = 1;

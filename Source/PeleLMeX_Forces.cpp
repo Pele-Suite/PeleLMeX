@@ -385,11 +385,14 @@ PeleLM::writeSparkCheckpoint(const std::string& a_dir) const
     amrex::FileOpenFailed(a_dir + "/Sparks");
   }
   os.precision(17);
-  // One line per spark: name, energy frozen at ignition and ramp half-width
-  // frozen before the ramp (< 0: not yet), energy deposited so far
+  // One line per spark: name, enthalpy rise frozen at ignition (temperature
+  // input) and ramp half-width frozen before the ramp (< 0: not yet), energy
+  // deposited so far, and the power and time of the last step start, which
+  // the trapezoidal deposited energy of a temperature spark is built from
   for (int n = 0; n < m_n_sparks; ++n) {
-    os << m_spark[n] << " " << m_spark_energy[n] << " " << m_spark_tau[n] << " "
-       << m_spark_deposited[n] << "\n";
+    os << m_spark[n] << " " << m_spark_dh[n] << " " << m_spark_tau[n] << " "
+       << m_spark_deposited[n] << " " << m_spark_last_power[n] << " "
+       << m_spark_last_time[n] << "\n";
   }
 }
 
@@ -404,23 +407,27 @@ PeleLM::readSparkCheckpoint(const std::string& a_dir)
   amrex::ParallelDescriptor::ReadAndBcastFile(file, buf);
   std::istringstream is(buf.dataPtr());
   std::string name;
-  amrex::Real energy = 0.0;
+  amrex::Real dh = 0.0;
   amrex::Real tau = 0.0;
   amrex::Real deposited = 0.0;
-  while (is >> name >> energy >> tau >> deposited) {
+  amrex::Real last_power = 0.0;
+  amrex::Real last_time = 0.0;
+  while (is >> name >> dh >> tau >> deposited >> last_power >> last_time) {
     for (int n = 0; n < m_n_sparks; ++n) {
       if (m_spark[n] != name) {
         continue;
       }
-      // Only values derived during the run are state: a given energy or
-      // ramp time comes from the inputs, which may have changed on restart
-      if (m_spark_temp[n] > 0.0 && energy >= 0.0) {
-        m_spark_energy[n] = energy;
+      // Only values derived during the run are state: a ramp time comes
+      // from the inputs, which may have changed on restart
+      if (m_spark_temp[n] > 0.0 && dh >= 0.0) {
+        m_spark_dh[n] = dh;
       }
       if (m_spark_ramp_time[n] < 0.0 && tau >= 0.0) {
         m_spark_tau[n] = tau;
       }
       m_spark_deposited[n] = deposited;
+      m_spark_last_power[n] = last_power;
+      m_spark_last_time[n] = last_time;
     }
   }
 }
@@ -455,7 +462,24 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     // the energy must then be set (temperature input) and counted
     const bool in_step =
       step_start && time + m_dt > t0 - tau && time < t1 + tau;
+    const bool temp_input = m_spark_temp[n] > 0.0;
+    // Deposited energy of a temperature spark with ext_sources_SDC:
+    // trapezoidal in time over the powers at the step starts, closed here
+    // one step late (its power depends on the density at each of them).
+    auto close_step = [&](amrex::Real power) {
+      m_spark_deposited[n] +=
+        0.5 * (m_spark_last_power[n] + power) * (time - m_spark_last_time[n]);
+      if (power <= 0.0 && m_spark_last_power[n] > 0.0 && m_spark_verbose > 0) {
+        amrex::Print() << m_spark[n]
+                       << " deposited energy: " << m_spark_deposited[n] << "\n";
+      }
+      m_spark_last_power[n] = power;
+      m_spark_last_time[n] = time;
+    };
     if (p <= 0.0 && !in_step) {
+      if (step_start && temp_input && m_spark_last_power[n] > 0.0) {
+        close_step(0.0);
+      }
       if (verb) {
         amrex::Print() << m_spark[n] << " not active \n";
       }
@@ -508,15 +532,18 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
                                 ? m_spark_width[n]
                                 : m_spark_width_cells[n] * dx_spark;
 
-    // Spark energy given as a temperature: frozen at ignition as the energy
-    // to take the gas inside the radius from its state then to the spark
-    // temperature, sphere_volume x <rho (h(T_spark, Y) - h(T, Y))>_sphere.
-    // Frozen so the rate does not decay as the gas heats.  The temperature
-    // only sets the energy: the gas left in the kernel ends up hotter, as
-    // heated gas expands out of it.
-    if (m_spark_energy[n] < 0.0) {
-      // {sum_in q dV, sum_in dV, sum w q dV, sum w dV}; the kernel-weighted
-      // pair is the fallback when no cell centre lies inside the radius.
+    // Spark given as a temperature: the gas is heated at a fixed rate per
+    // unit mass, dh / duration, with dh the mass-averaged enthalpy rise
+    // <rho (h(T_spark, Y) - h(T, Y))> / <rho> that takes the gas inside the
+    // radius from its state at ignition to the spark temperature.  Frozen at
+    // ignition so the rate does not decay as the gas heats.  The power
+    // density follows the local density, so the gas left in the kernel
+    // reaches the spark temperature however much of it has expanded out (a
+    // fixed power density would heat what is left exponentially).
+    if (temp_input && m_spark_dh[n] < 0.0) {
+      // {sum_in rho dh dV, sum_in rho dV, sum w rho dh dV, sum w rho dV};
+      // the kernel-weighted pair is the fallback when no cell centre lies
+      // inside the radius.
       amrex::Real sums[4] = {0.0, 0.0, 0.0, 0.0};
       auto const* leosparm = eos_parms.device_parm();
       for (int lev = 0; lev <= finest_level; ++lev) {
@@ -559,7 +586,7 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
             eos.TY2H(spark_temp, Y, h_spark);
             eos.TY2H(s(i, j, k, TEMP), Y, h_gas);
             const amrex::Real q = rho * c2m::H(h_spark - h_gas);
-            return {in * q * dV, in * dV, w * q * dV, w * dV};
+            return {in * q * dV, in * rho * dV, w * q * dV, w * rho * dV};
           });
         sums[0] += amrex::get<0>(r);
         sums[1] += amrex::get<1>(r);
@@ -567,36 +594,119 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
         sums[3] += amrex::get<3>(r);
       }
       amrex::ParallelDescriptor::ReduceRealSum(sums, 4);
-      amrex::Real q_mean = 0.0;
+      amrex::Real dh_mean = 0.0;
       if (sums[1] > 0.0) {
-        q_mean = sums[0] / sums[1];
+        dh_mean = sums[0] / sums[1];
       } else if (sums[3] > 0.0) {
-        q_mean = sums[2] / sums[3];
+        dh_mean = sums[2] / sums[3];
       }
-      m_spark_energy[n] =
-        amrex::max(amrex::Real(0.0), q_mean * m_spark_volume[n]);
-      if (q_mean <= 0.0) {
+      m_spark_dh[n] = amrex::max(amrex::Real(0.0), dh_mean);
+      if (dh_mean <= 0.0) {
         amrex::Warning(
           m_spark[n] + ": gas inside the radius is already at or above the "
                        "spark temperature; no energy added");
       }
       if (time > t0 - tau) {
         amrex::Warning(
-          m_spark[n] + ": energy evaluated after the spark started (restart "
-                       "during the spark?); it is based on the current state");
+          m_spark[n] + ": enthalpy rise evaluated after the spark started "
+                       "(restart during the spark?); it is based on the "
+                       "current state");
       }
       if (m_spark_verbose > 0) {
-        amrex::Print() << m_spark[n] << " energy [J";
-#if AMREX_SPACEDIM == 2
-        amrex::Print() << (geom[0].IsRZ() ? "" : "/m");
-#endif
-        amrex::Print() << "]: " << m_spark_energy[n] << "\n";
+        amrex::Print() << m_spark[n]
+                       << " enthalpy rise [J/kg]: " << m_spark_dh[n] << "\n";
       }
     }
-    if (m_spark_energy[n] <= 0.0) {
+    if ((temp_input ? m_spark_dh[n] : m_spark_energy[n]) <= 0.0) {
+      continue;
+    }
+    // A kernel that is mostly edge is under-resolved: little of it gets the
+    // full power, and what does loses its heat to the edge
+    if (
+      (m_spark_edge_warned[n] == 0) &&
+      amrex::Math::pi<amrex::Real>() * delta > radius) {
+      m_spark_edge_warned[n] = 1;
+      amrex::Warning(
+        m_spark[n] + ": the smoothed edge spans more than half the radius; "
+                     "refine the spark region or lower width_cells / width");
+    }
+
+    // Kernel on the composite grid (only needed while the power is on)
+    amrex::Vector<amrex::MultiFab> kernel(finest_level + 1);
+    if (p > 0.0) {
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        kernel[lev].define(
+          grids[lev], dmap[lev], 1, 0, amrex::MFInfo(), Factory(lev));
+        auto const& kma = kernel[lev].arrays();
+        const amrex::GeometryData gd = geom[lev].data();
+        amrex::ParallelFor(
+          kernel[lev],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            kma[box_no](i, j, k) = spark_kernel(
+              spark_distance(i, j, k, x0, mmap, gd), radius, delta);
+          });
+      }
+      amrex::Gpu::streamSynchronize();
+    }
+
+    if (temp_input) {
+      // Source [W/m^3]: rho x kernel x power shape x dh / duration
+      const amrex::Real coef = m_spark_dh[n] / m_spark_duration[n] * p;
+      if (step_start) {
+        // Deposited energy: the power is coef x the kernel-weighted mass,
+        // integrated over the composite (uncovered) grid
+        amrex::Real power = 0.0;
+        if (p > 0.0) {
+          amrex::Vector<amrex::MultiFab> rho_w(finest_level + 1);
+          for (int lev = 0; lev <= finest_level; ++lev) {
+            rho_w[lev].define(
+              grids[lev], dmap[lev], 1, 0, amrex::MFInfo(), Factory(lev));
+            amrex::MultiFab::Copy(rho_w[lev], kernel[lev], 0, 0, 1, 0);
+            amrex::MultiFab::Multiply(
+              rho_w[lev], getLevelDataPtr(lev, a_timestamp)->state, DENSITY, 0,
+              1, 0);
+          }
+          power = coef * MFSum(amrex::GetVecOfConstPtrs(rho_w), 0);
+        }
+        if (m_ext_sources_SDC) {
+          close_step(power);
+        } else {
+          // The t^n source is held over the step
+          m_spark_deposited[n] += power * m_dt;
+          if (time + m_dt >= t1 + tau && m_spark_verbose > 0) {
+            amrex::Print() << m_spark[n]
+                           << " deposited energy: " << m_spark_deposited[n]
+                           << "\n";
+          }
+        }
+      }
+      if (p <= 0.0) {
+        continue;
+      }
+      if (verb) {
+        amrex::Print() << m_spark[n] << " active on level " << spark_lev
+                       << ", edge width " << delta << ", power fraction " << p
+                       << "\n";
+      }
+      for (int lev = 0; lev <= finest_level; ++lev) {
+        auto const& extma = m_extSource[lev]->arrays();
+        auto const& kma = kernel[lev].const_arrays();
+        auto const& statema =
+          getLevelDataPtr(lev, a_timestamp)->state.const_arrays();
+        amrex::ParallelFor(
+          kernel[lev],
+          [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
+            const amrex::Real w = kma[box_no](i, j, k);
+            if (w > 0.0) {
+              extma[box_no](i, j, k, RHOH) +=
+                coef * w * statema[box_no](i, j, k, DENSITY);
+            }
+          });
+      }
       continue;
     }
 
+    // Spark given as an energy: a fixed power density in a fixed region.
     // Deposited energy as the scalar update sees it: trapezoidal with
     // ext_sources_SDC, else the step average over the step
     if (step_start) {
@@ -615,23 +725,9 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
     if (p <= 0.0) {
       continue;
     }
-
     // Discrete integral of the kernel over the composite (uncovered) grid,
     // so the deposited power is exactly energy / duration whatever the
     // resolution and edge width.
-    amrex::Vector<amrex::MultiFab> kernel(finest_level + 1);
-    for (int lev = 0; lev <= finest_level; ++lev) {
-      kernel[lev].define(
-        grids[lev], dmap[lev], 1, 0, amrex::MFInfo(), Factory(lev));
-      auto const& kma = kernel[lev].arrays();
-      const amrex::GeometryData gd = geom[lev].data();
-      amrex::ParallelFor(
-        kernel[lev],
-        [=] AMREX_GPU_DEVICE(int box_no, int i, int j, int k) noexcept {
-          kma[box_no](i, j, k) =
-            spark_kernel(spark_distance(i, j, k, x0, mmap, gd), radius, delta);
-        });
-    }
     const amrex::Real kernel_sum = MFSum(amrex::GetVecOfConstPtrs(kernel), 0);
     if (kernel_sum <= 0.0) {
       amrex::Warning(m_spark[n] + " not resolved by any cell!");
@@ -646,7 +742,6 @@ PeleLM::addSpark(const TimeStamp a_timestamp, const int a_is_initIter)
                      << ", sphere volume " << m_spark_volume[n]
                      << ", kernel integral " << kernel_sum << "\n";
     }
-
     for (int lev = 0; lev <= finest_level; ++lev) {
       auto const& extma = m_extSource[lev]->arrays();
       auto const& kma = kernel[lev].const_arrays();
