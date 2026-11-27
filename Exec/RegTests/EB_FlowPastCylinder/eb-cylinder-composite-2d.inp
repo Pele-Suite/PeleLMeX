@@ -1,0 +1,82 @@
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 0 1                # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = -0.02 0.0 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     =  0.06 0.04 1.0  # x_hi y_hi (z_hi)
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Inflow  Interior NoSlipWallAdiab 
+peleLM.hi_bc = Outflow Interior NoSlipWallAdiab 
+
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 64 32 64         # Level 0 number of cells in each direction   
+amr.v               = 1                # AMR verbose
+amr.max_level       = 2                # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 2                # how often to regrid
+amr.n_error_buf     = 1 1 2 2          # number of buffer cells in error est
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 16               # block factor in grid generation (min box size)
+amr.max_grid_size   = 64               # max box size
+
+#--------------------------- Problem -------------------------------
+prob.T_mean = 298.0
+prob.P_mean = 101325.0
+prob.meanFlowMag = 5.0
+prob.meanFlowDir = 1
+
+#------------  INPUTS TO CONSTANT TRANSPORT -----------------
+transport.const_viscosity        = 0.0001 
+transport.const_bulk_viscosity   = 0.0 
+transport.const_conductivity     = 0.0 
+transport.const_diffusivity      = 0.0 
+
+#-------------------------PeleLM CONTROL----------------------------
+peleLM.v = 1
+peleLM.incompressible = 0
+
+amr.plot_int = 20
+amr.max_step = 20
+amr.dt_shrink = 0.1
+amr.stop_time = 0.02
+amr.cfl = 0.7
+amr.derive_plot_vars = avg_pressure mag_vort
+
+#------------------------- EB SETUP -----------------------------
+eb2.geom_type = sphere
+eb2.sphere_radius = 0.006
+eb2.sphere_center = 0.0 0.02
+eb2.sphere_has_fluid_inside = 0
+eb2.small_volfrac = 1.0e-4
+
+#--------------------REFINEMENT CONTROL------------------------
+#amr.refinement_indicators = temp
+#amr.temp.max_level     = 2
+#amr.temp.value_greater = 305
+#amr.temp.field_name    = temp
+
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+#---------------------- COMPOSITE SOLVERS ------------------------
+# AMReX's composite (all AMR levels) solvers with EB: the MAC projection
+# and the scalar and velocity diffusion with HypreMLABecLap's EB operator
+# (hypre FlexGMRES + BoomerAMG), the nodal projection with HypreMLNodeLap
+# and AMReX's AlgMG; the nodal projector and its solver setup are kept
+# across the projections.  Requires PeleLMeX built with hypre.
+mac_proj.use_mlhypre                   = 1
+mac_proj.mlhypre_reuse_setup           = 1
+hypre_mlabeclap.hypre_solver           = FlexGMRES
+hypre_mlabeclap.hypre_preconditioner   = BoomerAMG
+nodal_proj.use_mlhypre                 = 1
+nodal_proj.mlhypre_reuse_setup         = 1
+hypre_mlnodelap.backend                = algmg
+diffusion.use_mlhypre                  = 1
+diffusion_mlhypre.hypre_solver         = FlexGMRES
+diffusion_mlhypre.hypre_preconditioner = BoomerAMG
+tensor_diffusion.use_mlhypre           = 1
+tensor_diffusion.verbose               = 1

@@ -255,6 +255,9 @@ PeleLMeX algorithm
     peleLM.run_mode = normal               # [OPT, DEF=normal] Switch between time-advance mode (normal) or UnitTest (evaluate)
     peleLM.use_wbar = 1                    # [OPT, DEF=1] Enable Wbar correction in diffusion fluxes
     peleLM.sdc_iterMax = 2                 # [OPT, DEF=1] Number of SDC iterations
+    peleLM.IR_extrapolation = 3            # [OPT, DEF=0] First SDC iteration's reaction forcing: 0 previous step's I_R, 1 linear extrapolation in time, 2 limited (one factor per cell for all species), 3 as 2 and none where the last two slopes differ by more than 2x
+    peleLM.IR_extrap_boxrel = 0.5          # [OPT, DEF=0] With IR_extrapolation: no extrapolation in boxes whose I_R changed by more than this fraction of its domain scale over the last step (0: off)
+    peleLM.IR_extrap_globalrel = 0.0       # [OPT, DEF=0] With IR_extrapolation: no extrapolation in a step when the domain-wide relative change of I_R exceeds this (0: off)
     peleLM.num_init_iter = 2               # [OPT, DEF=3] Number of iterations to get initial pressure
     peleLM.num_divu_iter = 1               # [OPT, DEF=1] Number of divU iterations to get initial dt estimate
     peleLM.do_init_proj = 1                # [OPT, DEF=1] Control over initial projection
@@ -291,6 +294,26 @@ PeleLMeX algorithm
 
     peleLM.user_defined_ext_sources = 0    # [OPT, DEF=0] Enable user defined source terms. Requires local ProblemSpecificFunctions.cpp.
     peleLM.add_variance_sources = 1        # [OPT, DEF=1] (only relevant for Manifold EOS) include production/dissipation for variances if present in model
+
+The first SDC iteration uses the previous step's time-averaged reaction rate
+``I_R`` as the reaction forcing of advection and diffusion; later iterations
+use the rate from their own chemistry solve.  With ``IR_extrapolation > 0``
+the first iteration instead uses ``I_R`` extrapolated in time to the middle of
+the new step (from the rates of the last two or three steps, accounting for
+variable ``dt``).  The limited modes use one factor per cell for the whole
+species slope vector, so the extrapolated rates keep the mass and element
+balances of ``I_R``.  The history uses only rates produced by completed time
+steps on the current grids; it restarts after initialization, a restart or
+a regrid that changes the grids.  This adds no chemistry solves and does not
+change the converged answer, but reduces the error of a run with few SDC iterations: in
+a 2D drm19 FlameSheet with ``sdc_iterMax = 2``, the difference from a run
+with 8 iterations drops about 3x for species, temperature and heat release
+(about the level of 4 plain iterations), at two resolutions and with AMR.
+Where the reaction rate changes quickly from step to step, for example
+during an ignition, linear extrapolation overshoots; ``IR_extrapolation = 3``
+with ``IR_extrap_boxrel = 0.5`` limits the slope and skips boxes with a fast
+transient, which keeps such runs about as accurate as without
+extrapolation.
 
 
 Transport coefficients and LES
@@ -683,9 +706,15 @@ Linear solvers are a key component of PeleLMeX algorithm, separate controls are 
     tensor_diffusion.atol = 1.0e-12           # [OPT, DEF=1e-14] Absolute tolerance of the velocity tensor diffusion solve
     tensor_diffusion.max_iter = 100           # [OPT, DEF=100] Maximum number of iterations of the velocity tensor diffusion solve
     tensor_diffusion.bottom_solver = bicgstab # [OPT, DEF=operator default] smoother, bicgstab, cg, bicgcg or cgbicg
+    tensor_diffusion.max_order = 2            # [OPT, DEF=2] Order of the boundary stencils (3 with use_mlhypre)
     tensor_diffusion.use_gmres = 0            # [OPT, DEF=0] Solve with GMRES preconditioned by MLMG
     tensor_diffusion.gmres_precond_iters = 1  # [OPT, DEF=1] MLMG cycles per GMRES iteration
     tensor_diffusion.gmres_restart = 30       # [OPT, DEF=GMRES default] GMRES restart length
+    tensor_diffusion.use_mlhypre = 0          # [OPT, DEF=0] Composite (all AMR levels) solve with AMReX's HypreMLABecLap, component by component
+    tensor_diffusion.mlhypre_prefix = diff_mlhypre # [OPT, DEF=diffusion_mlhypre] ParmParse prefix of the HypreMLABecLap options
+    tensor_diffusion.mlhypre_reuse_setup = 1  # [OPT, DEF=1] Reuse the solver setup: 0 never, 1 within a solve, 2 also across solves
+    tensor_diffusion.mlhypre_max_outer = 50   # [OPT, DEF=50] Maximum outer iterations of the lagged cross-component terms
+    tensor_diffusion.mlhypre_outer_rtol = 1e-11 # [OPT, DEF=rtol] Relative tolerance of the outer iterations (the change of the velocity)
 
 Hypre support
 ^^^^^^^^^^^^^
@@ -742,24 +771,60 @@ component.  With EB they support boundary stencils up to order 3, and
 The composite solvers solve all AMR levels as one system:
 
 * ``diffusion.use_mlhypre = 1`` solves each scalar diffusion component with
-  AMReX's ``HypreMLABecLap`` (not with EB).  It requires the IJ mode, selected
-  with a ``hypre_solver`` key (e.g. ``FlexGMRES`` with ``BoomerAMG``) or
+  AMReX's ``HypreMLABecLap``.  It requires the IJ mode, selected with a
+  ``hypre_solver`` key (e.g. ``FlexGMRES`` with ``BoomerAMG``) or
   ``backend = algmg`` under ``diffusion.mlhypre_prefix``.  It uses order-3
   boundary stencils, so ``diffusion.max_order`` is lowered to 3, and it
   converges to ``diffusion.rtol`` only (``diffusion.atol`` is not used).
-  Poisson solves through the same operator (the plasma electric field) stay
-  with MLMG.
+  With EB it uses ``HypreMLABecLap``'s EB operator with the diffusivities at
+  the face centroids, as the MLMG operators of PeleLMeX, and the Dirichlet
+  condition of an isothermal EB (``peleLM.isothermal_EB``); a second
+  composite solver serves the isothermal temperature solves, whose EB
+  boundary condition type differs from the species' one.  Poisson solves
+  through the same operator (the plasma electric field) stay with MLMG.
+* ``tensor_diffusion.use_mlhypre = 1`` solves the velocity diffusion with
+  the same composite solver, one component at a time: the scalar part of
+  the tensor operator (``a = rho``, ``b = mu``, with ``4/3 mu`` in the
+  component's own direction) is solved with one ``HypreMLABecLap`` per
+  component, the cross-component part of the viscous stress is lagged and
+  the solves are iterated until the velocity changes by less than
+  ``tensor_diffusion.mlhypre_outer_rtol`` (``tensor_diffusion.rtol`` by
+  default); the solve aborts after ``tensor_diffusion.mlhypre_max_outer``
+  iterations.  The matrices are set up once per solve and the solver
+  setups kept across the outer iterations (``mlhypre_reuse_setup = 1``) or
+  across solves (``2``).  The options are read under
+  ``tensor_diffusion.mlhypre_prefix``, by default the scalar diffusion's
+  prefix.  The tensor operators then use order-3 boundary stencils
+  (``tensor_diffusion.max_order = 3``) to match the composite matrix.
 * ``mac_proj.use_mlhypre = 1`` and ``nodal_proj.use_mlhypre = 1`` do the same
-  for the projections (see the AMReX-Hydro documentation); the MAC
-  projection then uses order-3 boundary stencils.
+  for the projections (see the AMReX-Hydro documentation, also for EB); the
+  MAC projection then uses order-3 boundary stencils.  With
+  ``nodal_proj.use_mlhypre`` the nodal projector is kept across the
+  projections: its composite matrix is updated in place from the current
+  coefficient, and ``nodal_proj.mlhypre_reuse_setup = 1`` keeps the solver
+  setup (or AlgMG hierarchy) as well, as ``mac_proj.mlhypre_reuse_setup``
+  does for the MAC projection.  A kept setup is scaled to the current
+  matrix, so the time step in the projection coefficients does not age it;
+  a non-uniform change of the coefficients does, and
+  ``<prefix>.reuse_setup_max_change`` (e.g. ``hypre_mlabeclap``,
+  ``hypre_mlnodelap``, ``diffusion_mlhypre``; a fraction such as ``0.2``)
+  redoes the setup once the matrix has changed by more than that since it,
+  before the solves slow down.
+
+With EB and AMR, the composite cell-centered operator differs from MLMG's at
+cut cells on a coarse/fine boundary (its coarse/fine fluxes are the fine
+fluxes), so the composite and MLMG solutions differ there by more than the
+solver tolerance.
 
 ::
 
     diffusion.use_mlhypre = 1
     diffusion_mlhypre.hypre_solver = FlexGMRES
     diffusion_mlhypre.hypre_preconditioner = BoomerAMG
+    tensor_diffusion.use_mlhypre = 1
     nodal_proj.use_mlhypre = 1
-    hypre_mlnodelap.hypre_solver = GMRES
+    nodal_proj.mlhypre_reuse_setup = 1
+    hypre_mlnodelap.hypre_solver = FlexGMRES
     hypre_mlnodelap.hypre_preconditioner = BoomerAMG
 
 Active control

@@ -192,10 +192,35 @@ public:
   // does not converge)
   int m_mlhypre_reuse_setup = 1;
 #ifdef AMREX_USE_HYPRE
-  // Kept across calls; rebuilt when the grids change
+  // Kept across calls; rebuilt when the grids change. With EB, the solves
+  // with a Dirichlet EB (setEBDirichlet, isothermal EB) use a second object:
+  // the EB boundary condition type must not change under the setup reuse
   std::unique_ptr<amrex::HypreMLABecLap> m_hmlabeclap;
+  std::unique_ptr<amrex::HypreMLABecLap> m_hmlabeclap_ebd;
   amrex::Vector<amrex::BoxArray> m_hmlabeclap_grids;
   amrex::Vector<amrex::DistributionMapping> m_hmlabeclap_dmaps;
+  // The composite solver for the current grids (constructed when needed; with
+  // EB, its EB operator with the b coefficients at the face centroids)
+  amrex::HypreMLABecLap& compositeOp(bool eb_dirichlet);
+  // Set up and solve one component with the composite solver: the matrix
+  // values are updated in place and the solver setup is kept according to
+  // m_mlhypre_reuse_setup (redone for the first component of a call below
+  // level 2); mlmg is prepared for the fluxes of the solution
+  void compositeSolve(
+    amrex::HypreMLABecLap& op,
+    amrex::Real alpha,
+    amrex::Real beta,
+    amrex::Vector<amrex::MultiFab const*> const& acoefs,
+    amrex::Vector<amrex::Array<amrex::MultiFab const*, AMREX_SPACEDIM>> const&
+      bcoefs,
+    amrex::BCRec const& bcrec,
+    amrex::Vector<amrex::MultiFab const*> const& boundary,
+    amrex::Vector<amrex::MultiFab*> const& sol,
+    amrex::Vector<amrex::MultiFab const*> const& rhs,
+    int max_iter,
+    int comp,
+    std::string const& mg_variable,
+    amrex::MLMG& mlmg);
 #endif
 
   // MLMG failure debugging options
@@ -229,6 +254,19 @@ public:
     amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> const&
       a_velgrad,
     amrex::Vector<amrex::MultiFab const*> const& a_vel);
+
+#ifdef AMREX_USE_HYPRE
+  // The composite velocity solve of diffuse_velocity (public for the CUDA
+  // extended lambdas)
+  void diffuse_velocity_composite(
+    amrex::Vector<amrex::MultiFab*> const& a_vel,
+    amrex::Vector<amrex::MultiFab const*> const& a_density,
+    amrex::Vector<amrex::MultiFab const*> const& a_beta,
+    const amrex::BCRec& a_bcrec,
+    amrex::Real a_dt,
+    amrex::Vector<amrex::MultiFab> const& a_rhs,
+    int max_iter);
+#endif
 
 private:
   void readParameters();
@@ -268,6 +306,35 @@ private:
   bool m_use_gmres = false;
   int m_gmres_precond_iters = 1;
   int m_gmres_restart = -1; // <= 0: GMRES default
+
+  // Composite (all AMR levels) solve with hypre (HypreMLABecLap): the
+  // velocity components are solved one at a time with the scalar part of
+  // the tensor operator (a = rho, b = mu, 4/3 mu in the component's own
+  // direction), the cross-component part lagged and iterated to
+  // convergence (see diffuse_velocity_composite); options under
+  // m_mlhypre_prefix
+  bool m_use_mlhypre = false;
+  std::string m_mlhypre_prefix = "diffusion_mlhypre";
+  // Reuse of the hypre solver setup: 0 none, 1 within a call (across the
+  // outer iterations), 2 across calls
+  int m_mlhypre_reuse_setup = 1;
+  int m_mlhypre_max_outer = 50;
+  amrex::Real m_mlhypre_outer_rtol = -1.0; // <= 0: the solve rtol
+#ifdef AMREX_USE_HYPRE
+  // One composite solver per velocity component (the b coefficients and
+  // the boundary conditions differ), kept across calls; rebuilt when the
+  // grids change
+  amrex::Vector<std::unique_ptr<amrex::HypreMLABecLap>> m_hmlabeclap;
+  amrex::Vector<amrex::BoxArray> m_hmlabeclap_grids;
+  amrex::Vector<amrex::DistributionMapping> m_hmlabeclap_dmaps;
+  // The scalar part of the tensor operator (apply only, AMREX_SPACEDIM
+  // components)
+#ifdef AMREX_USE_EB
+  std::unique_ptr<amrex::MLEBABecLap> m_scal_apply_op;
+#else
+  std::unique_ptr<amrex::MLABecLaplacian> m_scal_apply_op;
+#endif
+#endif
 
   // MLMG failure debugging options
   int m_mg_fail_sdc_miniter = -1;

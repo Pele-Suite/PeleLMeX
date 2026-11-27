@@ -1,0 +1,5 @@
+if(NOT PELE_ENABLE_EB)
+  if(PELE_DIM EQUAL 2)
+    add_subdirectory(FlameSheetIons)
+  endif()
+endif()

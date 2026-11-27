@@ -35,10 +35,17 @@ endif()
 #=============================================================================
 
 macro(setup_test)
+    # Cases live in Exec/RegTests unless the caller passed EXEC_GROUP
+    # (e.g. Plasma for Exec/Plasma/<case>)
+    if(ATR_EXEC_GROUP)
+      set(TEST_EXEC_GROUP ${ATR_EXEC_GROUP})
+    else()
+      set(TEST_EXEC_GROUP RegTests)
+    endif()
     # Set variables for respective binary and source directories for the test
-    set(CURRENT_TEST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/Exec/RegTests/${TEST_EXE_DIR})
-    set(CURRENT_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/Exec/RegTests/${TEST_EXE_DIR}/${TEST_NAME})
-    set(CURRENT_TEST_EXE ${CMAKE_BINARY_DIR}/Exec/RegTests/${TEST_EXE_DIR}/${PROJECT_NAME}-${TEST_EXE_DIR})
+    set(CURRENT_TEST_SOURCE_DIR ${CMAKE_SOURCE_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR})
+    set(CURRENT_TEST_BINARY_DIR ${CMAKE_BINARY_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR}/${TEST_NAME})
+    set(CURRENT_TEST_EXE ${CMAKE_BINARY_DIR}/Exec/${TEST_EXEC_GROUP}/${TEST_EXE_DIR}/${PROJECT_NAME}-${TEST_EXE_DIR})
     # Gold files should be submodule organized by machine and compiler (these are output during configure)
     set(PLOT_GOLD ${GOLD_FILES_DIRECTORY}/${TEST_EXE_DIR}/${TEST_NAME}/plt00010)
     # Test plot is currently expected to be after 10 steps
@@ -110,7 +117,7 @@ endmacro(setup_test)
 
 # Standard regression test
 function(add_test_r TEST_NAME TEST_EXE_DIR)
-    cmake_parse_arguments(ATR "" "RESTART_STEP" "EXTRA_FILES" ${ARGN})
+    cmake_parse_arguments(ATR "" "RESTART_STEP;EXEC_GROUP" "EXTRA_FILES" ${ARGN})
 
     setup_test()
     set(RUNTIME_OPTIONS "amr.max_step=10 ${RUNTIME_OPTIONS}")
@@ -309,6 +316,12 @@ endfunction(add_test_spray)
 
 if(NOT PELE_ENABLE_EB)
   add_test_r(flamesheet-drm19-${PELE_DIM}d FlameSheet)
+  if(PELE_DIM EQUAL 2)
+    # I_R extrapolation: variable dt, history warm-up and reset on regrid
+    # and restart, limiter, per-box switch-off
+    add_test_r(flamesheet-irx-${PELE_DIM}d FlameSheet)
+    add_test_r(flamesheet-irx-restart-${PELE_DIM}d FlameSheet RESTART_STEP 5)
+  endif()
   add_test_r(hotbubble-${PELE_DIM}d HotBubble)
   add_test_r(passive-scalar-${PELE_DIM}d PassiveScalar)
   add_test_rv(covo-${PELE_DIM}d PeriodicCases)
@@ -321,6 +334,7 @@ if(NOT PELE_ENABLE_EB)
   endif()
   if(PELE_DIM EQUAL 2)
     add_test_r(tripleflame-${PELE_DIM}d TripleFlame)
+    add_test_r(flamesheet-ions-${PELE_DIM}d FlameSheetIons EXEC_GROUP Plasma)
     add_test_rt(isothermal-soret IsothermalSoretChannel)
     add_test_mapped_pair(flamesheet-mapped-${PELE_DIM}d FlameSheet "2,1" 1e-8)
     if(PELE_ENABLE_HYPRE)
@@ -338,6 +352,12 @@ else()
     add_test_rt(composition-test-${PELE_DIM}d EB_ODEQty)
     add_test_r(eb_bfs EB_BackwardStepFlame)
     add_test_r(eb_bfs_pp EB_BackwardStepFlame)
+    if(PELE_ENABLE_HYPRE)
+      # AMReX's composite solvers (hypre, AlgMG) with EB: the projections,
+      # the scalar diffusion (isothermal EB) and the velocity diffusion
+      add_test_r(eb_bfs_composite EB_BackwardStepFlame)
+      add_test_r(eb-cylinder-composite-${PELE_DIM}d EB_FlowPastCylinder)
+    endif()
     # Recycling-plane inflow capability (PeleLM::fillFromRecyclingPlane)
     add_test_r(eb_bfs_recycle_off     EB_BackwardStepFlame)
     add_test_r(eb_bfs_recycle_basic   EB_BackwardStepFlame)

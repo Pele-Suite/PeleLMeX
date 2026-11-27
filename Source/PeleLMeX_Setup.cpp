@@ -739,6 +739,12 @@ PeleLM::readParameters()
   // advance
   // -----------------------------------------
   pp.query("sdc_iterMax", m_nSDCmax);
+  pp.query("IR_extrapolation", m_IR_extrapolation);
+  pp.query("IR_extrap_boxrel", m_IR_extrap_boxrel);
+  pp.query("IR_extrap_globalrel", m_IR_extrap_globalrel);
+  if (m_IR_extrapolation < 0 || m_IR_extrapolation > 3) {
+    amrex::Abort("peleLM.IR_extrapolation must be 0, 1, 2 or 3");
+  }
   m_print_chi_convergence = m_verbose > 1;
   pp.query("print_chi_convergence", m_print_chi_convergence);
   parseUserKey(pp, "chi_correction_type", chicorr, m_chi_correction_type);
@@ -867,6 +873,8 @@ PeleLM::readParameters()
   ppnproj.query("atol", m_nodal_mg_atol);
   ppnproj.query("rtol", m_nodal_mg_rtol);
   ppnproj.query("hypre_namespace", m_hypre_namespace_nodal);
+  // The nodal projector is kept across projections with the composite solve
+  ppnproj.query("use_mlhypre", m_nodal_use_mlhypre);
   m_nproj_verbose = amrex::max<int>(m_verbose - 2, 0);
   ppnproj.queryAdd("verbose", m_nproj_verbose);
 
