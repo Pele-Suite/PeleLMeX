@@ -527,7 +527,7 @@ PeleLM::getEBState(
 
   auto* ldata_p = getLevelDataPtr(a_lev, a_time);
 
-  const auto bx = a_mfi.growntilebox(m_nGrowState);
+  const auto bx = amrex::grow(a_mfi.tilebox(), m_nGrowState);
   amrex::FArrayBox r(bx, ncomp, amrex::The_Async_Arena());
   auto ebscal_arr = r.array();
   const auto& ebfact = EBFactory(a_lev);
