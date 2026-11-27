@@ -32,8 +32,7 @@ jobs:
       # the workspace relative to the compile's directory, which is
       # Exec/UnitTests/DodecaneLu in both trees, so the two command lines
       # match. NOHASHDIR keeps the directory itself (and -g's record of it)
-      # out of the hash. ci.yml's Install Ccache needs neither: each of its
-      # jobs compiles one tree, from one directory.
+      # out of the hash.
       CCACHE_BASEDIR: ${{github.workspace}}
       CCACHE_NOHASHDIR: 1
       # SUNDIALS writes its configure time into sundials_config.h unless
@@ -87,6 +86,8 @@ jobs:
           # latest: PelePhysics moves it deliberately.
           git -C Submodules/PelePhysics submodule update --init --depth=1 Submodules/sundials
     - name: Build AMReX Tools
+      # fcompare is only used to compare with the reference.
+      if: env.DO_REF_COMPARE == 'true'
       working-directory: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
           make -j $(nproc) VERBOSE=FALSE programs=fcompare
