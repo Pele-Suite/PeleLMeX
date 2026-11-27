@@ -1,0 +1,8 @@
+.wy-nav-content {
+    max-width: 1000px !important;
+}
+img.align-center {
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
