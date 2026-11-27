@@ -1,0 +1,110 @@
+#----------------------DOMAIN DEFINITION------------------------
+geometry.is_periodic = 0 0 0               # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 -0.0381 -0.09525        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.127 0.0381 0.15875        # x_hi y_hi (z_hi)
+
+# >>>>>>>>>>>>>  BC FLAGS <<<<<<<<<<<<<<<<
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Inflow NoSlipWallAdiab Inflow
+peleLM.hi_bc = NoSlipWallAdiab NoSlipWallAdiab Outflow
+
+#-------------------------AMR CONTROL----------------------------
+amr.n_cell          = 40 24 80         # Level 0 number of cells in each direction
+amr.v               = 2                # AMR verbose
+amr.max_level       = 5                # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2          # refinement ratio
+amr.regrid_int      = 6                # how often to regrid
+amr.n_error_buf     = 2 2 2 2          # number of buffer cells in error est
+amr.grid_eff        = 0.7              # what constitutes an efficient grid
+amr.blocking_factor = 8               # block factor in grid generation (min box size)
+amr.max_grid_size   = 64               # max box size
+
+
+#--------------------------- Problem -------------------------------
+prob.P_mean = 101325.0
+
+prob.cf_velocity = 19.1
+prob.cf_temp = 1236
+prob.cf_composition = O2:0.1291 N2:0.7611 CO2:0.0366 H2O:0.0732 OH:1.9629e-5
+prob.cf_composition_type = mole
+prob.cf_dir = 2
+
+prob.jet_velocity = 42.2
+prob.jet_temp = 300
+prob.jet_composition = H2:0.7 N2:0.18 HE:0.12
+prob.jet_composition_type = mole
+prob.jet_dir = 0
+prob.jet_rad = 0.0015875
+prob.jet_bl_thickness = -1.0
+prob.jet_init_time = 1.0e-6
+prob.double_jet = 0
+
+#-------------------------PeleLM CONTROL----------------------------
+peleLM.v = 2
+peleLM.incompressible = 0
+peleLM.rho = 1.17
+peleLM.mu = 0.0
+peleLM.use_wbar = 1
+peleLM.sdc_iterMax = 1
+peleLM.advection_scheme = "Godunov_BDS"
+peleLM.deltaT_crashIfFailing = 0
+peleLM.base_output_prefix = output_reacting/
+
+amr.plot_int = 50
+amr.check_int = 200
+amr.check_file = chk
+amr.plot_file = plt
+amr.max_step = 50000
+amr.dt_shrink = 1e-2
+#amr.init_dt = 1e-1
+amr.stop_time = 0.02
+#amr.stop_time = 1.00
+amr.cfl = 0.7
+#amr.fixed_dt = 1e-3
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions
+
+# --------------- INPUTS TO CHEMISTRY REACTOR ---------------
+peleLM.chem_integrator = "ReactorCvode"
+peleLM.use_typ_vals_chem = 1          # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-8                     # Relative tolerance of the chemical solve
+ode.atol = 1.0e-7                     # Absolute tolerance factor applied on typical values
+cvode.solve_type = denseAJ_direct     # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                  # CVODE max BDF order.
+
+#--------------------REFINEMENT CONTROL------------------------
+amr.refinement_indicators = overYH2 diffYH2 diffRho diffT inlet_box
+
+amr.overYH2.max_level = 4
+amr.overYH2.value_greater = 0.15
+amr.overYH2.field_name = Y(H2)
+
+amr.diffYH2.max_level = 5
+amr.diffYH2.adjacent_difference_greater = 0.005
+amr.diffYH2.field_name = Y(H2)
+
+amr.diffRho.max_level = 1
+amr.diffRho.adjacent_difference_greater = 0.8
+amr.diffRho.field_name = density
+
+amr.diffT.max_level = 5
+amr.diffT.adjacent_difference_greater = 50
+amr.diffT.field_name = temp
+
+amr.inlet_box.max_level = 5
+amr.inlet_box.in_box_lo = 0.000 -0.002 -0.002
+amr.inlet_box.in_box_hi = 0.004 0.002 0.0002
+
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+#-------------------DIAGNOSTIC CONTROL-----------------------
+peleLM.diagnostics = ynormal
+peleLM.ynormal.type = DiagFramePlane
+peleLM.ynormal.normal = 0
+peleLM.ynormal.center = 0.008
+peleLM.ynormal.int    = 5
+peleLM.ynormal.interpolation = Linear
+peleLM.ynormal.field_names = Y(H2) Y(H2O) Y(H) Y(OH) x_velocity y_velocity z_velocity temp HeatRelease
