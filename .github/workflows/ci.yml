@@ -294,13 +294,24 @@ jobs:
       - *save_ccache
   CPU-CMake-Hypre:
     # AMReX's composite (all AMR levels) hypre/AlgMG solvers: PeleLMeX built
-    # with hypre, running the regression tests that need it
+    # with hypre, with and without EB, running the regression tests that
+    # need it
     needs: Formatting
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - enable_eb: EB-OFF
+            use_eb: "OFF"
+            targets: "PeleLMeX-FlameSheet"
+          - enable_eb: EB-ON
+            use_eb: "ON"
+            targets: "PeleLMeX-EB_FlowPastCylinder PeleLMeX-EB_BackwardStepFlame"
     env:
       HYPRE_VERSION: 2.32.0
       CCACHE_MAXSIZE: 250M
-      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}
+      CACHE_KEY: ccache-${{github.workflow}}-${{github.job}}-${{matrix.enable_eb}}
     steps:
       - name: Clone
         uses: actions/checkout@v6
@@ -339,6 +350,7 @@ jobs:
           -DPELE_ENABLE_MPI:BOOL=ON \
           -DMPIEXEC_PREFLAGS:STRING=--oversubscribe \
           -DPELE_ENABLE_HYPRE:BOOL=ON \
+          -DPELE_ENABLE_EB:BOOL=${{matrix.use_eb}} \
           -DHYPRE_ROOT:PATH=${HYPRE_INSTALL} \
           -DCMAKE_PREFIX_PATH:PATH=${HYPRE_INSTALL} \
           -DPELE_ENABLE_FCOMPARE_FOR_TESTS:BOOL=OFF \
@@ -346,14 +358,14 @@ jobs:
       - name: Build
         run: |
           ccache -z
-          cmake --build ${{runner.workspace}}/build-hypre --target PeleLMeX-FlameSheet \
+          cmake --build ${{runner.workspace}}/build-hypre --target ${{matrix.targets}} \
             --parallel ${{env.NPROCS}}
           ccache -s
       - name: Test
         if: env.RUN_TESTS == 'true'
         run: |
           cd ${{runner.workspace}}/build-hypre
-          ctest -R flamesheet-composite -VV --output-on-failure
+          ctest -R composite -VV --output-on-failure
       - *trim_ccache
       - *save_ccache
   CPU-CMake-SINGLE:

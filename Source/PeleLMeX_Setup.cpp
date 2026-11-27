@@ -867,6 +867,8 @@ PeleLM::readParameters()
   ppnproj.query("atol", m_nodal_mg_atol);
   ppnproj.query("rtol", m_nodal_mg_rtol);
   ppnproj.query("hypre_namespace", m_hypre_namespace_nodal);
+  // The nodal projector is kept across projections with the composite solve
+  ppnproj.query("use_mlhypre", m_nodal_use_mlhypre);
   m_nproj_verbose = amrex::max<int>(m_verbose - 2, 0);
   ppnproj.queryAdd("verbose", m_nproj_verbose);
 
