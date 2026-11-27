@@ -45,6 +45,9 @@ jobs:
           git -C Submodules/AMReX-Hydro checkout development
           git -C Submodules/PelePhysics checkout development
           git -C Submodules/PelePhysics/Submodules/amrex checkout development
+          # SUNDIALS at the commit PelePhysics development pins, not the
+          # latest: PelePhysics moves it deliberately.
+          git -C Submodules/PelePhysics submodule update --init --depth=1 Submodules/sundials
     - name: Build AMReX Tools
       working-directory: ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile
       run: |
