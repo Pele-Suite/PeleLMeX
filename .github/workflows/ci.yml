@@ -70,7 +70,7 @@ jobs:
           submodules: recursive
       - name: Setup
         run: echo "NPROCS=$(nproc)" >> $GITHUB_ENV
-      # Marks the start of the run for Trim Ccache and installs ccache: AMReX's
+      # Records the start of the run for Trim Ccache and installs ccache: AMReX's
       # script on Linux (macOS gets it from brew in Dependencies), run outside
       # the checkout since it downloads into the current directory. Defined
       # once here and reused (*install_ccache) by the other jobs.
@@ -78,7 +78,9 @@ jobs:
         name: Install Ccache
         working-directory: ${{runner.temp}}
         run: |
-          touch ${{runner.temp}}/ccache-start
+          # The time itself, not a marker file: reading a file's time back
+          # (date -r FILE) is a GNU extension older macOS date lacks.
+          echo "COMPILER_CACHE_START=$(date +%s)" >> $GITHUB_ENV
           # Paths under the workspace are hashed relative to the compile's
           # directory, so a build directory's name (e.g. the reference
           # build's) does not stop it hitting another's entries. Set here as
@@ -131,9 +133,9 @@ jobs:
         name: Trim Ccache
         if: env.SAVE_CCACHE == 'true'
         run: |
-          # A plain assignment, so a missing marker fails the step (bash -e)
-          # rather than silently trimming nothing.
-          start=$(date -r ${{runner.temp}}/ccache-start +%s)
+          # Fails the step if Install Ccache did not record the start, rather
+          # than silently trimming nothing.
+          start=${COMPILER_CACHE_START:?not set by Install Ccache}
           ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
           ccache -s
       - &save_ccache
@@ -664,13 +666,16 @@ jobs:
           "-DCLANG_TIDY_EXE:STRING=clang-tidy-cache;$(command -v clang-tidy)" \
           ${{github.workspace}}
       - name: Check
+        id: check
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: |
           mkdir -p ${CTCACHE_DIR}
           # The restored caches carry earlier runs' counts: report this run's
           ccache -z
           clang-tidy-cache --zero-stats || true
+          # The file marks the start for find -newer, the time for ccache.
           touch ${{runner.temp}}/cache-start
+          start=$(date +%s)
           build_status=0
           cmake --build . --parallel ${{env.NPROCS}} 2>&1 | tee -a clang-tidy-full-report.txt || build_status=$?
           # Hits refresh an entry's mtime: drop the ones this run did not use
@@ -679,14 +684,17 @@ jobs:
           if [ ${build_status} -eq 0 ]; then
             find ${CTCACHE_DIR} -type f ! -newer ${{runner.temp}}/cache-start -delete
             find ${HOME}/.cache/ctcache -mindepth 1 -maxdepth 1 ! -path ${CTCACHE_DIR} -exec rm -rf {} +
-            ccache --evict-older-than $(( $(date +%s) - $(date -r ${{runner.temp}}/cache-start +%s) + 60 ))s
+            ccache --evict-older-than $(( $(date +%s) - start + 60 ))s
           fi
           # Fail on a failed build: a replayed cache hit restores the exit
           # code but not clang-tidy's stderr, so the warning count alone can
           # miss it.
           exit ${build_status}
+      # The reports run when Check found warnings (failed) as well as when
+      # it passed, but not after an earlier step failed: there is then no
+      # build directory or log, and their errors would bury the real one.
       - name: Ccache Report
-        if: ${{ !cancelled() }}
+        if: ${{ success() || steps.check.outcome == 'failure' }}
         run: |
           du -hs ~/.cache/ccache
           du -hs ~/.cache/ctcache
@@ -704,12 +712,9 @@ jobs:
             ~/.cache/ccache
             ~/.cache/ctcache
           key: ${{steps.ccache.outputs.cache-primary-key}}
-      - name: Full report
-        if: ${{ !cancelled() }}
-        working-directory: ${{runner.workspace}}/build-clang-tidy
-        run: cat clang-tidy-full-report.txt
+      # No Full report step: Check already prints the whole log (tee).
       - name: Short report
-        if: ${{ !cancelled() }}
+        if: ${{ success() || steps.check.outcome == 'failure' }}
         working-directory: ${{runner.workspace}}/build-clang-tidy
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
