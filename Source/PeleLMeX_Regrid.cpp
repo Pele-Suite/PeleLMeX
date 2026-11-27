@@ -10,8 +10,23 @@ PeleLM::regrid(const int lbase, const amrex::Real time, const bool initial)
     return;
   }
 
+  // The radiation data live on the level grids: rebuild them on every path
+  // below that can change grids or distribution maps.
+  auto const reinitRadiation = [&]() {
+#ifdef PELE_USE_RADIATION
+    if (do_rad_solve) {
+#ifdef AMREX_USE_EB
+      rad_model->initVars(grids, dmap, m_factory);
+#else
+      rad_model->initVars(grids, dmap);
+#endif
+    }
+#endif
+  };
+
   if (!m_regrid_file.empty()) {
     regridFromGridFile(lbase, time, initial);
+    reinitRadiation();
 
   } else {
 
@@ -97,6 +112,7 @@ PeleLM::regrid(const int lbase, const amrex::Real time, const bool initial)
     }
 
     if (lbase >= max_level) {
+      reinitRadiation(); // level 0 may have been load balanced
       return;
     }
 
@@ -293,15 +309,7 @@ PeleLM::regrid(const int lbase, const amrex::Real time, const bool initial)
 
     finest_level = new_finest;
 
-#ifdef PELE_USE_RADIATION
-    if (do_rad_solve) {
-#ifdef AMREX_USE_EB
-      rad_model->initVars(grids, dmap, m_factory);
-#else
-      rad_model->initVars(grids, dmap);
-#endif
-    }
-#endif
+    reinitRadiation();
   }
 }
 
