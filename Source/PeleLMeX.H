@@ -2414,6 +2414,28 @@ public:
 
   // SDC
   int m_nSDCmax = 1;
+  // Reaction forcing of the first SDC iteration (see extrapolateIR):
+  // 0: previous step's I_R; 1: linear extrapolation from the last two steps;
+  // 2: minmod-limited slope from the last three steps (none at extrema);
+  // 3: as 2, and none where the last two slopes differ by more than 2x
+  int m_IR_extrapolation = 0;
+  // Switch-off for fast transients, with the change measure
+  // eta = max over species of |I_R^n - I_R^{n-1}|_inf / |I_R^n|_inf,domain:
+  // no extrapolation in a box whose eta (over the box) exceeds boxrel, or in
+  // the whole step when the domain eta exceeds globalrel (0: off)
+  amrex::Real m_IR_extrap_boxrel = 0.0;
+  amrex::Real m_IR_extrap_globalrel = 0.0;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab>> m_IR_h1, m_IR_h2;
+  amrex::Real m_IR_dt_h1 = 0.0, m_IR_dt_h2 = 0.0, m_IR_dt_last = -1.0;
+  int m_IR_nhist = 0;
+  // I_R is a usable history sample only if a completed physical step
+  // produced it on the current grids (not initialization, a restart, a regrid
+  // or regrid_on_restart, which zeroes or interpolates it)
+  bool m_IR_sample_ok = false;
+  amrex::Vector<amrex::BoxArray> m_IR_sample_ba;
+  amrex::Vector<amrex::DistributionMapping> m_IR_sample_dm;
+  void extrapolateIR(int is_initIter);
+  void markIRSample(int is_initIter);
   int m_sdcIter = 0;
   bool m_print_chi_convergence = false;
   int m_chi_correction_type{ChiCorrectionType::DivuEveryIter};
