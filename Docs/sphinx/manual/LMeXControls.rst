@@ -278,10 +278,30 @@ PeleLMeX algorithm
     peleLM.spark_verbose = 0               # [OPT, DEF=0] Verbosity of spark ignition
     peleLM.sparks = spark1 spark2 ...      # [OPT] List of spark names - multiple can be given
     peleLM.spark1.location = 0.0 0.0 0.0   # [OPT] Spark location (in x,y,z coordinates) [m]
-    peleLM.spark1.temp = 2000.0            # [OPT] Temperature of the spark [K]
-    peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]
+    peleLM.spark1.energy = 1e-3            # [OPT] Energy deposited by the spark in the computational domain [J; J/m in 2D Cartesian]. Give energy or temp, not both. A spark cut by a symmetry plane gets all of it: give the energy of the simulated part
+    peleLM.spark1.temp = 2000.0            # [OPT] Alternative to energy [K]: the gas inside the radius is heated to this temperature, at a fixed rate per unit mass dh / duration, with dh = <rho (h(temp) - h(T))> / <rho> over the sphere at ignition. See the note below
+    peleLM.spark1.radius = 1e-3            # [OPT] Radius of the spark [m]. The energy is spread with a smoothed sphere of this radius
+    peleLM.spark1.width_cells = 1.0        # [OPT, DEF=1] Width w of the smoothed cosine edge, 0.5(1 + sin((radius - r)/w)) over |radius - r| < pi/2 w, in cells of the finest level holding the spark centre; 0 gives a top-hat. The injected energy is that of a sphere of the given radius whatever the width
+    peleLM.spark1.width = 5e-4             # [OPT] Fixed physical width w of the edge [m]; overrides width_cells
     peleLM.spark1.duration = 1e-3          # [OPT] Duration of the spark [s]
-    peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]
+    peleLM.spark1.time = 1e-2              # [OPT] Time when spark starts [s]: the middle of the switch-on ramp (the power ramps up linearly from 1 ramp half-width earlier)
+    peleLM.spark1.ramp_steps = 1.0         # [OPT, DEF=1] Half-width of the linear power ramps in steps (dt is shortened to land a step on each end of the ramps, so the trapezoidal source with ext_sources_SDC is exact; without it the exact step-average power is used), frozen from the step size just before the ramp; 0 switches sharply
+    peleLM.spark1.ramp_time = 1e-5         # [OPT] Fixed ramp half-width [s]; overrides ramp_steps
+    # energy deposits a fixed volumetric power in a fixed region. The gas at
+    # the centre stays in it while heated gas expands out, so it ends up far
+    # hotter than the mean: without conduction about T0 exp(e / (rho0 cp T0))
+    # for an energy density e and an ideal gas of constant cp. temp instead
+    # heats at a fixed rate per unit mass (the power density follows the
+    # local density), so the gas left in the kernel reaches temp however much
+    # has expanded out, less what conduction removes and plus any heat
+    # release; the energy this takes is not known beforehand and is reported
+    # when the spark ends (spark_verbose > 0). The smoothed edge needs to be
+    # resolved: a warning is printed when it spans more than half the radius
+    # (refine the spark region, or lower width_cells or width). Before energy
+    # was added, temp set a power rho(t) h(temp) / duration inside the radius
+    # (absolute enthalpy, sharp switch). The enthalpy rise of temp and a ramp
+    # given in steps are frozen during the run and kept in the checkpoint
+    # (<chk>/Sparks).
 
     peleLM.aux_vars = a b ...              # [OPT] Names of auxiliary variables
     peleLM.a.advect = 1                    # [OPT, DEF = 1] Flag whether this variable is advected
@@ -290,6 +310,8 @@ PeleLMeX algorithm
     peleLM.a.Schmidt = 0.7                 # [OPT, DEF = -1] Schmidt number for auxiliary variable. If unspecified or negative, assumed to diffuse with unity Lewis number.
 
     peleLM.user_defined_ext_sources = 0    # [OPT, DEF=0] Enable user defined source terms. Requires local ProblemSpecificFunctions.cpp.
+    peleLM.ext_sources_SDC = 1             # [OPT, DEF=1 if sdc_iterMax >= 2 and user defined, spark or variance sources are active, else 0] Re-evaluate the user defined, spark and variance sources at t^{n+1,k} in each SDC iteration and use 0.5(S^n + S^{n+1,k}) (requires sdc_iterMax >= 2 and low Mach, otherwise ignored); set to 0 to keep S^n over the step; spray, soot and radiation sources stay at S^n. modify_ext_sources is then also called at t^{n+1} with state_old = state_new = the t^{n+1,k} iterate, so user sources must depend only on the time and state passed in.
+                                           # Independently of ext_sources_SDC, when user defined, spray or soot sources are active (low Mach), the -u extrho term of the velocity forcing is treated Crank-Nicolson: half with u^n, half implicitly in the velocity diffusion solve
     peleLM.add_variance_sources = 1        # [OPT, DEF=1] (only relevant for Manifold EOS) include production/dissipation for variances if present in model
 
 

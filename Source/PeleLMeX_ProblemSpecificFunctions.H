@@ -258,9 +258,9 @@ struct DefaultProblemSpecificFunctions
   /**
    * \brief Modify the external source term in the state conservation eq.
    *
-   * \param time              current time.
+   * \param time              time at which to evaluate the sources.
    * \param dt                current time-step.
-   * \param state_old         the old state multifab.
+   * \param state_old         the state at which to evaluate the sources.
    * \param state_new         the new state multifab.
    * \param ext_src           a pointer to the external src term multifab.
    * \param geomdata          geometry data.
@@ -279,6 +279,10 @@ struct DefaultProblemSpecificFunctions
      *   1. ext_src contains sources from velocity forcing coming in.
      *      This function should add to rather than overwrite ext_src.
      *   2. Requires peleLM.user_defined_ext_sources = true in input file
+     *   3. Called once per step at t^n with the t^n state. With
+     *      peleLM.ext_sources_SDC = true it is also called at t^{n+1}
+     *      with state_old = state_new = the t^{n+1,k} iterate, and the
+     *      scalar update uses 0.5 (S^n + S^{n+1,k}).
      *
      * // Example: Exponential decay ode quantity
      * auto ext_src_arr = ext_src->arrays();

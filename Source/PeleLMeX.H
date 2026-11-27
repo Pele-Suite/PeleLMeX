@@ -272,6 +272,12 @@ public:
     amrex::Vector<amrex::MultiFab> DT; // Diffusion term of T (soret flux)
     amrex::Vector<amrex::Array<amrex::MultiFab, AMREX_SPACEDIM>>
       soret_fluxes; // Soret flux correction
+
+    // ext_sources_SDC only: external sources at t^n and t^(n+1,k), and the
+    // part of S^n held frozen over the step (spray, soot, radiation)
+    amrex::Vector<amrex::MultiFab> extSrc_n;
+    amrex::Vector<amrex::MultiFab> extSrc_np1;
+    amrex::Vector<amrex::MultiFab> extSrc_frozen;
   };
   /**
    * \brief Advance function data container for advection term
@@ -778,6 +784,24 @@ public:
    */
   void diffuseVelocity();
 
+  // Whether the -u extrho external momentum source is split Crank-Nicolson
+  // between updateVelocity and the implicit velocity solve: low Mach runs
+  // with a source that can add mass (user defined, spray, soot)
+  [[nodiscard]] bool useImplicitExtRho() const
+  {
+    if (m_incompressible != 0) {
+      return false;
+    }
+    bool mass_source = m_user_defined_ext_sources;
+#ifdef PELE_USE_SPRAY
+    mass_source = mass_source || do_spray_particles;
+#endif
+#ifdef PELE_USE_SOOT
+    mass_source = mass_source || do_soot_solve;
+#endif
+    return mass_source;
+  }
+
   /**
    * \brief Return LinOpBC for the scalar diffusion operator
    * \param a_side AMReX orientation
@@ -887,16 +911,40 @@ public:
     const amrex::Vector<amrex::MultiFab*>& a_divTau,
     const amrex::Vector<amrex::MultiFab*>& a_velForce,
     const int nGrowForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
   void getVelForces(
     const PeleLM::TimeStamp a_time,
     const int lev,
     amrex::MultiFab* a_divTau,
     amrex::MultiFab* a_velForce,
-    const int add_gradP);
+    const int add_gradP,
+    const amrex::Real a_extRhoExplicit = 1.0);
 
-  void addSpark(const PeleLM::TimeStamp a_time);
+  //! Add the spark power at the time of \p a_time (a point value: the
+  //! scalar update takes 0.5 (S^n + S^{n+1}) with ext_sources_SDC).
+  //! An energy input is a fixed power density; a temperature input heats at
+  //! a fixed rate per unit mass, so its power density follows the density.
+  //! The t^n call of a regular step (\p a_is_initIter == 0) also freezes the
+  //! enthalpy rise of a temperature input and accumulates the
+  //! deposited-energy diagnostic.
+  void addSpark(const PeleLM::TimeStamp a_time, const int a_is_initIter = 0);
+
+  //! Freeze the spark ramp widths given in steps and shorten \p a_dt so a
+  //! step lands on each end of a compact (linear, cosine) power ramp.
+  amrex::Real limitDtForSparks(amrex::Real a_dt);
+
+  //! Volume of spark \p n's sphere clipped to the physical domain
+  //! (RZ-weighted): the volume its energy is normalised to.
+  amrex::Real sparkVolume(int n) const;
+
+  //! Spark enthalpy rises frozen at ignition, ramp half-widths frozen before
+  //! the ramp and deposited energies, written to / read from
+  //! <checkpoint>/Sparks
+  //! so a restart during a spark keeps them.
+  void writeSparkCheckpoint(const std::string& a_dir) const;
+  void readSparkCheckpoint(const std::string& a_dir);
 
   void addScalarVarianceSources(const PeleLM::TimeStamp a_time);
 
@@ -967,7 +1015,20 @@ public:
   void getExternalSources(
     const int is_initIter,
     const PeleLM::TimeStamp a_timestamp_old,
-    const PeleLM::TimeStamp a_timestamp_new);
+    const PeleLM::TimeStamp a_timestamp_new,
+    const std::unique_ptr<AdvanceDiffData>& diffData);
+
+  bool addFrozenExternalSources(
+    const int is_initIter, const PeleLM::TimeStamp a_timestamp);
+
+  void assembleExternalSources(
+    const int is_initIter,
+    const PeleLM::TimeStamp a_timestamp_eval,
+    const PeleLM::TimeStamp a_timestamp_new,
+    const amrex::Vector<amrex::MultiFab>* a_frozen);
+
+  void
+  updateExternalSourcesSDC(const std::unique_ptr<AdvanceDiffData>& diffData);
 
   //-----------------------------------------------------------------------------
   // EOS
@@ -2336,6 +2397,30 @@ public:
   amrex::Vector<amrex::Vector<amrex::Real>> m_spark_location;
   amrex::Vector<amrex::Real> m_spark_temp;
   amrex::Vector<amrex::Real> m_spark_radius;
+  // Edge width w: in cells of the finest level holding the spark centre,
+  // or (when width > 0) a fixed physical width [m]
+  amrex::Vector<amrex::Real> m_spark_width_cells;
+  amrex::Vector<amrex::Real> m_spark_width;
+  // Clipped sphere volume (lazily computed, < 0 until then)
+  amrex::Vector<amrex::Real> m_spark_volume;
+  // Ramp half-width tau of the power switch on and off: a fixed time
+  // ramp_time [s], or ramp_steps x the step size frozen before the ramp
+  // (m_spark_tau, < 0 until then)
+  amrex::Vector<amrex::Real> m_spark_ramp_time;
+  amrex::Vector<amrex::Real> m_spark_ramp_steps;
+  amrex::Vector<amrex::Real> m_spark_tau;
+  // Energy deposited so far (trapezoidal, as the scalar update sees it)
+  amrex::Vector<amrex::Real> m_spark_deposited;
+  // Spark energy (energy input; < 0 for a temperature input)
+  amrex::Vector<amrex::Real> m_spark_energy;
+  // Temperature input: mass-averaged enthalpy rise to the spark temperature
+  // [J/kg], frozen at ignition (< 0 until then), and the power and time of
+  // the last step start, for the deposited energy
+  amrex::Vector<amrex::Real> m_spark_dh;
+  amrex::Vector<amrex::Real> m_spark_last_power;
+  amrex::Vector<amrex::Real> m_spark_last_time;
+  // Under-resolved edge already reported
+  amrex::Vector<int> m_spark_edge_warned;
 
   // DivU ? default ON when not incompressible
   int m_has_divu = 1;

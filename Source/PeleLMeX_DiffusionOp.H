@@ -248,7 +248,8 @@ public:
     amrex::Vector<amrex::MultiFab const*> const& a_density,
     amrex::Vector<amrex::MultiFab const*> const& a_beta,
     const amrex::BCRec& a_bcrec,
-    const amrex::Real dt);
+    const amrex::Real dt,
+    amrex::Vector<amrex::MultiFab const*> const& a_extSource = {});
 
   void computeGradientTensor(
     amrex::Vector<amrex::Array<amrex::MultiFab*, AMREX_SPACEDIM>> const&

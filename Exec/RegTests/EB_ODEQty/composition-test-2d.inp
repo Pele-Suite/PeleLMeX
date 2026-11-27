@@ -30,6 +30,7 @@ prob.Y_N2_0   = 0.25 # Initial N2 mass frac contribution
 prob.Y_AR_0   = 0.6 # Initial AR mass frac contribution
 prob.extRhoYCO2 = 145.0  # Source strength for rhoYCO2
 prob.extRhoYCO2_ts = 0.003 # time when source starts
+prob.extRhoYCO2_ramp = 0.004 # smoothstep switch-on time (0: step)
 
 #---------------------- Temporal CONTROL -------------------------
 peleLM.do_temporals = 1   
