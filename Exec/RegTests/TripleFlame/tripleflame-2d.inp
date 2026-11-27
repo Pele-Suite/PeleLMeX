@@ -39,6 +39,16 @@ peleLM.do_extremas = 1                    # Compute state extremas
 peleLM.do_mass_balance = 1                # Compute mass balance
 peleLM.do_species_balance = 1             # Compute species balance
 
+# Patches
+peleLM.do_patch_mfr = 1
+peleLM.bpatch.patchnames = outlet
+bpatch.outlet.patchtype = line  # (full-boundary,circle,rectangle,circle-annular,rectangle-annular)
+bpatch.outlet.patch_line_radius = 0.005
+bpatch.outlet.patch_line_center = 0.005 0
+bpatch.outlet.boundary_direction = 1
+bpatch.outlet.boundary_lo_or_hi = 0
+bpatch.outlet.species = O2 N2 CH4
+
 #---------------------- Time Stepping CONTROL --------------------
 amr.max_step = 20                         # Maximum number of time steps
 amr.stop_time = 4.00                      # final simulation physical time
@@ -53,18 +63,18 @@ amr.plot_int = 20                         # Frequency of pltfile output
 amr.derive_plot_vars = avg_pressure mag_vort mass_fractions mixture_fraction progress_variable
 
 #---------------------- AC CONTROL -------------------------------
-active_control.on = 0                     # Use AC ?
-# active_control.use_temp = 1               # Default in fuel mass, rather use iso-T position ?
-# active_control.temperature = 1400.0       # Value of iso-T ?
-# active_control.tau = 5.0e-4               # Control tau (should ~ 10 dt)
-# active_control.height = 0.01              # Where is the flame held ? Default assumes coordinate along Y in 2D or Z in 3D.
-# active_control.v = 1                      # verbose
-# active_control.method = 1                 # Controller: 1 - Linear, 2 - Quadratic, 3 - Weighted quadratic
-# active_control.velMax = 2.0               # Optional: limit inlet velocity
-# active_control.changeMax = 0.1            # Optional: limit inlet velocity changes (absolute m/s)
-# active_control.flow_dir  = 1              # Optional: flame main direction. Default: AMREX_SPACEDIM-1
-# active_control.pseudo_gravity = 1         # Optional: add density proportional force to compensate for the acceleration
-                                            #           of the gas due to inlet velocity changes
+active_control.on = 1                     # Use AC ?
+active_control.use_temp = 1               # Default in fuel mass, rather use iso-T position ?
+active_control.temperature = 1400.0       # Value of iso-T ?
+active_control.tau = 5.0e-4               # Control tau (should ~ 10 dt)
+active_control.height = 0.01              # Where is the flame held ? Default assumes coordinate along Y in 2D or Z in 3D.
+active_control.v = 1                      # verbose
+active_control.method = 1                 # Controller: 1 - Linear, 2 - Quadratic, 3 - Weighted quadratic
+active_control.velMax = 2.0               # Optional: limit inlet velocity
+active_control.changeMax = 0.1            # Optional: limit inlet velocity changes (absolute m/s)
+active_control.flow_dir  = 1              # Optional: flame main direction. Default: AMREX_SPACEDIM-1
+active_control.pseudo_gravity = 1         # Optional: add density proportional force to compensate for the acceleration
+                                          #           of the gas due to inlet velocity changes
 
 #---------------------- Derived CONTROLS -------------------------
 peleLM.fuel_name = CH4
