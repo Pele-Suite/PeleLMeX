@@ -174,7 +174,6 @@ endif
 ifeq ($(USE_SOOT), TRUE)
    SOOT_HOME = $(PELE_PHYSICS_HOME)/Source/Soot
    Bpack += $(SOOT_HOME)/Make.package
-   Blocs += $(SOOT_HOME)/Source/Soot_Models
 endif
 ifeq ($(USE_RADIATION), TRUE)
    RADIATION_HOME = $(PELE_PHYSICS_HOME)/Source/Radiation
