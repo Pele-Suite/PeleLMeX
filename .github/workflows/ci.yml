@@ -2,11 +2,6 @@ name: PeleLMeX-CI
 
 on:
   workflow_dispatch:
-  schedule:
-    # Twice a week, so the ccaches are refreshed before GitHub evicts them
-    # after 7 days without access, with a margin for late scheduled starts.
-    # Jobs without a cache (CodeQL, codespell) skip the scheduled runs.
-    - cron: '0 3 * * 1,4'
   push:
     branches: [development]
   pull_request:
@@ -15,10 +10,8 @@ on:
 concurrency:
   # Only PR runs cancel an older run: on development a cancelled run would
   # not save its caches, so runs queue, one at a time (GitHub keeps only the
-  # newest pending one). The scheduled runs have their own group: in the
-  # pushes' group one would replace a pending push run, whose commit would
-  # then never be tested (the scheduled runs skip the tests).
-  group: ${{github.ref}}-${{github.head_ref}}-ci${{github.event_name == 'schedule' && '-schedule' || ''}}
+  # newest pending one).
+  group: ${{github.ref}}-${{github.head_ref}}-ci
   cancel-in-progress: ${{github.event_name == 'pull_request'}}
 
 # Run steps with bash -eo pipefail, so `build | tee log` fails with the build.
@@ -27,17 +20,13 @@ defaults:
     shell: bash
 
 env:
-  # Only development saves the ccaches (the scheduled runs keep them from
+  # Only development saves the ccaches (keep-caches.yml keeps them from
   # being evicted); PRs restore development's. A PR's own runs would each
   # store a full copy and push development's out of the 10 GB limit.
   SAVE_CCACHE: ${{github.ref == 'refs/heads/development'}}
   # Compress hard only when the cache is kept; a PR's new entries are
   # discarded at the end of the job.
   CCACHE_COMPRESSLEVEL: ${{github.ref == 'refs/heads/development' && 10 || 1}}
-  # The scheduled runs only refresh the ccaches: they build (which also
-  # trims the caches to what is used) but skip the tests, which already
-  # ran on this commit.
-  RUN_TESTS: ${{github.event_name != 'schedule'}}
   # The ccache directory the cache steps save and restore (ccache's default
   # on Linux; CPU-CMake sets its own per OS).
   COMPILER_CACHE_DIR: ~/.cache/ccache
@@ -125,7 +114,6 @@ jobs:
       - name: FlameSheet ccache report
         run: ccache -s
       - name: FlameSheet debug test
-        if: env.RUN_TESTS == 'true'
         working-directory: ./Exec/RegTests/FlameSheet
         run: ./PeleLMeX2d.gnu.DEBUG.drm19.ex flamesheet-drm19-2d.inp amr.max_step=1 amr.plot_int=-1 amr.check_int=-1
       - name: FlameSheet debug report
@@ -222,7 +210,6 @@ jobs:
           brew install open-mpi automake ccache
       - name: Python packages
         # Only the tests use them.
-        if: env.RUN_TESTS == 'true'
         run: pip install pynose numpy pandas
       - *install_ccache
       - *restore_ccache
@@ -250,7 +237,6 @@ jobs:
       - name: Report
         run: .github/scripts/count_warnings.sh ${{runner.workspace}}/build-output.txt
       - name: Test
-        if: env.RUN_TESTS == 'true'
         working-directory: ${{runner.workspace}}/build-${{matrix.dim}}d-${{matrix.os}}-${{matrix.build_type}}-${{matrix.enable_eb}}
         run: ctest ${CTEST_ARGS} -VV --output-on-failure
       - name: Checkout Reference Version
@@ -374,7 +360,6 @@ jobs:
             --parallel ${{env.NPROCS}}
           ccache -s
       - name: Test
-        if: env.RUN_TESTS == 'true'
         run: |
           cd ${{runner.workspace}}/build-hypre
           ctest -R composite -VV --output-on-failure
@@ -727,8 +712,6 @@ jobs:
         run: ${{github.workspace}}/.github/scripts/count_warnings.sh clang-tidy-full-report.txt
   Lint-codeql:
     needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     steps:
       - name: Clone
@@ -776,8 +759,6 @@ jobs:
           sarif_file: sarif-results/cpp.sarif
   Lint-codespell:
     needs: Formatting
-    # No cache to refresh: skipped on the scheduled runs.
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Clone
