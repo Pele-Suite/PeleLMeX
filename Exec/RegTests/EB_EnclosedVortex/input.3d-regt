@@ -82,8 +82,6 @@ amr.magVort.field_name    = mag_vort
 
 #--------------------LINEAR SOLVER CONTROL------------------------
 nodal_proj.verbose = 1
-nodal_proj.rtol = 1.0e-10
-nodal_proj.atol = 1.0e-10
 nodal_proj.mg_max_coarsening_level = 2
 
 #fabarray.mfiter_tile_size = 1024 1024 1024

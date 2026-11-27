@@ -20,6 +20,24 @@ struct MyProbParm : public ProbParmDefault
 
 struct MyProblemSpecificFunctions : public DefaultProblemSpecificFunctions
 {
+  // All boundaries are walls. The fill calls bcnormal on any face with an
+  // ext_dir component (the wall-normal velocity), and the default aborts.
+  // s_ext arrives zeroed, which is already the wall value.
+  AMREX_GPU_DEVICE
+  AMREX_FORCE_INLINE
+  static void bcnormal(
+    const amrex::Real* /*x[AMREX_SPACEDIM]*/,
+    const amrex::CellData<amrex::Real>& /*s_in*/,
+    amrex::Real /*s_ext*/[NVAR],
+    const int /*idir*/,
+    const int /*sgn*/,
+    const amrex::Real /*time*/,
+    amrex::GeometryData const& /*geomdata*/,
+    MyProbParm const& /*prob_parm*/,
+    pele::physics::PMF::PmfData::DataContainer const* /*pmf_data*/)
+  {
+  }
+
   AMREX_GPU_DEVICE
   AMREX_FORCE_INLINE
   static void initdata(

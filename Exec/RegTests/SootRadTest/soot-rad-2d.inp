@@ -73,11 +73,7 @@ cvode.solve_type = GMRES
 #ode.atol = 1.E-12
 
 mac_proj.verbose = 0
-mac_proj.atol = 1.E-14
-mac_proj.rtol = 1.E-11
 nodal_proj.verbose = 0
-nodal_proj.atol        = 6.0e-14     # tolerance for projections
-nodal_proj.rtol        = 6.0e-11
 
 #--------------------REFINEMENT CONTROL------------------------
 amr.refinement_indicators = gradT
