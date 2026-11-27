@@ -765,9 +765,13 @@ makeVelForce(
     force(i, j, k, pseudo_gravity_dir) += dV_control * rho_lcl;
   }
 
+  // rho Du/Dt = extmom - u extrho. Incompressible: no mass source (extrho
+  // only points at a placeholder).
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-    force(i, j, k, idim) +=
-      extmom(i, j, k, idim) - vel(i, j, k, idim) * extrho(i, j, k);
+    force(i, j, k, idim) += extmom(i, j, k, idim);
+    if (is_incomp == 0) {
+      force(i, j, k, idim) -= vel(i, j, k, idim) * extrho(i, j, k);
+    }
   }
 }
 
@@ -884,6 +888,10 @@ buildAdvectionForcing(
   const amrex::Real rhoinv = 1.0 / rho(i, j, k);
   amrex::Real y[NUM_SPECIES] = {0.0};
 
+  // rho cp DT/Dt = Fourier + DiffDiff - Sum{hk (Dnk + Rk)}
+  //                + extRhoH - Sum{hk extRhoYk},
+  // the same combination as in divU: an external source of species k
+  // carries the enthalpy given in extRhoH, not hk(T)
   forceT(i, j, k) = dn(i, j, k, NUM_SPECIES) + ddn(i, j, k);
   for (int n = 0; n < NUM_SPECIES; ++n) {
     y[n] = rhoY(i, j, k, n) * rhoinv;    // get y
@@ -891,11 +899,11 @@ buildAdvectionForcing(
     if (do_react != 0) {
       forceY(i, j, k, n) += r(i, j, k, n); //         + Rk
     }
+    forceY(i, j, k, n) += extRhoY(i, j, k, n); //    + extRhoYk
     forceT(i, j, k) -=
       forceY(i, j, k, n) *
-      c2m::H(hi_spec_cgs[n]); // forceT -= Sum{ hk. (Rk + Dnk) } with CGS ->
+      c2m::H(hi_spec_cgs[n]); // forceT -= Sum{ hk forceYk } with CGS ->
                               // MKS conversion of hk
-    forceY(i, j, k, n) += extRhoY(i, j, k, n);
   }
 
   forceT(i, j, k) += extRhoH(i, j, k);

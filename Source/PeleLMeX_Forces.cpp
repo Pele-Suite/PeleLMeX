@@ -71,7 +71,8 @@ PeleLM::getVelForces(
       amrex::Array4<amrex::Real const> extmom(ext_ma[box_no], VELX);
       amrex::Array4<amrex::Real const> rho(state_ma[box_no], DENSITY);
       amrex::Array4<amrex::Real const> extrho(ext_ma[box_no], DENSITY);
-      // overwrite if incompressible, just to point to something
+      // Incompressible: no density in the state and no mass source, so
+      // point rho/extrho at something (makeVelForce does not read them)
       if (is_incomp != 0) {
         rho = vel;
         extrho = extmom;
