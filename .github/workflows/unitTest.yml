@@ -21,21 +21,53 @@ jobs:
   UT_FS:
     name: UnitTest_FS
     runs-on: ubuntu-24.04
+    env:
+      # Compare with development's result, except on a push to development,
+      # where the reference is the same commit. The nightly run moves the
+      # submodules to development, so it still compares.
+      DO_REF_COMPARE: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/development') }}
+      # Both builds go through ccache, so the second one reuses the first
+      # one's objects within this run (no cache is kept between runs).
+      # GNUmake passes absolute include paths; BASEDIR rewrites those under
+      # the workspace relative to the compile's directory, which is
+      # Exec/UnitTests/DodecaneLu in both trees, so the two command lines
+      # match. NOHASHDIR keeps the directory itself (and -g's record of it)
+      # out of the hash. ci.yml's Install Ccache needs neither: each of its
+      # jobs compiles one tree, from one directory.
+      CCACHE_BASEDIR: ${{github.workspace}}
+      CCACHE_NOHASHDIR: 1
+      CCACHE_MAXSIZE: 1G
+      # The CMake-built TPL (SUNDIALS) too: CMake reads these as the
+      # default compiler launchers.
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
     steps:
     - uses: actions/checkout@v6
       with:
           submodules: recursive
     - name: System Dependencies
       run: .github/workflows/dependencies/dependencies_mpi.sh
+    - name: Install Ccache
+      # Outside the checkout: AMReX's script downloads into the current directory.
+      working-directory: ${{runner.temp}}
+      run: |
+          # AMReX's install script exits 0 even if the download fails, so
+          # check the result.
+          ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/.github/workflows/dependencies/dependencies_ccache.sh > /dev/null
+          ccache --version | sed -n 1p
     - name: LMeX Reference
+      if: env.DO_REF_COMPARE == 'true'
       run: |
           git clone --depth 1 --recursive --single-branch --shallow-submodules -b development https://github.com/Pele-Suite/PeleLMeX.git buildRef/PeleLMeX
     - name: Build Reference PeleLMeX
+      if: env.DO_REF_COMPARE == 'true'
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
           make -j $(nproc) TPL COMP=gnu DEBUG=FALSE
-          make -j $(nproc) COMP=gnu DEBUG=FALSE
+          make -j $(nproc) COMP=gnu DEBUG=FALSE USE_CCACHE=TRUE
+          ccache -s
     - name: Run Reference Case
+      if: env.DO_REF_COMPARE == 'true'
       working-directory: ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu
       run: |
           ./PeleLMeX3d.gnu.MPI.ex inputs.3d
@@ -55,11 +87,16 @@ jobs:
     - name: Build PeleLMeX
       working-directory: ${{github.workspace}}/Exec/UnitTests/DodecaneLu
       run: |
+          ccache -z
           make -j $(nproc) TPL COMP=gnu DEBUG=FALSE
-          make -j $(nproc) COMP=gnu DEBUG=FALSE
+          make -j $(nproc) COMP=gnu DEBUG=FALSE USE_CCACHE=TRUE
+          ccache -s
     - name: Run Case
+      working-directory: ${{github.workspace}}/Exec/UnitTests/DodecaneLu
+      run: ./PeleLMeX3d.gnu.MPI.ex inputs.3d
+    - name: Compare with the Reference
+      if: env.DO_REF_COMPARE == 'true'
       working-directory: ${{github.workspace}}/Exec/UnitTests/DodecaneLu
       run: |
           cp ${{github.workspace}}/Submodules/PelePhysics/Submodules/amrex/Tools/Plotfile/fcompare.gnu.ex .
-          ./PeleLMeX3d.gnu.MPI.ex inputs.3d
           ./fcompare.gnu.ex --abort_if_not_all_found pltEvaluate ${{github.workspace}}/buildRef/PeleLMeX/Exec/UnitTests/DodecaneLu/pltEvaluate
