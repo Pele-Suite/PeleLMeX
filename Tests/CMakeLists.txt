@@ -316,6 +316,12 @@ endfunction(add_test_spray)
 
 if(NOT PELE_ENABLE_EB)
   add_test_r(flamesheet-drm19-${PELE_DIM}d FlameSheet)
+  if(PELE_DIM EQUAL 2)
+    # I_R extrapolation: variable dt, history warm-up and reset on regrid
+    # and restart, limiter, per-box switch-off
+    add_test_r(flamesheet-irx-${PELE_DIM}d FlameSheet)
+    add_test_r(flamesheet-irx-restart-${PELE_DIM}d FlameSheet RESTART_STEP 5)
+  endif()
   add_test_r(hotbubble-${PELE_DIM}d HotBubble)
   add_test_r(passive-scalar-${PELE_DIM}d PassiveScalar)
   add_test_rv(covo-${PELE_DIM}d PeriodicCases)

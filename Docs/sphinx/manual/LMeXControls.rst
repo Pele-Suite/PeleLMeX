@@ -255,8 +255,8 @@ PeleLMeX algorithm
     peleLM.run_mode = normal               # [OPT, DEF=normal] Switch between time-advance mode (normal) or UnitTest (evaluate)
     peleLM.use_wbar = 1                    # [OPT, DEF=1] Enable Wbar correction in diffusion fluxes
     peleLM.sdc_iterMax = 2                 # [OPT, DEF=1] Number of SDC iterations
-    peleLM.IR_extrapolation = 3            # [OPT, DEF=0] First SDC iteration's reaction forcing: 0 previous step's I_R, 1 linear extrapolation in time, 2 minmod-limited, 3 limited and none where the last two slopes differ by more than 2x
-    peleLM.IR_extrap_boxrel = 0.5          # [OPT, DEF=0] With IR_extrapolation: no extrapolation in boxes whose I_R changed by more than this fraction of its domain max over the last step (0: off)
+    peleLM.IR_extrapolation = 3            # [OPT, DEF=0] First SDC iteration's reaction forcing: 0 previous step's I_R, 1 linear extrapolation in time, 2 limited (one factor per cell for all species), 3 as 2 and none where the last two slopes differ by more than 2x
+    peleLM.IR_extrap_boxrel = 0.5          # [OPT, DEF=0] With IR_extrapolation: no extrapolation in boxes whose I_R changed by more than this fraction of its domain scale over the last step (0: off)
     peleLM.IR_extrap_globalrel = 0.0       # [OPT, DEF=0] With IR_extrapolation: no extrapolation in a step when the domain-wide relative change of I_R exceeds this (0: off)
     peleLM.num_init_iter = 2               # [OPT, DEF=3] Number of iterations to get initial pressure
     peleLM.num_divu_iter = 1               # [OPT, DEF=1] Number of divU iterations to get initial dt estimate
@@ -300,8 +300,12 @@ The first SDC iteration uses the previous step's time-averaged reaction rate
 use the rate from their own chemistry solve.  With ``IR_extrapolation > 0``
 the first iteration instead uses ``I_R`` extrapolated in time to the middle of
 the new step (from the rates of the last two or three steps, accounting for
-variable ``dt``).  This adds no chemistry solves and does not change the
-converged answer, but reduces the error of a run with few SDC iterations: in
+variable ``dt``).  The limited modes use one factor per cell for the whole
+species slope vector, so the extrapolated rates keep the mass and element
+balances of ``I_R``.  The history uses only rates produced by completed time
+steps on the current grids; it restarts after initialization, a restart or
+a regrid that changes the grids.  This adds no chemistry solves and does not
+change the converged answer, but reduces the error of a run with few SDC iterations: in
 a 2D drm19 FlameSheet with ``sdc_iterMax = 2``, the difference from a run
 with 8 iterations drops about 3x for species, temperature and heat release
 (about the level of 4 plain iterations), at two resolutions and with AMR.

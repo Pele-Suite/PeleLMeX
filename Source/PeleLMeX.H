@@ -2428,7 +2428,14 @@ public:
   amrex::Vector<std::unique_ptr<amrex::MultiFab>> m_IR_h1, m_IR_h2;
   amrex::Real m_IR_dt_h1 = 0.0, m_IR_dt_h2 = 0.0, m_IR_dt_last = -1.0;
   int m_IR_nhist = 0;
+  // I_R is a usable history sample only if a completed physical step
+  // produced it on the current grids (not initialization, a restart, a regrid
+  // or regrid_on_restart, which zeroes or interpolates it)
+  bool m_IR_sample_ok = false;
+  amrex::Vector<amrex::BoxArray> m_IR_sample_ba;
+  amrex::Vector<amrex::DistributionMapping> m_IR_sample_dm;
   void extrapolateIR(int is_initIter);
+  void markIRSample(int is_initIter);
   int m_sdcIter = 0;
   bool m_print_chi_convergence = false;
   int m_chi_correction_type{ChiCorrectionType::DivuEveryIter};

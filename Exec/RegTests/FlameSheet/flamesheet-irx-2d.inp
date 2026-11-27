@@ -1,0 +1,96 @@
+#---------------------- DOMAIN DEFINITION ------------------------
+geometry.is_periodic = 1 0                # For each dir, 0: non-perio, 1: periodic
+geometry.coord_sys   = 0                  # 0 => cart, 1 => RZ
+geometry.prob_lo     = 0.0 0.0 0.0        # x_lo y_lo (z_lo)
+geometry.prob_hi     = 0.008 0.032 0.008  # x_hi y_hi (z_hi)
+
+#---------------------- BC FLAGS ---------------------------------
+# Interior, Inflow, Outflow, Symmetry,
+# SlipWallAdiab, NoSlipWallAdiab, SlipWallIsotherm, NoSlipWallIsotherm
+peleLM.lo_bc = Interior Inflow            # bc in x_lo y_lo (z_lo)
+peleLM.hi_bc = Interior Outflow           # bc in x_hi y_hi (z_hi)
+
+
+#---------------------- AMR CONTROL ------------------------------
+amr.n_cell          = 16 64 16            # Level 0 number of cells in each direction
+amr.max_level       = 2                   # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2             # refinement ratio
+amr.regrid_int      = 5                   # how often to regrid
+amr.n_error_buf     = 1 1 2 2             # number of buffer cells in error est
+amr.grid_eff        = 0.7                 # what constitutes an efficient grid
+amr.blocking_factor = 8                   # block factor in grid generation (min box size)
+amr.max_grid_size   = 256                 # max box size
+
+#---------------------- Problem ----------------------------------
+prob.P_mean = 101325.0
+prob.standoff = -.023
+prob.pertmag = 0.00045
+prob.pertlength = 0.016
+pmf.datafile = "drm19_pmf.dat"
+
+#---------------------- PeleLMeX CONTROL -------------------------
+peleLM.v = 1                              # PeleLMeX verbose
+peleLM.use_wbar = 1                       # Include Wbar term in species diffusion fluxes
+peleLM.sdc_iterMax = 2                    # Number of SDC iterations
+peleLM.num_init_iter = 3                  # Number of initial iterations
+
+#---------------------- Temporal CONTROL -------------------------
+peleLM.do_temporals = 1                   # Turn temporals ON/OFF
+peleLM.temporal_int = 10                  # Frequency of temporals
+peleLM.do_extremas = 1                    # Compute state extremas
+peleLM.do_mass_balance = 1                # Compute mass balance
+peleLM.do_energy_balance = 1              # Compute energy (rho*h) balance
+peleLM.do_species_balance = 1             # Compute species balance
+
+#---------------------- Time Stepping CONTROL --------------------
+amr.max_step = 20                         # Maximum number of time steps
+amr.stop_time = 0.001                     # final simulation physical time
+amr.max_wall_time = 0.1                   # Maximum simulation run time
+amr.cfl = 0.5                             # CFL number for hyperbolic system
+amr.dt_shrink = 0.001                     # Scale back initial timestep
+amr.dt_change_max = 1.1                   # Maximum dt increase btw successive steps
+
+#---------------------- IO CONTROL -------------------------------
+#amr.restart = chk00050                   # Restart checkpoint file
+#amr.check_int = 2000                     # Frequency of checkpoint output
+amr.plot_int = 100                        # Frequency of pltfile output
+amr.derive_plot_vars = avg_pressure mag_vort mass_fractions mixture_fraction progress_variable element_fractions
+
+#---------------------- Derived CONTROLS -------------------------
+peleLM.fuel_name = CH4
+peleLM.mixtureFraction.format = Cantera
+peleLM.mixtureFraction.type   = mass
+peleLM.mixtureFraction.oxidTank = O2:0.233 N2:0.767
+peleLM.mixtureFraction.fuelTank = H2:0.5 CH4:0.5
+peleLM.progressVariable.format = Cantera
+peleLM.progressVariable.weights = CO:1.0 CO2:1.0
+peleLM.progressVariable.coldState = CO:0.0 CO2:0.0
+peleLM.progressVariable.hotState = CO:0.000002 CO2:0.0666
+
+#---------------------- Reactor CONTROL --------------------------
+peleLM.chem_integrator = "ReactorCvode"
+peleLM.use_typ_vals_chem = 1              # Use species/temp typical values in CVODE
+ode.rtol = 1.0e-6                         # Relative tolerance of the chemical solve
+ode.atol = 1.0e-5                         # Absolute tolerance factor applied on typical values
+cvode.solve_type = GMRES                  # CVODE Linear solve type (for Newton direction)
+cvode.max_order  = 4                      # CVODE max BDF order.
+
+#---------------------- Linear solver CONTROL --------------------
+mac_proj.verbose = 0
+nodal_proj.verbose = 0
+
+#---------------------- Refinement CONTROL------------------------
+amr.refinement_indicators = yH
+amr.yH.max_level     = 3
+amr.yH.value_greater = 1.0e-6
+amr.yH.field_name    = Y(H)
+
+#---------------------- Debug/HPC CONTROL-------------------------
+#amrex.fpe_trap_invalid = 1
+#amrex.fpe_trap_zero = 1
+#amrex.fpe_trap_overflow = 1
+
+# I_R extrapolation for the first SDC iteration (history warm-up, limiter,
+# per-box switch-off, reset on regrid)
+peleLM.IR_extrapolation = 3
+peleLM.IR_extrap_boxrel = 0.5
