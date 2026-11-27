@@ -36,6 +36,12 @@ jobs:
       # jobs compiles one tree, from one directory.
       CCACHE_BASEDIR: ${{github.workspace}}
       CCACHE_NOHASHDIR: 1
+      # SUNDIALS writes its configure time into sundials_config.h unless
+      # these are set; the two trees configure it seconds apart, and the
+      # differing headers would cost every file including it ccache's direct
+      # hit. Non-zero: SUNDIALS tests them with if($ENV{...}).
+      CI_JOB_ID: 1
+      CI_JOB_STARTED_AT: 1
       CCACHE_MAXSIZE: 1G
       # The CMake-built TPL (SUNDIALS) too: CMake reads these as the
       # default compiler launchers.
